@@ -1,0 +1,22 @@
+name: prabhix_offline
+description: Offline-first cache, outbox, connectivity, and sync helpers for Prabhix apps.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+  flutter: ">=3.24.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  connectivity_plus: ^6.1.0
+  flutter_local_notifications: ^18.0.1
+  path: ^1.9.0
+  sqflite: ^2.4.1
+  uuid: ^4.5.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
