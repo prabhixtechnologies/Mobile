@@ -47,11 +47,25 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
 
   bool hasFeature(String code) {
     if (me == null) return false;
-    if (me!.systemAdmin || me!.platformAdmin) return true;
-    if (me!.features.isEmpty && !me!.catalogOnly && !me!.paymentRequired) {
-      return true;
+    // Match Expo: admins + explicit plan features only.
+    // Unpaid shops get paymentRequired + empty features until billing activates.
+    return me!.hasFeature(code);
+  }
+
+  bool get canManageBilling =>
+      me == null ? false : me!.hasPermission('WORKSPACE_BILLING') || me!.systemAdmin || me!.platformAdmin;
+
+  Future<void> refreshMe() async {
+    me = await api.authMe();
+    debugPrint(
+      'auth/me refresh paymentRequired=${me!.paymentRequired} '
+      'catalogOnly=${me!.catalogOnly} features=${me!.features.length} '
+      'plan=${me!.planCode}',
+    );
+    notifyListeners();
+    if (!me!.paymentRequired) {
+      await refreshAll();
     }
-    return me!.features.contains(code);
   }
 
   Future<void> bootstrap() async {
@@ -225,6 +239,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       platformAdmin: me!.platformAdmin || me!.systemAdmin,
     );
     phase = AuthPhase.ready;
+    debugPrint(
+      'session ready paymentRequired=${me!.paymentRequired} '
+      'features=${me!.features.toList()} plan=${me!.planCode}',
+    );
     await refreshAll();
     unawaited(PushRegistration.register(api));
   }

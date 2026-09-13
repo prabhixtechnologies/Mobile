@@ -244,6 +244,39 @@ class ApiClient {
     );
   }
 
+  Future<BillingOverview> billingOverview() async {
+    final res = await _get('billing');
+    return BillingOverview.fromJson(res);
+  }
+
+  Future<CheckoutOrder> createBillingOrder(String planCode) async {
+    try {
+      final res = await _dio.post<Map<String, dynamic>>(
+        'billing/orders',
+        data: {'planCode': planCode},
+      );
+      return CheckoutOrder.fromJson(Map<String, dynamic>.from(res.data ?? {}));
+    } on DioException catch (e) {
+      throw _map(e);
+    }
+  }
+
+  Future<void> verifyBillingPayment(RazorpaySlip slip) async {
+    try {
+      await _dio.post<void>('billing/verify', data: slip.toJson());
+    } on DioException catch (e) {
+      throw _map(e);
+    }
+  }
+
+  Future<void> confirmBillingOrder(String orderId) async {
+    try {
+      await _dio.post<void>('billing/orders/$orderId/confirm');
+    } on DioException catch (e) {
+      throw _map(e);
+    }
+  }
+
   Future<CursorPage<T>> _cursorPage<T>({
     required String path,
     required Map<String, dynamic> query,
