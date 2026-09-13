@@ -30,13 +30,12 @@ class ApiClient {
             if (token != null) {
               options.headers['Authorization'] = 'Bearer $token';
             }
-            // Platform admin routes are cross-tenant — do not attach a customer org.
-            final isPlatformAdminPath = options.path.contains('admin/platform') ||
-                options.path.contains('admin/site') ||
+            // Admin / cross-tenant routes must not pin a customer org or shop.
+            final isAdminPath = options.path.contains('admin/') ||
                 options.path.startsWith('event-logs');
             final session = await identity.tokenStore.session();
             final org = session?.organizationId;
-            if (!isPlatformAdminPath && org != null && org.isNotEmpty) {
+            if (!isAdminPath && org != null && org.isNotEmpty) {
               options.headers[config.orgHeaderName] = org;
             } else {
               options.headers.remove(config.orgHeaderName);
@@ -244,6 +243,179 @@ class ApiClient {
     );
   }
 
+  // --- oneOps staff ---
+
+  Future<Set<String>> platformStaffRolesMe() async {
+    final res = await _get('admin/platform/staff/me');
+    final roles = res['roles'];
+    if (roles is List) {
+      return roles.map((e) => '$e').toSet();
+    }
+    return {};
+  }
+
+  Future<List<StaffGrant>> platformStaffGrants() async {
+    return _listGet('admin/platform/staff', StaffGrant.fromJson);
+  }
+
+  Future<void> breakGlassRevokeTokens({
+    required String userId,
+    required String reason,
+  }) async {
+    try {
+      await _dio.post<void>(
+        'admin/platform/staff/break-glass/users/$userId/revoke-tokens',
+        data: {'reason': reason},
+      );
+    } on DioException catch (e) {
+      throw _map(e);
+    }
+  }
+
+  // --- MobiStack platform admin ---
+
+  Future<List<AdminWorkspace>> adminWorkspaces() =>
+      _listGet('admin/workspaces', AdminWorkspace.fromJson);
+
+  Future<void> setWorkspaceActive({
+    required String id,
+    required bool active,
+  }) async {
+    try {
+      await _dio.post<void>(
+        'admin/workspaces/$id/${active ? 'activate' : 'suspend'}',
+      );
+    } on DioException catch (e) {
+      throw _map(e);
+    }
+  }
+
+  Future<void> setWorkspaceScreens({
+    required String id,
+    required int extraScreens,
+  }) async {
+    try {
+      await _dio.post<void>(
+        'admin/workspaces/$id/screens',
+        data: {'extraScreens': extraScreens},
+      );
+    } on DioException catch (e) {
+      throw _map(e);
+    }
+  }
+
+  Future<List<AdminPayment>> adminBillingOrders() =>
+      _listGet('admin/billing/orders', AdminPayment.fromJson);
+
+  Future<List<AdminPlan>> adminPlans() =>
+      _listGet('admin/plans', AdminPlan.fromJson);
+
+  Future<List<AdminFeatureFlag>> adminFeatureFlags() =>
+      _listGet('admin/feature-flags', AdminFeatureFlag.fromJson);
+
+  Future<void> setFeatureFlag({
+    required String code,
+    required bool enabled,
+  }) async {
+    try {
+      await _dio.put<void>(
+        'admin/feature-flags',
+        data: {'code': code, 'enabled': enabled},
+      );
+    } on DioException catch (e) {
+      throw _map(e);
+    }
+  }
+
+  Future<List<AdminLiveUser>> adminLiveUsers() =>
+      _listGet('admin/live', AdminLiveUser.fromJson);
+
+  Future<List<AdminSupportTicket>> adminSupportTickets() =>
+      _listGet('admin/support', AdminSupportTicket.fromJson);
+
+  Future<void> resolveSupportTicket(String id) async {
+    try {
+      await _dio.post<void>('admin/support/$id/resolve');
+    } on DioException catch (e) {
+      throw _map(e);
+    }
+  }
+
+  Future<void> replySupportTicket({
+    required String id,
+    required String body,
+  }) async {
+    try {
+      await _dio.post<void>(
+        'admin/support/$id/messages',
+        data: {'body': body},
+      );
+    } on DioException catch (e) {
+      throw _map(e);
+    }
+  }
+
+  Future<List<AdminAppRelease>> adminAppReleases() =>
+      _listGet('admin/app-releases', AdminAppRelease.fromJson);
+
+  Future<RevenueSnapshot> adminBillingRevenue() async {
+    final res = await _get('admin/billing/revenue');
+    return RevenueSnapshot.fromJson(res);
+  }
+
+  Future<RevenueSnapshot> platformBillingRevenue() async {
+    final res = await _get('admin/platform/billing/revenue');
+    return RevenueSnapshot.fromJson(res);
+  }
+
+  Future<AwsSummary> platformAwsSummary({String range = '30d'}) async {
+    final res = await _get('admin/platform/aws/summary', query: {'range': range});
+    return AwsSummary.fromJson(res);
+  }
+
+  Future<List<Ec2InstanceRow>> platformAwsInstances() async {
+    final res = await _get('admin/platform/aws/instances');
+    final list = res['instances'] as List? ?? const [];
+    return list
+        .whereType<Map>()
+        .map((e) => Ec2InstanceRow.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+  }
+
+  Future<List<ProductHealthRow>> platformProductHealth() async {
+    final res = await _get('admin/platform/health/products');
+    final list = res['products'] as List? ?? const [];
+    return list
+        .whereType<Map>()
+        .map((e) => ProductHealthRow.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+  }
+
+  Future<List<GithubCheckRow>> platformGithubChecks() async {
+    final res = await _get('admin/platform/github/checks');
+    final list = res['checks'] as List? ?? const [];
+    return list
+        .whereType<Map>()
+        .map((e) => GithubCheckRow.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+  }
+
+  Future<PnLSnapshot> platformPnl({
+    required double mobiCaptured,
+    required double oneopsCaptured,
+    double? awsMtd,
+  }) async {
+    final res = await _get(
+      'admin/platform/pnl',
+      query: {
+        'mobiCaptured': mobiCaptured,
+        'oneopsCaptured': oneopsCaptured,
+        if (awsMtd != null) 'awsMtd': awsMtd,
+      },
+    );
+    return PnLSnapshot.fromJson(res);
+  }
+
   Future<BillingOverview> billingOverview() async {
     final res = await _get('billing');
     return BillingOverview.fromJson(res);
@@ -301,13 +473,37 @@ class ApiClient {
     }
   }
 
-  Future<Map<String, dynamic>> _get(String path) async {
+  Future<Map<String, dynamic>> _get(
+    String path, {
+    Map<String, dynamic>? query,
+  }) async {
     try {
-      final res = await _dio.get<dynamic>(path);
+      final res = await _dio.get<dynamic>(path, queryParameters: query);
       final data = res.data;
       if (data is Map<String, dynamic>) return data;
       if (data is Map) return Map<String, dynamic>.from(data);
       return {};
+    } on DioException catch (e) {
+      throw _map(e);
+    }
+  }
+
+  Future<List<T>> _listGet<T>(
+    String path,
+    T Function(Map<String, dynamic>) parse,
+  ) async {
+    try {
+      final res = await _dio.get<dynamic>(path);
+      final data = res.data;
+      final list = data is List
+          ? data
+          : (data is Map && data['items'] is List)
+              ? data['items'] as List
+              : const [];
+      return list
+          .whereType<Map>()
+          .map((e) => parse(Map<String, dynamic>.from(e)))
+          .toList();
     } on DioException catch (e) {
       throw _map(e);
     }

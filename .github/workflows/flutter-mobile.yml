@@ -43,7 +43,9 @@ jobs:
   # Build store-facing APKs and publish to s3://prabhix-apk-downloads
   # → https://store.prabhixtechnologies.com/{product}/android.apk
   publish-apks:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      github.event_name == 'workflow_dispatch'
     needs: analyze
     runs-on: ubuntu-latest
     strategy:
@@ -92,10 +94,12 @@ jobs:
           )
           if flutter build apk --release "${DEFINES[@]}"; then
             echo "apk=build/app/outputs/flutter-apk/app-release.apk" >> "$GITHUB_OUTPUT"
+            echo "variant=release" >> "$GITHUB_OUTPUT"
           else
             echo "Release build failed — falling back to debug APK"
             flutter build apk --debug "${DEFINES[@]}"
             echo "apk=build/app/outputs/flutter-apk/app-debug.apk" >> "$GITHUB_OUTPUT"
+            echo "variant=debug" >> "$GITHUB_OUTPUT"
           fi
       - uses: actions/upload-artifact@v4
         with:
@@ -111,19 +115,26 @@ jobs:
         env:
           PRODUCT: ${{ matrix.product }}
           APK_PATH: ${{ steps.build.outputs.apk }}
+          VARIANT: ${{ steps.build.outputs.variant }}
         run: |
           set -e
-          aws s3 cp "$APK_PATH" "s3://prabhix-apk-downloads/${PRODUCT}/android.apk" \
+          echo "Uploading $VARIANT APK for $PRODUCT from $APK_PATH"
+          if ! aws s3 cp "$APK_PATH" "s3://prabhix-apk-downloads/${PRODUCT}/android.apk" \
             --content-type application/vnd.android.package-archive \
-            --cache-control "no-cache, max-age=60"
+            --cache-control "no-cache, max-age=60"; then
+            echo "::error::S3 PutObject denied. Attach PrabhixApkS3Push to the CI role (see CUTOVER.md). Role ARN is set (Option B) but the role still needs s3:PutObject on prabhix-apk-downloads."
+            exit 1
+          fi
           aws s3 cp "$APK_PATH" "s3://prabhix-apk-downloads/${PRODUCT}/latest.apk" \
             --content-type application/vnd.android.package-archive \
             --cache-control "no-cache, max-age=60"
-          echo "Published → https://store.prabhixtechnologies.com/${PRODUCT}/android.apk"
+          echo "Published → https://store.prabhixtechnologies.com/${PRODUCT}/android.apk ($VARIANT)"
 
   # Admin stays internal — artifact only, never the public store.
   admin-apk:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      github.event_name == 'workflow_dispatch'
     needs: analyze
     runs-on: ubuntu-latest
     defaults:
@@ -146,12 +157,22 @@ jobs:
       - run: flutter pub get
         working-directory: packages/prabhix_offline
       - run: flutter pub get
-      - name: Build Admin debug APK
+      - name: Build Admin release APK
+        id: build
         run: |
-          flutter build apk --debug \
-            --dart-define=IDENTITY_ISSUER=https://api.prabhixtechnologies.com \
+          set -e
+          DEFINES=(
+            --dart-define=IDENTITY_ISSUER=https://api.prabhixtechnologies.com
             --dart-define=API_BASE_URL=https://api.prabhixtechnologies.com/api/v1
+            --dart-define=MOBISTACK_API_BASE_URL=https://mobistack.prabhixtechnologies.com/api/v1
+          )
+          if flutter build apk --release "${DEFINES[@]}"; then
+            echo "apk=build/app/outputs/flutter-apk/app-release.apk" >> "$GITHUB_OUTPUT"
+          else
+            flutter build apk --debug "${DEFINES[@]}"
+            echo "apk=build/app/outputs/flutter-apk/app-debug.apk" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/upload-artifact@v4
         with:
-          name: prabhix-admin-debug
-          path: apps/admin/build/app/outputs/flutter-apk/app-debug.apk
+          name: prabhix-admin
+          path: apps/admin/${{ steps.build.outputs.apk }}
