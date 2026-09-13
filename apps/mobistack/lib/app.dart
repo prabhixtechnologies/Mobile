@@ -26,6 +26,7 @@ import 'screens/support_screen.dart';
 import 'screens/workspaces_screen.dart';
 import 'state/app_state.dart';
 import 'theme/prabhix_theme.dart';
+import 'widgets/chrome.dart';
 
 class MobiStackApp extends StatefulWidget {
   const MobiStackApp({super.key});
@@ -60,19 +61,64 @@ class _MobiStackAppState extends State<MobiStackApp> {
       routes: [
         GoRoute(
           path: '/splash',
-          builder: (_, __) => const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+          builder: (_, __) => Atmosphere(
+            intense: true,
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              body: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const BrandMark(),
+                    const SizedBox(height: 28),
+                    const SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.4,
+                        color: Px.accent,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
         GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
         ShellRoute(
           builder: (context, state, child) => ShellScreen(child: child),
           routes: [
-            GoRoute(path: '/home', pageBuilder: (_, __) => const NoTransitionPage(child: HomeScreen())),
-            GoRoute(path: '/inventory', pageBuilder: (_, __) => const NoTransitionPage(child: InventoryScreen())),
-            GoRoute(path: '/sales', pageBuilder: (_, __) => const NoTransitionPage(child: SalesScreen())),
-            GoRoute(path: '/repairs', pageBuilder: (_, __) => const NoTransitionPage(child: RepairsScreen())),
-            GoRoute(path: '/more', pageBuilder: (_, __) => const NoTransitionPage(child: MoreScreen())),
+            GoRoute(
+              path: '/home',
+              pageBuilder: (_, __) =>
+                  const NoTransitionPage(child: HomeScreen()),
+            ),
+            GoRoute(
+              path: '/compatibility',
+              pageBuilder: (_, __) =>
+                  const NoTransitionPage(child: CompatibilityScreen()),
+            ),
+            GoRoute(
+              path: '/more',
+              pageBuilder: (_, __) =>
+                  const NoTransitionPage(child: MoreScreen()),
+            ),
+            GoRoute(
+              path: '/inventory',
+              pageBuilder: (_, __) =>
+                  const NoTransitionPage(child: InventoryScreen()),
+            ),
+            GoRoute(
+              path: '/sales',
+              pageBuilder: (_, __) =>
+                  const NoTransitionPage(child: SalesScreen()),
+            ),
+            GoRoute(
+              path: '/repairs',
+              pageBuilder: (_, __) =>
+                  const NoTransitionPage(child: RepairsScreen()),
+            ),
           ],
         ),
         GoRoute(path: '/workspaces', builder: (_, __) => const WorkspacesScreen()),
@@ -87,11 +133,11 @@ class _MobiStackAppState extends State<MobiStackApp> {
         GoRoute(path: '/support', builder: (_, __) => const SupportScreen()),
         GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
         GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
-        GoRoute(path: '/compatibility', builder: (_, __) => const CompatibilityScreen()),
         GoRoute(path: '/scan', builder: (_, __) => const BarcodeScannerScreen()),
         GoRoute(
           path: '/devices/:id',
-          builder: (_, state) => DeviceDetailScreen(deviceId: state.pathParameters['id']!),
+          builder: (_, state) =>
+              DeviceDetailScreen(deviceId: state.pathParameters['id']!),
         ),
       ],
     );
