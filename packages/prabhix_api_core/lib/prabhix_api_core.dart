@@ -1,4 +1,4 @@
-library prabhix_api_core;
+﻿library prabhix_api_core;
 
 export 'src/api_client.dart';
 export 'src/api_exception.dart';

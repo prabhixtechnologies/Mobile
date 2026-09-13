@@ -610,3 +610,511 @@ class RazorpaySlip {
         'razorpay_signature': signature,
       };
 }
+
+// --- Platform staff (oneOps) ---
+
+class StaffGrant {
+  StaffGrant({
+    required this.id,
+    required this.userId,
+    required this.role,
+    this.grantedAt,
+    this.grantedBy,
+    this.note,
+  });
+
+  final String id;
+  final String userId;
+  final String role;
+  final String? grantedAt;
+  final String? grantedBy;
+  final String? note;
+
+  factory StaffGrant.fromJson(Map<String, dynamic> json) => StaffGrant(
+        id: '${json['id']}',
+        userId: '${json['userId']}',
+        role: '${json['role']}',
+        grantedAt: json['grantedAt']?.toString(),
+        grantedBy: json['grantedBy']?.toString(),
+        note: json['note']?.toString(),
+      );
+}
+
+// --- MobiStack admin ---
+
+class AdminWorkspace {
+  AdminWorkspace({
+    required this.id,
+    required this.name,
+    this.city,
+    this.active = true,
+    this.members = 0,
+    this.extraScreens = 0,
+    this.screenSeats,
+  });
+
+  final String id;
+  final String name;
+  final String? city;
+  final bool active;
+  final int members;
+  final int extraScreens;
+  final int? screenSeats;
+
+  factory AdminWorkspace.fromJson(Map<String, dynamic> json) => AdminWorkspace(
+        id: '${json['id']}',
+        name: '${json['name'] ?? ''}',
+        city: json['city']?.toString(),
+        active: json['active'] != false,
+        members: _int(json['members']),
+        extraScreens: _int(json['extraScreens']),
+        screenSeats: json['screenSeats'] == null
+            ? null
+            : _int(json['screenSeats']),
+      );
+}
+
+class AdminPayment {
+  AdminPayment({
+    required this.id,
+    required this.amount,
+    required this.currency,
+    required this.status,
+    required this.createdAt,
+    this.shopId,
+    this.shopName,
+    this.priceCode,
+    this.gateway,
+    this.paidAt,
+  });
+
+  final String id;
+  final double amount;
+  final String currency;
+  final String status;
+  final String createdAt;
+  final String? shopId;
+  final String? shopName;
+  final String? priceCode;
+  final String? gateway;
+  final String? paidAt;
+
+  bool get captured =>
+      status.toUpperCase() == 'CAPTURED' ||
+      status.toUpperCase() == 'PAID' ||
+      status.toUpperCase() == 'SUCCESS';
+
+  factory AdminPayment.fromJson(Map<String, dynamic> json) => AdminPayment(
+        id: '${json['id']}',
+        shopId: json['shopId']?.toString(),
+        shopName: json['shopName']?.toString(),
+        priceCode: json['priceCode']?.toString(),
+        amount: (json['amount'] is num)
+            ? (json['amount'] as num).toDouble()
+            : double.tryParse('${json['amount']}') ?? 0,
+        currency: '${json['currency'] ?? 'INR'}',
+        status: '${json['status'] ?? ''}',
+        gateway: json['gateway']?.toString(),
+        createdAt: '${json['createdAt'] ?? ''}',
+        paidAt: json['paidAt']?.toString(),
+      );
+}
+
+class AdminPlan {
+  AdminPlan({
+    required this.id,
+    required this.code,
+    required this.name,
+    required this.amount,
+    required this.currency,
+    required this.interval,
+    this.description,
+    this.sortOrder = 0,
+    this.active = true,
+    this.features = const [],
+  });
+
+  final String id;
+  final String code;
+  final String name;
+  final double amount;
+  final String currency;
+  final String interval;
+  final String? description;
+  final int sortOrder;
+  final bool active;
+  final List<String> features;
+
+  factory AdminPlan.fromJson(Map<String, dynamic> json) => AdminPlan(
+        id: '${json['id']}',
+        code: '${json['code'] ?? ''}',
+        name: '${json['name'] ?? ''}',
+        description: json['description']?.toString(),
+        amount: (json['amount'] is num)
+            ? (json['amount'] as num).toDouble()
+            : double.tryParse('${json['amount']}') ?? 0,
+        currency: '${json['currency'] ?? 'INR'}',
+        interval: '${json['interval'] ?? ''}',
+        sortOrder: _int(json['sortOrder']),
+        active: json['active'] != false,
+        features: _asStringSet(json['features']).toList(),
+      );
+}
+
+class AdminFeatureFlag {
+  AdminFeatureFlag({required this.code, required this.enabled});
+
+  final String code;
+  final bool enabled;
+
+  factory AdminFeatureFlag.fromJson(Map<String, dynamic> json) =>
+      AdminFeatureFlag(
+        code: '${json['code']}',
+        enabled: json['enabled'] == true,
+      );
+}
+
+class AdminLiveUser {
+  AdminLiveUser({
+    required this.userId,
+    required this.fullName,
+    required this.email,
+    required this.deviceId,
+    required this.platform,
+    required this.seenAt,
+    this.shopName,
+    this.appVersion,
+    this.ipAddress,
+  });
+
+  final String userId;
+  final String fullName;
+  final String email;
+  final String deviceId;
+  final String platform;
+  final String seenAt;
+  final String? shopName;
+  final String? appVersion;
+  final String? ipAddress;
+
+  factory AdminLiveUser.fromJson(Map<String, dynamic> json) => AdminLiveUser(
+        userId: '${json['userId']}',
+        fullName: '${json['fullName'] ?? ''}',
+        email: '${json['email'] ?? ''}',
+        shopName: json['shopName']?.toString(),
+        deviceId: '${json['deviceId'] ?? ''}',
+        platform: '${json['platform'] ?? ''}',
+        appVersion: json['appVersion']?.toString(),
+        ipAddress: json['ipAddress']?.toString(),
+        seenAt: '${json['seenAt'] ?? ''}',
+      );
+}
+
+class AdminSupportTicket {
+  AdminSupportTicket({
+    required this.id,
+    required this.subject,
+    required this.status,
+    required this.lastMessageAt,
+    this.userName,
+    this.messages = const [],
+  });
+
+  final String id;
+  final String subject;
+  final String status;
+  final String lastMessageAt;
+  final String? userName;
+  final List<AdminSupportMessage> messages;
+
+  factory AdminSupportTicket.fromJson(Map<String, dynamic> json) =>
+      AdminSupportTicket(
+        id: '${json['id']}',
+        subject: '${json['subject'] ?? ''}',
+        status: '${json['status'] ?? ''}',
+        userName: json['userName']?.toString(),
+        lastMessageAt: '${json['lastMessageAt'] ?? ''}',
+        messages: _asMapList(json['messages'])
+            .map(AdminSupportMessage.fromJson)
+            .toList(),
+      );
+}
+
+class AdminSupportMessage {
+  AdminSupportMessage({
+    required this.id,
+    required this.authorType,
+    required this.body,
+  });
+
+  final String id;
+  final String authorType;
+  final String body;
+
+  factory AdminSupportMessage.fromJson(Map<String, dynamic> json) =>
+      AdminSupportMessage(
+        id: '${json['id']}',
+        authorType: '${json['authorType'] ?? ''}',
+        body: '${json['body'] ?? ''}',
+      );
+}
+
+class AdminAppRelease {
+  AdminAppRelease({
+    required this.platform,
+    required this.minNativeBuild,
+    required this.latestNativeBuild,
+    this.forceNativeUpdate = false,
+    this.otaChannel = '',
+    this.storeUrl,
+    this.notes,
+  });
+
+  final String platform;
+  final int minNativeBuild;
+  final int latestNativeBuild;
+  final bool forceNativeUpdate;
+  final String otaChannel;
+  final String? storeUrl;
+  final String? notes;
+
+  factory AdminAppRelease.fromJson(Map<String, dynamic> json) =>
+      AdminAppRelease(
+        platform: '${json['platform']}',
+        minNativeBuild: _int(json['minNativeBuild']),
+        latestNativeBuild: _int(json['latestNativeBuild']),
+        forceNativeUpdate: json['forceNativeUpdate'] == true,
+        otaChannel: '${json['otaChannel'] ?? ''}',
+        storeUrl: json['storeUrl']?.toString(),
+        notes: json['notes']?.toString(),
+      );
+}
+
+class RevenueSnapshot {
+  const RevenueSnapshot({
+    this.capturedTotal = 0,
+    this.pendingTotal = 0,
+    this.capturedCount = 0,
+    this.pendingCount = 0,
+    this.failedCount = 0,
+    this.currency = 'INR',
+    this.asOf,
+  });
+
+  final double capturedTotal;
+  final double pendingTotal;
+  final int capturedCount;
+  final int pendingCount;
+  final int failedCount;
+  final String currency;
+  final String? asOf;
+
+  factory RevenueSnapshot.fromJson(Map<String, dynamic> json) => RevenueSnapshot(
+        capturedTotal: (json['capturedTotal'] is num)
+            ? (json['capturedTotal'] as num).toDouble()
+            : double.tryParse('${json['capturedTotal']}') ?? 0,
+        pendingTotal: (json['pendingTotal'] is num)
+            ? (json['pendingTotal'] as num).toDouble()
+            : double.tryParse('${json['pendingTotal']}') ?? 0,
+        capturedCount: _int(json['capturedCount']),
+        pendingCount: _int(json['pendingCount']),
+        failedCount: _int(json['failedCount']),
+        currency: '${json['currency'] ?? 'INR'}',
+        asOf: json['asOf']?.toString(),
+      );
+
+  factory RevenueSnapshot.fromPayments(Iterable<AdminPayment> payments) {
+    var captured = 0.0;
+    var pending = 0.0;
+    var capturedCount = 0;
+    var pendingCount = 0;
+    var failedCount = 0;
+    for (final p in payments) {
+      final status = p.status.toUpperCase();
+      if (p.captured) {
+        captured += p.amount;
+        capturedCount++;
+      } else if (status.contains('FAIL') ||
+          status.contains('CANCEL') ||
+          status == 'REFUNDED') {
+        failedCount++;
+      } else {
+        pending += p.amount;
+        pendingCount++;
+      }
+    }
+    return RevenueSnapshot(
+      capturedTotal: captured,
+      pendingTotal: pending,
+      capturedCount: capturedCount,
+      pendingCount: pendingCount,
+      failedCount: failedCount,
+    );
+  }
+}
+
+class AwsSummary {
+  AwsSummary({
+    this.mtdUsd = 0,
+    this.running = 0,
+    this.stopped = 0,
+    this.other = 0,
+    this.ok = true,
+    this.error,
+  });
+
+  final double mtdUsd;
+  final int running;
+  final int stopped;
+  final int other;
+  final bool ok;
+  final String? error;
+
+  factory AwsSummary.fromJson(Map<String, dynamic> json) {
+    final instances = json['instances'] is Map
+        ? Map<String, dynamic>.from(json['instances'] as Map)
+        : <String, dynamic>{};
+    final costs = json['costs'] is Map
+        ? Map<String, dynamic>.from(json['costs'] as Map)
+        : <String, dynamic>{};
+    return AwsSummary(
+      mtdUsd: (costs['mtdUsd'] is num)
+          ? (costs['mtdUsd'] as num).toDouble()
+          : (json['mtdUsd'] is num)
+              ? (json['mtdUsd'] as num).toDouble()
+              : double.tryParse('${costs['mtdUsd'] ?? json['mtdUsd']}') ?? 0,
+      running: _int(instances['running'] ?? json['running']),
+      stopped: _int(instances['stopped'] ?? json['stopped']),
+      other: _int(instances['other'] ?? json['other']),
+      ok: json['ok'] != false,
+      error: json['error'] is Map
+          ? '${(json['error'] as Map)['message'] ?? json['error']}'
+          : (costs['error'] is Map
+              ? '${(costs['error'] as Map)['message']}'
+              : json['error']?.toString()),
+    );
+  }
+}
+
+class Ec2InstanceRow {
+  Ec2InstanceRow({
+    required this.id,
+    required this.state,
+    this.name,
+    this.instanceType,
+    this.az,
+    this.privateIp,
+    this.cpuPercent,
+  });
+
+  final String id;
+  final String state;
+  final String? name;
+  final String? instanceType;
+  final String? az;
+  final String? privateIp;
+  final double? cpuPercent;
+
+  factory Ec2InstanceRow.fromJson(Map<String, dynamic> json) => Ec2InstanceRow(
+        id: '${json['id'] ?? json['instanceId'] ?? ''}',
+        name: (json['name'] ?? json['Name'])?.toString(),
+        state: '${json['state'] ?? ''}',
+        instanceType: (json['instanceType'] ?? json['type'])?.toString(),
+        az: (json['az'] ?? json['availabilityZone'])?.toString(),
+        privateIp: json['privateIp']?.toString(),
+        cpuPercent: (json['cpuPercent'] ?? json['cpuAverage1h']) is num
+            ? ((json['cpuPercent'] ?? json['cpuAverage1h']) as num).toDouble()
+            : double.tryParse('${json['cpuPercent'] ?? json['cpuAverage1h']}'),
+      );
+}
+
+class ProductHealthRow {
+  ProductHealthRow({
+    required this.name,
+    required this.ok,
+    this.statusCode,
+    this.latencyMs,
+    this.error,
+  });
+
+  final String name;
+  final bool ok;
+  final int? statusCode;
+  final int? latencyMs;
+  final String? error;
+
+  factory ProductHealthRow.fromJson(Map<String, dynamic> json) =>
+      ProductHealthRow(
+        name: '${json['name'] ?? json['id'] ?? ''}',
+        ok: json['ok'] == true,
+        statusCode: json['statusCode'] == null ? null : _int(json['statusCode']),
+        latencyMs: json['latencyMs'] == null ? null : _int(json['latencyMs']),
+        error: json['error']?.toString(),
+      );
+}
+
+class GithubCheckRow {
+  GithubCheckRow({
+    required this.repo,
+    this.conclusion,
+    this.status,
+    this.htmlUrl,
+    this.name,
+  });
+
+  final String repo;
+  final String? conclusion;
+  final String? status;
+  final String? htmlUrl;
+  final String? name;
+
+  factory GithubCheckRow.fromJson(Map<String, dynamic> json) => GithubCheckRow(
+        repo: '${json['repo'] ?? ''}',
+        conclusion: json['conclusion']?.toString(),
+        status: json['status']?.toString(),
+        htmlUrl: json['htmlUrl']?.toString(),
+        name: json['name']?.toString(),
+      );
+}
+
+class PnLSnapshot {
+  PnLSnapshot({
+    this.mobiCaptured = 0,
+    this.oneopsCaptured = 0,
+    this.revenueTotal = 0,
+    this.awsMtd = 0,
+    this.contribution = 0,
+    this.ok = true,
+    this.note,
+  });
+
+  final double mobiCaptured;
+  final double oneopsCaptured;
+  final double revenueTotal;
+  final double awsMtd;
+  final double contribution;
+  final bool ok;
+  final String? note;
+
+  factory PnLSnapshot.fromJson(Map<String, dynamic> json) {
+    final revenue = json['revenue'] is Map
+        ? Map<String, dynamic>.from(json['revenue'] as Map)
+        : <String, dynamic>{};
+    return PnLSnapshot(
+      mobiCaptured: (revenue['mobiCaptured'] is num)
+          ? (revenue['mobiCaptured'] as num).toDouble()
+          : 0,
+      oneopsCaptured: (revenue['oneopsCaptured'] is num)
+          ? (revenue['oneopsCaptured'] as num).toDouble()
+          : 0,
+      revenueTotal: (revenue['total'] is num)
+          ? (revenue['total'] as num).toDouble()
+          : 0,
+      awsMtd: (json['awsMtd'] is num) ? (json['awsMtd'] as num).toDouble() : 0,
+      contribution:
+          (json['contribution'] is num) ? (json['contribution'] as num).toDouble() : 0,
+      ok: json['ok'] != false,
+      note: json['note']?.toString(),
+    );
+  }
+}

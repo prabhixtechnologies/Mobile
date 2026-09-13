@@ -6,9 +6,9 @@ import 'package:prabhix_api_core/prabhix_api_core.dart';
 import '../state/app_state.dart';
 import '../theme/prabhix_theme.dart';
 import '../widgets/chrome.dart';
+import 'commerce_ops.dart';
 
-/// Staff Ops Hub — mirrors Admin web: Overview, Tenants, Pipeline, Logs.
-/// Live website visitors belong to OneOps (tenant-scoped), not this console.
+/// Staff control plane: oneOps hub + MobiStack commerce + ops tooling.
 class PlatformScreen extends StatefulWidget {
   const PlatformScreen({super.key});
 
@@ -30,7 +30,8 @@ class _PlatformScreenState extends State<PlatformScreen> {
             _OverviewTab(state: state),
             _TenantsTab(state: state),
             _PipelineTab(state: state),
-            _LogsTab(state: state),
+            CommercePane(state: state),
+            OpsMorePane(state: state),
           ],
         ),
       ),
@@ -53,8 +54,12 @@ class _PlatformScreenState extends State<PlatformScreen> {
             label: 'Pipeline',
           ),
           NavigationDestination(
-            icon: Icon(Icons.receipt_long_rounded),
-            label: 'Logs',
+            icon: Icon(Icons.payments_rounded),
+            label: 'Commerce',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.tune_rounded),
+            label: 'More',
           ),
         ],
       ),
@@ -97,8 +102,10 @@ class _HubHeader extends StatelessWidget {
           ),
           IconButton(
             tooltip: 'Refresh',
-            onPressed: state.hubLoading ? null : () => state.refreshHub(),
-            icon: state.hubLoading
+            onPressed: (state.hubLoading || state.commerceLoading)
+                ? null
+                : () => state.refreshAll(),
+            icon: (state.hubLoading || state.commerceLoading)
                 ? const SizedBox(
                     width: 18,
                     height: 18,
@@ -124,15 +131,16 @@ class _OverviewTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final o = state.overview;
+    final rev = state.revenue;
     return RefreshIndicator(
       color: Px.accent,
-      onRefresh: () => state.refreshHub(),
+      onRefresh: () => state.refreshAll(),
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(bottom: 32),
         children: [
           _HubHeader(
-            title: 'Ops Hub',
+            title: 'Control',
             subtitle: state.me?.email ?? 'Platform control tower',
             state: state,
           ),
@@ -143,12 +151,35 @@ class _OverviewTab extends StatelessWidget {
             ),
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-            child: Text('TENANTS', style: _sectionLabel(context)),
+            child: Text('ONEOPS TENANTS', style: _sectionLabel(context)),
           ),
           _MetricRow(values: [
             ('Total', '${o?.tenants.total ?? '—'}'),
             ('Active', '${o?.tenants.active ?? '—'}'),
             ('Trial', '${o?.tenants.trial ?? '—'}'),
+          ]),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+            child: Text('MOBISTACK REVENUE', style: _sectionLabel(context)),
+          ),
+          _MetricRow(values: [
+            ('Received', '₹${rev.capturedTotal.toStringAsFixed(0)}'),
+            ('Pending', '₹${rev.pendingTotal.toStringAsFixed(0)}'),
+            ('Shops', '${state.activeShops}'),
+          ]),
+          if (state.commerceAuthError != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+              child: Text(state.commerceAuthError!, style: const TextStyle(color: Px.danger)),
+            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+            child: Text('ONEOPS SAAS · AWS', style: _sectionLabel(context)),
+          ),
+          _MetricRow(values: [
+            ('oneOps ₹', '₹${state.oneopsRevenue.capturedTotal.toStringAsFixed(0)}'),
+            ('AWS \$', '\$${(state.awsSummary?.mtdUsd ?? 0).toStringAsFixed(0)}'),
+            ('EC2', '${state.awsSummary?.running ?? '—'}'),
           ]),
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
@@ -210,7 +241,8 @@ class _OverviewTab extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 28, 24, 8),
             child: Text(
-              'Live website visitors are in the OneOps app (per tenant), not Admin.',
+              'Commerce tab manages MobiStack shops and payments. '
+              'More → Infra covers APK distribution and AWS boundaries.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
@@ -423,79 +455,6 @@ class _PipelineTab extends StatelessWidget {
                 )
                 .toList(),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LogsTab extends StatelessWidget {
-  const _LogsTab({required this.state});
-  final AppState state;
-
-  @override
-  Widget build(BuildContext context) {
-    return RefreshIndicator(
-      color: Px.accent,
-      onRefresh: () => state.refreshHub(),
-      child: CustomScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        slivers: [
-          SliverToBoxAdapter(
-            child: _HubHeader(
-              title: 'Event logs',
-              subtitle: 'Cross-tenant platform events',
-              state: state,
-            ),
-          ),
-          if (state.eventLogs.isEmpty)
-            const SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(child: Text('No recent events.')),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-              sliver: SliverList.separated(
-                itemCount: state.eventLogs.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (context, i) {
-                  final e = state.eventLogs[i];
-                  return Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: Px.line),
-                      color: Px.surface.withValues(alpha: 0.8),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            if (e.level != null) ...[
-                              StatusPill(status: e.level!),
-                              const SizedBox(width: 8),
-                            ],
-                            Expanded(
-                              child: Text(
-                                e.message,
-                                style: Theme.of(context).textTheme.titleSmall,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          [e.createdAt, e.correlationId].whereType<String>().join(' · '),
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
         ],
       ),
     );

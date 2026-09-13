@@ -13,10 +13,12 @@ class AppState extends ChangeNotifier {
   AppState({required AppConfig config})
       : identity = IdentityClient(config: config.identity) {
     api = ApiClient(config: config.product, identity: identity);
+    mobi = ApiClient(config: config.mobistack, identity: identity);
   }
 
   final IdentityClient identity;
   late final ApiClient api;
+  late final ApiClient mobi;
   final ConnectivityMonitor connectivity = ConnectivityMonitor();
   final SyncNotifier syncNotifier = SyncNotifier();
   final KvStore cache = KvStore('admin_offline.db');
@@ -30,14 +32,46 @@ class AppState extends ChangeNotifier {
   List<SiteSubscriber> subscribers = const [];
   List<SiteApplication> applications = const [];
   List<EventLogSummary> eventLogs = const [];
+
+  List<AdminWorkspace> workspaces = const [];
+  List<AdminPayment> payments = const [];
+  List<AdminPlan> plans = const [];
+  List<AdminFeatureFlag> featureFlags = const [];
+  List<AdminLiveUser> liveUsers = const [];
+  List<AdminSupportTicket> supportTickets = const [];
+  List<AdminAppRelease> releases = const [];
+  List<StaffGrant> staffGrants = const [];
+  Set<String> staffRoles = const {};
+
+  RevenueSnapshot mobiRevenue = const RevenueSnapshot();
+  RevenueSnapshot oneopsRevenue = const RevenueSnapshot();
+  String? commerceAuthError;
+
+  AwsSummary? awsSummary;
+  List<Ec2InstanceRow> ec2Instances = const [];
+  List<ProductHealthRow> productHealth = const [];
+  List<GithubCheckRow> githubChecks = const [];
+  PnLSnapshot? pnl;
+  String? infraError;
+
   String? tenantStatusFilter;
   String? error;
   bool busy = false;
   bool hubLoading = false;
+  bool commerceLoading = false;
+  bool infraLoading = false;
   bool servingFromCache = false;
   DateTime? lastSyncedAt;
 
   bool get online => connectivity.online;
+
+  RevenueSnapshot get revenue => mobiRevenue.capturedCount > 0 ||
+          mobiRevenue.capturedTotal > 0 ||
+          mobiRevenue.pendingTotal > 0
+      ? mobiRevenue
+      : RevenueSnapshot.fromPayments(payments);
+
+  int get activeShops => workspaces.where((w) => w.active).length;
 
   Future<void> bootstrap() async {
     phase = AuthPhase.loading;
@@ -65,7 +99,7 @@ class AppState extends ChangeNotifier {
   void _onNet() {
     notifyListeners();
     if (online && phase == AuthPhase.ready) {
-      unawaited(refreshHub());
+      unawaited(refreshAll());
     }
   }
 
@@ -74,14 +108,8 @@ class AppState extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
-      debugPrint(
-        'Identity signIn start issuer=${identity.config.issuer} '
-        'client=${identity.config.clientId} redirect=${identity.config.redirectUri}',
-      );
       await identity.signIn();
-      debugPrint('Identity signIn tokens ok; loading /auth/me');
       await _loadMeAndRoute();
-      debugPrint('Identity signIn complete phase=$phase');
     } catch (e, st) {
       debugPrint('Identity signIn failed: $e\n$st');
       error = '$e';
@@ -105,7 +133,7 @@ class AppState extends ChangeNotifier {
         platformAdmin: me?.platformAdmin ?? false,
       );
       phase = AuthPhase.ready;
-      await refreshHub();
+      await refreshAll();
     } catch (e) {
       error = '$e';
     } finally {
@@ -116,6 +144,14 @@ class AppState extends ChangeNotifier {
 
   Future<void> refreshPlatform({String? status}) =>
       refreshHub(tenantStatus: status, updateTenantFilter: true);
+
+  Future<void> refreshAll() async {
+    await Future.wait([
+      refreshHub(),
+      refreshCommerce(),
+      refreshInfra(),
+    ]);
+  }
 
   Future<void> refreshHub({
     String? tenantStatus,
@@ -161,6 +197,9 @@ class AppState extends ChangeNotifier {
       soft('subscribers', api.siteSubscribers),
       soft('applications', api.siteApplications),
       soft('eventLogs', api.eventLogs),
+      soft('staffRoles', api.platformStaffRolesMe),
+      soft('staffGrants', api.platformStaffGrants),
+      soft('oneopsRevenue', api.platformBillingRevenue),
     ]);
 
     final nextOverview = results[0] as PlatformOverview?;
@@ -169,6 +208,9 @@ class AppState extends ChangeNotifier {
     final nextSubs = results[3] as CursorPage<SiteSubscriber>?;
     final nextApps = results[4] as CursorPage<SiteApplication>?;
     final nextLogs = results[5] as CursorPage<EventLogSummary>?;
+    final nextRoles = results[6] as Set<String>?;
+    final nextGrants = results[7] as List<StaffGrant>?;
+    final nextOneopsRev = results[8] as RevenueSnapshot?;
 
     if (nextOverview != null) overview = nextOverview;
     if (nextTenants != null) tenants = nextTenants.items;
@@ -176,6 +218,9 @@ class AppState extends ChangeNotifier {
     if (nextSubs != null) subscribers = nextSubs.items;
     if (nextApps != null) applications = nextApps.items;
     if (nextLogs != null) eventLogs = nextLogs.items;
+    if (nextRoles != null) staffRoles = nextRoles;
+    if (nextGrants != null) staffGrants = nextGrants;
+    if (nextOneopsRev != null) oneopsRevenue = nextOneopsRev;
 
     servingFromCache =
         failures.isNotEmpty && (overview != null || tenants.isNotEmpty);
@@ -186,20 +231,206 @@ class AppState extends ChangeNotifier {
     } else {
       lastSyncedAt = DateTime.now();
       await cache.putMeta('lastSyncedAt', lastSyncedAt!.toIso8601String());
-      await syncNotifier.showSynced(
-        flushed: 0,
-        detail: 'Ops hub updated',
-      );
+      await syncNotifier.showSynced(flushed: 0, detail: 'Ops hub updated');
     }
 
-    debugPrint(
-      'hub loaded tenants=${tenants.length} leads=${leads.length} '
-      'subs=${subscribers.length} apps=${applications.length} '
-      'logs=${eventLogs.length} failures=$failures',
-    );
     hubLoading = false;
     busy = false;
     notifyListeners();
+  }
+
+  Future<void> refreshCommerce() async {
+    commerceLoading = true;
+    commerceAuthError = null;
+    notifyListeners();
+
+    if (connectivity.offline) {
+      commerceLoading = false;
+      notifyListeners();
+      return;
+    }
+
+    final failures = <String>[];
+
+    Future<T?> soft<T>(String label, Future<T> Function() run) async {
+      try {
+        return await run();
+      } on ApiException catch (e) {
+        debugPrint('refreshCommerce $label failed: $e');
+        if (e.statusCode == 403) {
+          commerceAuthError =
+              'MobiStack system_admin required. Run deploy/promote-system-admin.sql for this email.';
+        }
+        failures.add(label);
+        return null;
+      } catch (e, st) {
+        debugPrint('refreshCommerce $label failed: $e\n$st');
+        failures.add(label);
+        return null;
+      }
+    }
+
+    final results = await Future.wait([
+      soft('workspaces', mobi.adminWorkspaces),
+      soft('payments', mobi.adminBillingOrders),
+      soft('plans', mobi.adminPlans),
+      soft('flags', mobi.adminFeatureFlags),
+      soft('live', mobi.adminLiveUsers),
+      soft('support', mobi.adminSupportTickets),
+      soft('releases', mobi.adminAppReleases),
+      soft('mobiRevenue', mobi.adminBillingRevenue),
+    ]);
+
+    final nextShops = results[0] as List<AdminWorkspace>?;
+    final nextPayments = results[1] as List<AdminPayment>?;
+    final nextPlans = results[2] as List<AdminPlan>?;
+    final nextFlags = results[3] as List<AdminFeatureFlag>?;
+    final nextLive = results[4] as List<AdminLiveUser>?;
+    final nextTickets = results[5] as List<AdminSupportTicket>?;
+    final nextReleases = results[6] as List<AdminAppRelease>?;
+    final nextRev = results[7] as RevenueSnapshot?;
+
+    if (nextShops != null) workspaces = nextShops;
+    if (nextPayments != null) payments = nextPayments;
+    if (nextPlans != null) plans = nextPlans;
+    if (nextFlags != null) featureFlags = nextFlags;
+    if (nextLive != null) liveUsers = nextLive;
+    if (nextTickets != null) supportTickets = nextTickets;
+    if (nextReleases != null) releases = nextReleases;
+    if (nextRev != null) {
+      mobiRevenue = nextRev;
+    } else if (nextPayments != null) {
+      mobiRevenue = RevenueSnapshot.fromPayments(nextPayments);
+    }
+
+    if (commerceAuthError != null) {
+      error = commerceAuthError;
+    } else if (failures.isNotEmpty) {
+      final msg = 'MobiStack admin partial: ${failures.join(', ')}';
+      error = error == null ? msg : '$error · $msg';
+    }
+
+    commerceLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> refreshInfra() async {
+    infraLoading = true;
+    infraError = null;
+    notifyListeners();
+
+    if (connectivity.offline) {
+      infraLoading = false;
+      notifyListeners();
+      return;
+    }
+
+    final failures = <String>[];
+
+    Future<T?> soft<T>(String label, Future<T> Function() run) async {
+      try {
+        return await run();
+      } catch (e, st) {
+        debugPrint('refreshInfra $label failed: $e\n$st');
+        failures.add(label);
+        return null;
+      }
+    }
+
+    final results = await Future.wait([
+      soft('awsSummary', api.platformAwsSummary),
+      soft('instances', api.platformAwsInstances),
+      soft('health', api.platformProductHealth),
+      soft('github', api.platformGithubChecks),
+    ]);
+
+    final nextAws = results[0] as AwsSummary?;
+    final nextEc2 = results[1] as List<Ec2InstanceRow>?;
+    final nextHealth = results[2] as List<ProductHealthRow>?;
+    final nextGh = results[3] as List<GithubCheckRow>?;
+
+    if (nextAws != null) awsSummary = nextAws;
+    if (nextEc2 != null) ec2Instances = nextEc2;
+    if (nextHealth != null) productHealth = nextHealth;
+    if (nextGh != null) githubChecks = nextGh;
+
+    try {
+      pnl = await api.platformPnl(
+        mobiCaptured: revenue.capturedTotal,
+        oneopsCaptured: oneopsRevenue.capturedTotal,
+        awsMtd: awsSummary?.mtdUsd,
+      );
+    } catch (e) {
+      debugPrint('pnl failed: $e');
+      failures.add('pnl');
+    }
+
+    if (failures.isNotEmpty) {
+      infraError =
+          'Platform infra partial (${failures.join(', ')}). Deploy backend with AWS ops + attach ops-tool-read-policy to EC2 role.';
+    }
+
+    infraLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> toggleWorkspace(AdminWorkspace workspace) async {
+    try {
+      await mobi.setWorkspaceActive(
+        id: workspace.id,
+        active: !workspace.active,
+      );
+      await refreshCommerce();
+    } catch (e) {
+      error = '$e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> updateWorkspaceScreens(
+    AdminWorkspace workspace,
+    int extraScreens,
+  ) async {
+    try {
+      await mobi.setWorkspaceScreens(
+        id: workspace.id,
+        extraScreens: extraScreens,
+      );
+      await refreshCommerce();
+    } catch (e) {
+      error = '$e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> toggleFeatureFlag(AdminFeatureFlag flag) async {
+    try {
+      await mobi.setFeatureFlag(code: flag.code, enabled: !flag.enabled);
+      await refreshCommerce();
+    } catch (e) {
+      error = '$e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> resolveTicket(AdminSupportTicket ticket) async {
+    try {
+      await mobi.resolveSupportTicket(ticket.id);
+      await refreshCommerce();
+    } catch (e) {
+      error = '$e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> replyTicket(AdminSupportTicket ticket, String body) async {
+    try {
+      await mobi.replySupportTicket(id: ticket.id, body: body);
+      await refreshCommerce();
+    } catch (e) {
+      error = '$e';
+      notifyListeners();
+    }
   }
 
   Future<void> updateLeadStatus(SiteLead lead, String status) async {
@@ -248,6 +479,22 @@ class AppState extends ChangeNotifier {
       subscribers = const [];
       applications = const [];
       eventLogs = const [];
+      workspaces = const [];
+      payments = const [];
+      plans = const [];
+      featureFlags = const [];
+      liveUsers = const [];
+      supportTickets = const [];
+      releases = const [];
+      staffGrants = const [];
+      staffRoles = const {};
+      mobiRevenue = const RevenueSnapshot();
+      oneopsRevenue = const RevenueSnapshot();
+      awsSummary = null;
+      ec2Instances = const [];
+      productHealth = const [];
+      githubChecks = const [];
+      pnl = null;
       phase = AuthPhase.signedOut;
       busy = false;
       notifyListeners();
@@ -282,7 +529,7 @@ class AppState extends ChangeNotifier {
 
     phase = AuthPhase.ready;
     notifyListeners();
-    await refreshHub();
+    await refreshAll();
   }
 
   @override
