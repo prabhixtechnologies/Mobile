@@ -11,6 +11,9 @@ class AuthMe {
     this.selectedOrganizationId,
     this.paymentRequired = false,
     this.catalogOnly = false,
+    this.planCode,
+    this.planName,
+    this.periodEnd,
   });
 
   final String id;
@@ -24,9 +27,15 @@ class AuthMe {
   final String? selectedOrganizationId;
   final bool paymentRequired;
   final bool catalogOnly;
+  final String? planCode;
+  final String? planName;
+  final String? periodEnd;
 
   bool hasFeature(String code) =>
       systemAdmin || platformAdmin || features.contains(code);
+
+  bool hasPermission(String code) =>
+      systemAdmin || platformAdmin || permissions.contains(code);
 
   factory AuthMe.fromJson(Map<String, dynamic> json) {
     var orgs = _asMapList(json['organizations'])
@@ -49,7 +58,8 @@ class AuthMe {
     return AuthMe(
       id: '${json['id'] ?? json['userId'] ?? ''}',
       email: '${json['email'] ?? ''}',
-      displayName: '${json['displayName'] ?? json['fullName'] ?? json['name'] ?? ''}',
+      displayName:
+          '${json['displayName'] ?? json['fullName'] ?? json['name'] ?? ''}',
       organizations: orgs,
       permissions: perms,
       features: feats,
@@ -63,6 +73,9 @@ class AuthMe {
       ),
       paymentRequired: json['paymentRequired'] == true,
       catalogOnly: json['catalogOnly'] == true,
+      planCode: _nullIfBlank(json['planCode']?.toString()),
+      planName: _nullIfBlank(json['planName']?.toString()),
+      periodEnd: _nullIfBlank(json['periodEnd']?.toString()),
     );
   }
 }
@@ -394,4 +407,206 @@ int? _intOrNull(dynamic value) {
 String? _nullIfBlank(String? value) {
   if (value == null || value.isEmpty || value == 'null') return null;
   return value;
+}
+
+// --- MobiStack billing ---
+
+class BillingPlan {
+  BillingPlan({
+    required this.code,
+    required this.name,
+    required this.amount,
+    this.description,
+    this.interval,
+    this.features = const [],
+  });
+
+  final String code;
+  final String name;
+  final double amount;
+  final String? description;
+  final String? interval;
+  final List<String> features;
+
+  factory BillingPlan.fromJson(Map<String, dynamic> json) => BillingPlan(
+        code: '${json['code']}',
+        name: '${json['name'] ?? json['code']}',
+        amount: (json['amount'] is num)
+            ? (json['amount'] as num).toDouble()
+            : double.tryParse('${json['amount']}') ?? 0,
+        description: json['description']?.toString(),
+        interval: json['interval']?.toString(),
+        features: _asStringSet(json['features']).toList(),
+      );
+}
+
+class BillingSubscription {
+  BillingSubscription({
+    this.planCode,
+    this.planName,
+    this.status,
+    this.periodEnd,
+    this.features = const [],
+  });
+
+  final String? planCode;
+  final String? planName;
+  final String? status;
+  final String? periodEnd;
+  final List<String> features;
+
+  factory BillingSubscription.fromJson(Map<String, dynamic> json) =>
+      BillingSubscription(
+        planCode: json['planCode']?.toString(),
+        planName: json['planName']?.toString(),
+        status: json['status']?.toString(),
+        periodEnd: json['periodEnd']?.toString(),
+        features: _asStringSet(json['features']).toList(),
+      );
+}
+
+class BillingScreens {
+  BillingScreens({
+    this.included = 0,
+    this.extra = 0,
+    this.seats = 0,
+    this.inUse = 0,
+  });
+
+  final int included;
+  final int extra;
+  final int seats;
+  final int inUse;
+
+  factory BillingScreens.fromJson(Map<String, dynamic> json) => BillingScreens(
+        included: _int(json['included']),
+        extra: _int(json['extra']),
+        seats: _int(json['seats']),
+        inUse: _int(json['inUse']),
+      );
+}
+
+class BillingPayment {
+  BillingPayment({
+    required this.id,
+    required this.amount,
+    this.planName,
+    this.status,
+  });
+
+  final String id;
+  final double amount;
+  final String? planName;
+  final String? status;
+
+  factory BillingPayment.fromJson(Map<String, dynamic> json) => BillingPayment(
+        id: '${json['id']}',
+        amount: (json['amount'] is num)
+            ? (json['amount'] as num).toDouble()
+            : double.tryParse('${json['amount']}') ?? 0,
+        planName: json['planName']?.toString(),
+        status: json['status']?.toString(),
+      );
+}
+
+class BillingOverview {
+  BillingOverview({
+    this.plans = const [],
+    this.subscription,
+    this.screens,
+    this.recentPayments = const [],
+    this.razorpayKeyId,
+    this.razorpayEnabled = false,
+    this.paymentRequired = false,
+  });
+
+  final List<BillingPlan> plans;
+  final BillingSubscription? subscription;
+  final BillingScreens? screens;
+  final List<BillingPayment> recentPayments;
+  final String? razorpayKeyId;
+  final bool razorpayEnabled;
+  final bool paymentRequired;
+
+  factory BillingOverview.fromJson(Map<String, dynamic> json) {
+    return BillingOverview(
+      plans: _asMapList(json['plans']).map(BillingPlan.fromJson).toList(),
+      subscription: json['subscription'] is Map
+          ? BillingSubscription.fromJson(
+              Map<String, dynamic>.from(json['subscription'] as Map),
+            )
+          : null,
+      screens: json['screens'] is Map
+          ? BillingScreens.fromJson(
+              Map<String, dynamic>.from(json['screens'] as Map),
+            )
+          : null,
+      recentPayments: _asMapList(json['recentPayments'])
+          .map(BillingPayment.fromJson)
+          .toList(),
+      razorpayKeyId: json['razorpayKeyId']?.toString(),
+      razorpayEnabled: json['razorpayEnabled'] == true,
+      paymentRequired: json['paymentRequired'] == true,
+    );
+  }
+}
+
+class CheckoutOrder {
+  CheckoutOrder({
+    required this.id,
+    required this.amount,
+    required this.currency,
+    required this.gateway,
+    this.orderId,
+    this.keyId,
+    this.priceCode,
+    this.alreadyPaid = false,
+  });
+
+  final String id;
+  final int amount; // paise for Razorpay
+  final String currency;
+  final String gateway;
+  final String? orderId;
+  final String? keyId;
+  final String? priceCode;
+  final bool alreadyPaid;
+
+  bool get needsRazorpay =>
+      keyId != null &&
+      keyId!.isNotEmpty &&
+      orderId != null &&
+      orderId!.isNotEmpty &&
+      gateway != 'DEV' &&
+      gateway != 'PAID' &&
+      !alreadyPaid;
+
+  factory CheckoutOrder.fromJson(Map<String, dynamic> json) => CheckoutOrder(
+        id: '${json['id']}',
+        orderId: (json['order_id'] ?? json['orderId'])?.toString(),
+        amount: _int(json['amount']),
+        currency: '${json['currency'] ?? 'INR'}',
+        keyId: json['keyId']?.toString(),
+        priceCode: (json['priceCode'] ?? json['planCode'])?.toString(),
+        gateway: '${json['gateway'] ?? 'RAZORPAY'}',
+        alreadyPaid: json['alreadyPaid'] == true,
+      );
+}
+
+class RazorpaySlip {
+  RazorpaySlip({
+    required this.orderId,
+    required this.paymentId,
+    required this.signature,
+  });
+
+  final String orderId;
+  final String paymentId;
+  final String signature;
+
+  Map<String, dynamic> toJson() => {
+        'razorpay_order_id': orderId,
+        'razorpay_payment_id': paymentId,
+        'razorpay_signature': signature,
+      };
 }

@@ -59,28 +59,60 @@ class HomeScreen extends StatelessWidget {
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                           child: Material(
-                            color: Px.danger.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(16),
+                            color: Px.warning.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(18),
                             child: InkWell(
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(18),
                               onTap: () => context.push('/billing'),
-                              child: const Padding(
-                                padding: EdgeInsets.all(16),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.credit_card_rounded,
-                                        color: Px.danger),
-                                    SizedBox(width: 12),
+                                    const Icon(Icons.payments_rounded,
+                                        color: Px.warning),
+                                    const SizedBox(width: 12),
                                     Expanded(
-                                      child: Text(
-                                        'Payment required — choose a plan to unlock shop features.',
-                                        style: TextStyle(color: Px.danger),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Activate shop with Razorpay',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleMedium
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Px.warning,
+                                                ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          const Text(
+                                            'Inventory, sales, and repairs unlock after you pick a plan.',
+                                            style: TextStyle(color: Px.ink),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                    Icon(Icons.chevron_right_rounded,
-                                        color: Px.danger),
+                                    const Icon(Icons.chevron_right_rounded,
+                                        color: Px.warning),
                                   ],
                                 ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      // Always offer billing entry even when already paid (manage seats).
+                      if (state.me?.paymentRequired != true)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton.icon(
+                              onPressed: () => context.push('/billing'),
+                              icon: const Icon(Icons.credit_card_rounded),
+                              label: Text(
+                                state.me?.planName ?? 'Manage billing',
                               ),
                             ),
                           ),
