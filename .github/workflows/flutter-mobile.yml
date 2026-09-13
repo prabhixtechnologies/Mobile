@@ -1,0 +1,86 @@
+name: Flutter mobile CI
+
+on:
+  push:
+    paths:
+      - "Mobile/**"
+      - ".github/workflows/flutter-mobile.yml"
+  pull_request:
+    paths:
+      - "Mobile/**"
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [admin, mailroom, oneops, mobistack]
+    defaults:
+      run:
+        working-directory: Mobile/apps/${{ matrix.app }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Pub get packages
+        working-directory: Mobile/packages/prabhix_identity
+        run: flutter pub get
+      - name: Pub get api_core
+        working-directory: Mobile/packages/prabhix_api_core
+        run: flutter pub get
+      - run: flutter pub get
+      - run: flutter analyze --no-fatal-infos
+      - run: flutter test
+
+  apk-debug:
+    needs: analyze
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: admin
+            artifact: prabhix-admin-debug
+            api_base: https://api.prabhixtechnologies.com/api/v1
+          - app: mailroom
+            artifact: prabhix-mailroom-debug
+            api_base: https://api.prabhixtechnologies.com/api/v1
+          - app: oneops
+            artifact: prabhix-oneops-debug
+            api_base: https://api.prabhixtechnologies.com/api/v1
+          - app: mobistack
+            artifact: prabhix-mobistack-debug
+            api_base: https://mobistack.prabhixtechnologies.com
+    defaults:
+      run:
+        working-directory: Mobile/apps/${{ matrix.app }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+        working-directory: Mobile/packages/prabhix_identity
+      - run: flutter pub get
+        working-directory: Mobile/packages/prabhix_api_core
+      - run: flutter pub get
+      - name: Build debug APK
+        env:
+          IDENTITY_ISSUER: https://api.prabhixtechnologies.com
+          API_BASE_URL: ${{ matrix.api_base }}
+        run: |
+          flutter build apk --debug \
+            --dart-define=IDENTITY_ISSUER=$IDENTITY_ISSUER \
+            --dart-define=API_BASE_URL=$API_BASE_URL
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: Mobile/apps/${{ matrix.app }}/build/app/outputs/flutter-apk/app-debug.apk

@@ -1,0 +1,38 @@
+name: admin
+description: Prabhix Admin — platform overview (Identity OIDC).
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  provider: ^6.1.2
+  go_router: ^14.6.2
+  google_fonts: ^6.2.1
+  flutter_animate: ^4.5.2
+  prabhix_identity:
+    path: ../../packages/prabhix_identity
+  prabhix_api_core:
+    path: ../../packages/prabhix_api_core
+  prabhix_offline:
+    path: ../../packages/prabhix_offline
+
+dev_dependencies:
+  flutter_launcher_icons: ^0.14.3
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "../../branding/icons/admin.png"
+  adaptive_icon_background: "#0E7490"
+  adaptive_icon_foreground: "../../branding/icons/admin.png"

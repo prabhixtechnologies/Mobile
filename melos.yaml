@@ -1,0 +1,10 @@
+name: prabhix_mobile
+repository: https://github.com/prabhixtechnologies/Mobile.git
+
+packages:
+  - packages/**
+  - apps/**
+
+command:
+  bootstrap:
+    runPubGet: true
