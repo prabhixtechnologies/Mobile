@@ -13,6 +13,13 @@ flutter build apk --debug --dart-define=IDENTITY_ISSUER=https://api.prabhixtechn
 ```
 
 Apps: `admin`, `mailroom`, `oneops`, `mobistack`.
-Packages: `prabhix_identity`, `prabhix_api_core`.
+Packages: `prabhix_identity`, `prabhix_api_core`, `prabhix_offline`.
+
+**Downloads (auto-updated on every `main` push):**  
+https://store.prabhixtechnologies.com/mobistack/android.apk ·  
+https://store.prabhixtechnologies.com/oneops/android.apk ·  
+https://store.prabhixtechnologies.com/mailroom/android.apk  
+
+See `CUTOVER.md` for S3 / IAM details.
 
 Package IDs and OAuth redirects are frozen (same as natives). Do not rename.

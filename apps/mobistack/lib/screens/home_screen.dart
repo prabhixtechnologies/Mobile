@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../state/app_state.dart';
@@ -29,7 +30,7 @@ class HomeScreen extends StatelessWidget {
                   color: Px.accent,
                   onRefresh: () => state.refreshAll(),
                   child: ListView(
-                    padding: const EdgeInsets.only(bottom: 28),
+                    padding: const EdgeInsets.only(bottom: 32),
                     children: [
                       ShopHeroHeader(
                         title: 'MobiStack',
@@ -85,10 +86,14 @@ class HomeScreen extends StatelessWidget {
                           ),
                         ),
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 10),
                         child: Text(
-                          'Today',
-                          style: Theme.of(context).textTheme.titleMedium,
+                          'Today on the floor',
+                          style: GoogleFonts.fraunces(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Px.ink,
+                          ),
                         ),
                       ),
                       Padding(
@@ -99,7 +104,7 @@ class HomeScreen extends StatelessWidget {
                           physics: const NeverScrollableScrollPhysics(),
                           mainAxisSpacing: 10,
                           crossAxisSpacing: 10,
-                          childAspectRatio: 1.35,
+                          childAspectRatio: 1.32,
                           children: [
                             FadeSlide(
                               child: KpiTile(
@@ -113,7 +118,6 @@ class HomeScreen extends StatelessWidget {
                               child: KpiTile(
                                 label: 'Tickets',
                                 value: '${d.todayTransactions}',
-                                tone: KpiTone.neutral,
                               ),
                             ),
                             FadeSlide(
@@ -138,50 +142,68 @@ class HomeScreen extends StatelessWidget {
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 22, 20, 10),
+                        padding: const EdgeInsets.fromLTRB(20, 26, 20, 12),
                         child: Text(
-                          'Quick actions',
-                          style: Theme.of(context).textTheme.titleMedium,
+                          'Floor modules',
+                          style: GoogleFonts.fraunces(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Px.ink,
+                          ),
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Column(
                           children: [
-                            QuickActionChip(
-                              label: 'Scan barcode',
-                              icon: Icons.qr_code_scanner_rounded,
-                              onTap: () => context.push('/scan'),
-                            ),
-                            if (state.hasFeature('COMPATIBILITY'))
-                              QuickActionChip(
-                                label: 'Compatibility',
-                                icon: Icons.phone_android_rounded,
-                                onTap: () => context.push('/compatibility'),
+                            if (state.hasFeature('INVENTORY'))
+                              _ModuleRow(
+                                icon: Icons.inventory_2_rounded,
+                                title: 'Stock',
+                                subtitle: '${state.variants.length} variants',
+                                onTap: () => context.go('/inventory'),
                               ),
                             if (state.hasFeature('SALES'))
-                              QuickActionChip(
-                                label: 'New sale',
+                              _ModuleRow(
                                 icon: Icons.point_of_sale_rounded,
+                                title: 'Sales',
+                                subtitle: state.online
+                                    ? 'Ring up · sync live'
+                                    : 'Queue sales offline',
                                 onTap: () => context.go('/sales'),
                               ),
-                            if (state.pendingOps > 0)
-                              QuickActionChip(
-                                label: 'Flush ${state.pendingOps}',
-                                icon: Icons.upload_rounded,
-                                onTap: () => state.refreshAll(),
+                            if (state.hasFeature('REPAIRS'))
+                              _ModuleRow(
+                                icon: Icons.build_rounded,
+                                title: 'Repairs',
+                                subtitle: '${state.repairs.length} open jobs',
+                                onTap: () => context.go('/repairs'),
                               ),
+                            _ModuleRow(
+                              icon: Icons.phone_android_rounded,
+                              title: 'Compatibility',
+                              subtitle: 'Parts that fit a phone',
+                              onTap: () => context.go('/compatibility'),
+                              accent: true,
+                            ),
+                            _ModuleRow(
+                              icon: Icons.qr_code_scanner_rounded,
+                              title: 'Scan barcode',
+                              subtitle: 'Lookup SKU on the counter',
+                              onTap: () => context.push('/scan'),
+                            ),
                           ],
                         ),
                       ),
                       if (state.error != null)
                         Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                           child: Text(
                             state.error!,
-                            style: const TextStyle(color: Px.muted, fontSize: 13),
+                            style: const TextStyle(
+                              color: Px.muted,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
                     ],
@@ -193,5 +215,81 @@ class HomeScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _ModuleRow extends StatelessWidget {
+  const _ModuleRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.accent = false,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  final bool accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: accent
+            ? Px.accent.withValues(alpha: 0.1)
+            : Px.surface.withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 12, 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: accent
+                        ? Px.accent
+                        : Px.focus.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: accent ? Px.accentInk : Px.focus,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.arrow_forward_ios_rounded,
+                    size: 14, color: Px.faint),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ).animate().fadeIn(duration: 320.ms).moveY(begin: 8, end: 0);
   }
 }
