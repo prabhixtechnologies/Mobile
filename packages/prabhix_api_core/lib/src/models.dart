@@ -1,4 +1,9 @@
+/// App-facing API models. Generated OpenAPI types live under `lib/generated/` and are
+/// produced by `tool/generate.ps1`. This file stays the facade so existing
+/// `package:prabhix_api_core` imports keep working: [AuthMe.fromJson] still maps
+/// MobiStack `shopId` / `workspaceId` onto [organizations].
 class AuthMe {
+
   AuthMe({
     required this.id,
     required this.email,
@@ -1115,6 +1120,120 @@ class PnLSnapshot {
           (json['contribution'] is num) ? (json['contribution'] as num).toDouble() : 0,
       ok: json['ok'] != false,
       note: json['note']?.toString(),
+    );
+  }
+}
+
+class IdentityUserRow {
+  IdentityUserRow({
+    required this.id,
+    required this.email,
+    this.displayName,
+    this.status,
+    this.locked = false,
+  });
+
+  final String id;
+  final String email;
+  final String? displayName;
+  final String? status;
+  final bool locked;
+
+  factory IdentityUserRow.fromJson(Map<String, dynamic> json) => IdentityUserRow(
+        id: '${json['id'] ?? json['userId'] ?? ''}',
+        email: '${json['email'] ?? ''}',
+        displayName: (json['displayName'] ?? json['fullName'])?.toString(),
+        status: json['status']?.toString(),
+        locked: json['locked'] == true,
+      );
+}
+
+class MailHealth {
+  MailHealth({
+    this.sesOk,
+    this.sesNote,
+    this.outboxInFlight = 0,
+    this.outboxFailed = 0,
+    this.domainsTotal = 0,
+    this.domainsVerified = 0,
+    this.domainsPending = 0,
+    this.mailboxes = 0,
+    this.bounces = 0,
+    this.complaints = 0,
+    this.asOf,
+  });
+
+  final bool? sesOk;
+  final String? sesNote;
+  final int outboxInFlight;
+  final int outboxFailed;
+  final int domainsTotal;
+  final int domainsVerified;
+  final int domainsPending;
+  final int mailboxes;
+  final int bounces;
+  final int complaints;
+  final String? asOf;
+
+  factory MailHealth.fromJson(Map<String, dynamic> json) {
+    final ses = json['ses'] is Map
+        ? Map<String, dynamic>.from(json['ses'] as Map)
+        : <String, dynamic>{};
+    final outbox = json['outbox'] is Map
+        ? Map<String, dynamic>.from(json['outbox'] as Map)
+        : <String, dynamic>{};
+    final domains = json['domains'] is Map
+        ? Map<String, dynamic>.from(json['domains'] as Map)
+        : <String, dynamic>{};
+    final suppressions = json['suppressions'] is Map
+        ? Map<String, dynamic>.from(json['suppressions'] as Map)
+        : <String, dynamic>{};
+    return MailHealth(
+      sesOk: ses['ok'] as bool?,
+      sesNote: ses['note']?.toString(),
+      outboxInFlight: _int(outbox['inFlight']),
+      outboxFailed: _int(outbox['failed']),
+      domainsTotal: _int(domains['total']),
+      domainsVerified: _int(domains['verified']),
+      domainsPending: _int(domains['pending']),
+      mailboxes: _int(json['mailboxes']),
+      bounces: _int(suppressions['bounces']),
+      complaints: _int(suppressions['complaints']),
+      asOf: json['asOf']?.toString(),
+    );
+  }
+}
+
+class CommonsReviewItem {
+  CommonsReviewItem({
+    required this.id,
+    this.title,
+    this.subtitle,
+    this.status,
+  });
+
+  final String id;
+  final String? title;
+  final String? subtitle;
+  final String? status;
+
+  factory CommonsReviewItem.fromJson(Map<String, dynamic> json) {
+    final kind = json['kind']?.toString();
+    final reason = json['reason']?.toString();
+    final title = [kind, reason]
+        .where((e) => e != null && e.isNotEmpty)
+        .join(' · ');
+    final submitted = json['submittedBy']?.toString();
+    final created = json['createdAt']?.toString();
+    final target = json['targetId']?.toString();
+    final subtitle = [submitted, created, target]
+        .where((e) => e != null && e.isNotEmpty)
+        .join(' · ');
+    return CommonsReviewItem(
+      id: '${json['id']}',
+      title: title.isEmpty ? '${json['id']}' : title,
+      subtitle: subtitle.isEmpty ? null : subtitle,
+      status: json['status']?.toString(),
     );
   }
 }

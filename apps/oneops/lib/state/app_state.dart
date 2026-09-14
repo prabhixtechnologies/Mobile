@@ -8,8 +8,10 @@ import 'package:prabhix_identity/prabhix_identity.dart';
 import 'package:prabhix_offline/prabhix_offline.dart';
 
 import '../api/chat_api.dart';
+import '../api/inbox_api.dart';
 import '../config.dart';
 import '../models/chat_models.dart';
+import '../models/inbox_models.dart';
 import '../services/outbound_queue.dart';
 import '../services/push_registration.dart';
 import '../services/sse_client.dart';
@@ -21,6 +23,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       : identity = IdentityClient(config: config.identity) {
     api = ApiClient(config: config.product, identity: identity);
     chat = ChatApi(api);
+    inbox = InboxApi(api);
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -28,6 +31,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   final IdentityClient identity;
   late final ApiClient api;
   late final ChatApi chat;
+  late final InboxApi inbox;
   final OutboundQueue outbound = OutboundQueue();
   final ConnectivityMonitor connectivity = ConnectivityMonitor();
   final SyncNotifier syncNotifier = SyncNotifier();
@@ -42,6 +46,11 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   List<ConversationSummary> conversations = const [];
   List<LiveVisitor> visitors = const [];
   DashboardKpis? dashboard;
+  List<InboxTicket> tickets = const [];
+  List<OrderRow> orders = const [];
+  List<MemberRow> members = const [];
+  bool emailNotifications = true;
+  bool pushNotifications = false;
   int pendingOutbound = 0;
   String? pendingDeepLinkChatId;
   bool servingFromCache = false;
@@ -199,6 +208,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
         visitors = await chat.liveVisitors();
         debugPrint('live visitors ok count=${visitors.length}');
       }),
+      soft('inbox', () async {
+        tickets = await inbox.tickets();
+        debugPrint('inbox ok count=${tickets.length}');
+      }),
     ]);
 
     if (failures.isNotEmpty) {
@@ -248,6 +261,104 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
+  Future<void> refreshInbox() async {
+    try {
+      tickets = await inbox.tickets();
+      error = null;
+    } catch (e) {
+      error = '$e';
+    }
+    notifyListeners();
+  }
+
+  Future<void> refreshOrders() async {
+    try {
+      orders = await inbox.orders();
+      error = null;
+    } catch (e) {
+      error = '$e';
+    }
+    notifyListeners();
+  }
+
+  Future<void> fulfillOrder(String orderId) async {
+    try {
+      await inbox.fulfill(orderId);
+      await refreshOrders();
+    } catch (e) {
+      error = '$e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> refreshMembers() async {
+    final orgId = me?.selectedOrganizationId ??
+        (organizations.isNotEmpty ? organizations.first.id : null);
+    if (orgId == null) return;
+    try {
+      members = await inbox.members(orgId);
+      error = null;
+    } catch (e) {
+      error = '$e';
+    }
+    notifyListeners();
+  }
+
+  Future<void> inviteMember(String email) async {
+    if (email.isEmpty) return;
+    try {
+      final roleId = await inbox.firstRoleId();
+      if (roleId == null) {
+        error = 'No role available to invite with.';
+        notifyListeners();
+        return;
+      }
+      await inbox.invite(email: email, roleId: roleId);
+      await refreshMembers();
+    } catch (e) {
+      error = '$e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> refreshNotifications() async {
+    try {
+      final profile = await inbox.profile();
+      final prefs = profile['notificationPrefs'];
+      if (prefs is Map) {
+        emailNotifications = prefs['email'] != false;
+        pushNotifications = prefs['push'] == true;
+      }
+    } catch (e) {
+      debugPrint('notification prefs skipped: $e');
+    }
+    notifyListeners();
+  }
+
+  void setEmailNotifications(bool value) {
+    emailNotifications = value;
+    notifyListeners();
+  }
+
+  void setPushNotifications(bool value) {
+    pushNotifications = value;
+    notifyListeners();
+  }
+
+  Future<void> saveNotificationPrefs() async {
+    try {
+      await inbox.updateNotificationPrefs(
+        email: emailNotifications,
+        push: pushNotifications,
+      );
+    } catch (e) {
+      error = '$e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> openAccount() => identity.openAccount();
+
   Future<void> signOut() async {
     await _sse?.stop();
     _sse = null;
@@ -261,6 +372,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       conversations = const [];
       visitors = const [];
       dashboard = null;
+      tickets = const [];
+      orders = const [];
+      members = const [];
       phase = AuthPhase.signedOut;
       busy = false;
       notifyListeners();

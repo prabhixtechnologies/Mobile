@@ -5,13 +5,13 @@ import 'package:provider/provider.dart';
 import '../state/app_state.dart';
 import '../theme/prabhix_theme.dart';
 
-/// Primary shop chrome: Home · Compatibility · More.
+/// Primary shop chrome: Home · Catalog · More.
 class ShellScreen extends StatelessWidget {
   const ShellScreen({super.key, required this.child});
 
   final Widget child;
 
-  static const _routes = ['/home', '/compatibility', '/more'];
+  static const _routes = ['/home', '/commons', '/more'];
 
   @override
   Widget build(BuildContext context) {
@@ -36,9 +36,9 @@ class ShellScreen extends StatelessWidget {
             label: state.online ? 'Home' : 'Offline',
           ),
           NavigationDestination(
-            icon: const Icon(Icons.phone_android_outlined),
-            selectedIcon: const Icon(Icons.phone_android_rounded),
-            label: 'Compat',
+            icon: const Icon(Icons.public_outlined),
+            selectedIcon: const Icon(Icons.public_rounded),
+            label: 'Catalog',
           ),
           NavigationDestination(
             icon: Badge(

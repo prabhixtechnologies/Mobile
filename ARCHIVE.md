@@ -1,13 +1,14 @@
-# Native mobile — freeze / archive policy
+# Native mobile — archived
 
-These trees ship until the matching Flutter app in `../../Mobile/apps/` passes parity
-and a release APK/IPA is on the store (or internal channel for Admin).
+Flutter in `Mobile/apps/` is the only mobile codebase that takes new work. The
+native trees were frozen, then archived onto dedicated branches after cutover.
 
-| Native tree | Flutter replacement | Freeze when |
+| Native tree | Archive branch (from last committed HEAD) | Flutter replacement |
 | --- | --- | --- |
-| `oneOps/mobile/android` (+ unfinished `ios`) | `Mobile/apps/oneops`, `Mobile/apps/admin` | Flutter OneOps + Admin release cutover |
-| `Mailroom/android` | `Mobile/apps/mailroom` | Flutter Mailroom release cutover |
-| `MobiStack/mobile` (Expo) | `Mobile/apps/mobistack` | Flutter MobiStack release cutover + Identity-only field confirmation |
+| `oneOps/mobile` (Kotlin + unfinished SwiftUI) | `archive/native-oneops` in the OneOps repo | `Mobile/apps/oneops`, `Mobile/apps/admin` |
+| `Mailroom/android` (Kotlin) | `archive/native-mailroom` in the Mailroom repo | `Mobile/apps/mailroom` |
+| `MobiStack/mobile` (Expo) | `archive/native-mobistack` in the MobiStack repo | `Mobile/apps/mobistack` |
 
-Do not delete these folders until the cutover checklist in `Mobile/CUTOVER.md` is signed off.
-After cutover, move them to an `archive/` branch or delete in a dedicated PR.
+Restore a tree locally with `git checkout archive/native-<product> -- <path>`.
+Do not copy natives back onto `main`. Release APKs come from Flutter CI; see
+`CUTOVER.md`.

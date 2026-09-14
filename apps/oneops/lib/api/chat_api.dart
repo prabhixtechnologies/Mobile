@@ -80,6 +80,11 @@ class ChatApi {
     return _list(res.data).map(LiveVisitor.fromJson).toList();
   }
 
+  Future<VisitorDetail> visitor(String id) async {
+    final res = await api.dio.get<Map<String, dynamic>>('visitors/$id');
+    return VisitorDetail.fromJson(res.data ?? {});
+  }
+
   List<Map<String, dynamic>> _list(dynamic data) {
     final list = data is List
         ? data

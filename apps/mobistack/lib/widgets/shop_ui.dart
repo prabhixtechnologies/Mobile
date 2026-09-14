@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../state/app_state.dart';
 import '../theme/prabhix_theme.dart';
+import 'chrome.dart';
 
 /// Offline / sync strip for intermittent shop connectivity.
 class ShopSyncBar extends StatelessWidget {
@@ -45,7 +46,7 @@ class ShopSyncBar extends StatelessWidget {
                 'Cached shop data · pull to refresh',
               );
 
-    return Material(
+    final bar = Material(
       color: bg,
       child: InkWell(
         onTap: offline ? null : () => state.refreshAll(),
@@ -76,7 +77,9 @@ class ShopSyncBar extends StatelessWidget {
           ),
         ),
       ),
-    ).animate().fadeIn(duration: 280.ms);
+    );
+    if (skipMotionForTests) return bar;
+    return bar.animate().fadeIn(duration: 280.ms);
   }
 }
 

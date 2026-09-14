@@ -6,6 +6,11 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../theme/prabhix_theme.dart';
 
+/// Widget tests cannot leave flutter_animate timers pending.
+bool get skipMotionForTests => WidgetsBinding.instance.runtimeType
+    .toString()
+    .contains('TestWidgetsFlutterBinding');
+
 /// Soft atmospheric field — not a flat fill.
 class Atmosphere extends StatelessWidget {
   const Atmosphere({super.key, required this.child, this.intense = false});
@@ -59,7 +64,7 @@ class _Glow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IgnorePointer(
+    final glow = IgnorePointer(
       child: Container(
         width: size,
         height: size,
@@ -70,7 +75,9 @@ class _Glow extends StatelessWidget {
           ),
         ),
       ),
-    )
+    );
+    if (skipMotionForTests) return glow;
+    return glow
         .animate(onPlay: (c) => c.repeat(reverse: true))
         .scale(
           begin: const Offset(0.96, 0.96),
@@ -309,6 +316,7 @@ class FadeSlide extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (skipMotionForTests) return child;
     return child
         .animate()
         .fadeIn(duration: 500.ms, delay: delay, curve: Px.curve)

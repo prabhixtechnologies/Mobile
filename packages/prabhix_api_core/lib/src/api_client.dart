@@ -272,10 +272,123 @@ class ApiClient {
     }
   }
 
-  // --- MobiStack platform admin ---
+  Future<void> grantStaffRole({
+    required String userId,
+    required String role,
+    String? note,
+  }) async {
+    try {
+      await _dio.post<void>(
+        'admin/platform/staff/grants',
+        data: {
+          'userId': userId,
+          'role': role,
+          if (note != null && note.isNotEmpty) 'note': note,
+        },
+      );
+    } on DioException catch (e) {
+      throw _map(e);
+    }
+  }
+
+  Future<List<IdentityUserRow>> platformIdentityUsers({String? q}) async {
+    try {
+      final res = await _dio.get<dynamic>(
+        'admin/platform/identity/users',
+        queryParameters: {
+          if (q != null && q.isNotEmpty) 'q': q,
+          'limit': 50,
+        },
+      );
+      return _parseMapList(res.data).map(IdentityUserRow.fromJson).toList();
+    } on DioException catch (e) {
+      throw _map(e);
+    }
+  }
+
+  Future<void> identityUserAction({
+    required String userId,
+    required String action,
+    String? reason,
+  }) async {
+    try {
+      await _dio.post<void>(
+        'admin/platform/identity/users/$userId/$action',
+        data: {if (reason != null && reason.isNotEmpty) 'reason': reason},
+      );
+    } on DioException catch (e) {
+      throw _map(e);
+    }
+  }
+
+  Future<MailHealth> platformMailHealth() async {
+    final res = await _get('admin/platform/mail/health');
+    return MailHealth.fromJson(res);
+  }
+
+  Future<List<CommonsReviewItem>> platformCommonsQueue() async {
+    try {
+      final res = await _dio.get<dynamic>('admin/platform/commons/queue');
+      return _parseMapList(res.data).map(CommonsReviewItem.fromJson).toList();
+    } on DioException catch (e) {
+      throw _map(e);
+    }
+  }
+
+  Future<void> reviewCommons({
+    required String id,
+    required String decision,
+    String? note,
+  }) async {
+    try {
+      await _dio.post<void>(
+        'admin/platform/commons/$id/$decision',
+        data: {
+          if (note != null && note.isNotEmpty) 'note': note,
+          if (note != null && note.isNotEmpty) 'reason': note,
+        },
+      );
+    } on DioException catch (e) {
+      throw _map(e);
+    }
+  }
+
+  Future<void> kickLiveUser({
+    required String userId,
+    String? deviceId,
+    String? reason,
+  }) async {
+    try {
+      await _dio.post<void>(
+        'admin/platform/mobistack/live/$userId/kick',
+        data: {
+          if (deviceId != null && deviceId.isNotEmpty) 'deviceId': deviceId,
+          if (reason != null && reason.isNotEmpty) 'reason': reason,
+        },
+      );
+    } on DioException catch (e) {
+      throw _map(e);
+    }
+  }
+
+  Future<void> promoteRelease({
+    required String service,
+    required String tag,
+  }) async {
+    try {
+      await _dio.post<void>(
+        'admin/platform/github/promote',
+        data: {'service': service, 'tag': tag},
+      );
+    } on DioException catch (e) {
+      throw _map(e);
+    }
+  }
+
+  // --- MobiStack platform admin (oneOps BFF) ---
 
   Future<List<AdminWorkspace>> adminWorkspaces() =>
-      _listGet('admin/workspaces', AdminWorkspace.fromJson);
+      _listGet('admin/platform/mobistack/workspaces', AdminWorkspace.fromJson);
 
   Future<void> setWorkspaceActive({
     required String id,
@@ -283,7 +396,7 @@ class ApiClient {
   }) async {
     try {
       await _dio.post<void>(
-        'admin/workspaces/$id/${active ? 'activate' : 'suspend'}',
+        'admin/platform/mobistack/workspaces/$id/${active ? 'activate' : 'suspend'}',
       );
     } on DioException catch (e) {
       throw _map(e);
@@ -296,7 +409,7 @@ class ApiClient {
   }) async {
     try {
       await _dio.post<void>(
-        'admin/workspaces/$id/screens',
+        'admin/platform/mobistack/workspaces/$id/screens',
         data: {'extraScreens': extraScreens},
       );
     } on DioException catch (e) {
@@ -305,13 +418,13 @@ class ApiClient {
   }
 
   Future<List<AdminPayment>> adminBillingOrders() =>
-      _listGet('admin/billing/orders', AdminPayment.fromJson);
+      _listGet('admin/platform/mobistack/billing/orders', AdminPayment.fromJson);
 
   Future<List<AdminPlan>> adminPlans() =>
-      _listGet('admin/plans', AdminPlan.fromJson);
+      _listGet('admin/platform/mobistack/plans', AdminPlan.fromJson);
 
   Future<List<AdminFeatureFlag>> adminFeatureFlags() =>
-      _listGet('admin/feature-flags', AdminFeatureFlag.fromJson);
+      _listGet('admin/platform/mobistack/feature-flags', AdminFeatureFlag.fromJson);
 
   Future<void> setFeatureFlag({
     required String code,
@@ -319,7 +432,7 @@ class ApiClient {
   }) async {
     try {
       await _dio.put<void>(
-        'admin/feature-flags',
+        'admin/platform/mobistack/feature-flags',
         data: {'code': code, 'enabled': enabled},
       );
     } on DioException catch (e) {
@@ -328,14 +441,14 @@ class ApiClient {
   }
 
   Future<List<AdminLiveUser>> adminLiveUsers() =>
-      _listGet('admin/live', AdminLiveUser.fromJson);
+      _listGet('admin/platform/mobistack/live', AdminLiveUser.fromJson);
 
   Future<List<AdminSupportTicket>> adminSupportTickets() =>
-      _listGet('admin/support', AdminSupportTicket.fromJson);
+      _listGet('admin/platform/mobistack/support', AdminSupportTicket.fromJson);
 
   Future<void> resolveSupportTicket(String id) async {
     try {
-      await _dio.post<void>('admin/support/$id/resolve');
+      await _dio.post<void>('admin/platform/mobistack/support/$id/resolve');
     } on DioException catch (e) {
       throw _map(e);
     }
@@ -347,8 +460,8 @@ class ApiClient {
   }) async {
     try {
       await _dio.post<void>(
-        'admin/support/$id/messages',
-        data: {'body': body},
+        'admin/platform/mobistack/support/$id/messages',
+        data: {'body': body, 'message': body},
       );
     } on DioException catch (e) {
       throw _map(e);
@@ -356,10 +469,10 @@ class ApiClient {
   }
 
   Future<List<AdminAppRelease>> adminAppReleases() =>
-      _listGet('admin/app-releases', AdminAppRelease.fromJson);
+      _listGet('admin/platform/mobistack/app-releases', AdminAppRelease.fromJson);
 
   Future<RevenueSnapshot> adminBillingRevenue() async {
-    final res = await _get('admin/billing/revenue');
+    final res = await _get('admin/platform/mobistack/billing/revenue');
     return RevenueSnapshot.fromJson(res);
   }
 
@@ -494,19 +607,24 @@ class ApiClient {
   ) async {
     try {
       final res = await _dio.get<dynamic>(path);
-      final data = res.data;
-      final list = data is List
-          ? data
-          : (data is Map && data['items'] is List)
-              ? data['items'] as List
-              : const [];
-      return list
-          .whereType<Map>()
-          .map((e) => parse(Map<String, dynamic>.from(e)))
-          .toList();
+      return _parseMapList(res.data).map(parse).toList();
     } on DioException catch (e) {
       throw _map(e);
     }
+  }
+
+  List<Map<String, dynamic>> _parseMapList(dynamic data) {
+    final list = data is List
+        ? data
+        : (data is Map && data['items'] is List)
+            ? data['items'] as List
+            : (data is Map && data['content'] is List)
+                ? data['content'] as List
+                : const [];
+    return list
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
   }
 
   ApiException _map(DioException e) {

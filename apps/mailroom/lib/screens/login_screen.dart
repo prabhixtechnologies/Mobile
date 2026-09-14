@@ -46,7 +46,7 @@ class LoginScreen extends StatelessWidget {
                 FadeSlide(
                   delay: 180.ms,
                   child: Text(
-                    'Inbox, helpdesk queue, and replies — Identity sign-in only.',
+                    'Your mail, folders and replies — Identity sign-in only.',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: Px.muted,
                           fontSize: 17,
@@ -70,7 +70,7 @@ class LoginScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 18),
                 Text(
-                  'Mailroom · threads · queue · compose',
+                  'Mailroom · threads · compose',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(letterSpacing: 0.4),
                 ),

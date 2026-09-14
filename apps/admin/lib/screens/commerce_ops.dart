@@ -10,7 +10,7 @@ import '../widgets/chrome.dart';
 
 final _inr = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
-/// MobiStack revenue, shops, plans, flags — live against mobistack admin APIs.
+/// MobiStack revenue, shops, plans, flags — via the oneOps admin BFF.
 class CommercePane extends StatefulWidget {
   const CommercePane({super.key, required this.state});
 
@@ -132,7 +132,16 @@ class _OpsMorePaneState extends State<OpsMorePane> {
           ),
           const SizedBox(height: 12),
           _SegmentBar(
-            labels: const ['Logs', 'Live', 'Support', 'Staff', 'Infra'],
+            labels: const [
+              'Logs',
+              'Live',
+              'Support',
+              'Staff',
+              'Identity',
+              'Mail',
+              'Commons',
+              'Infra',
+            ],
             index: section,
             onChanged: (i) => setState(() => section = i),
           ),
@@ -141,7 +150,10 @@ class _OpsMorePaneState extends State<OpsMorePane> {
           if (section == 1) _LiveBody(state: state),
           if (section == 2) _SupportBody(state: state),
           if (section == 3) _StaffBody(state: state),
-          if (section == 4) const _InfraBody(),
+          if (section == 4) _IdentityBody(state: state),
+          if (section == 5) _MailHealthBody(state: state),
+          if (section == 6) _CommonsBody(state: state),
+          if (section == 7) const _InfraBody(),
         ],
       ),
     );
@@ -197,6 +209,11 @@ class _PaneHeader extends StatelessWidget {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.refresh_rounded),
+          ),
+          IconButton(
+            tooltip: 'Account',
+            onPressed: () => context.read<AppState>().openAccount(),
+            icon: const Icon(Icons.manage_accounts_outlined),
           ),
           IconButton(
             tooltip: 'Sign out',
@@ -473,6 +490,11 @@ class _LiveBody extends StatelessWidget {
                   if (u.appVersion != null) u.appVersion!,
                   u.seenAt,
                 ].join(' · '),
+                trailing: IconButton(
+                  tooltip: 'Kick',
+                  onPressed: () => state.kickUser(u),
+                  icon: const Icon(Icons.logout_rounded),
+                ),
               ),
             ),
         ],
@@ -566,11 +588,14 @@ class _StaffBody extends StatelessWidget {
                 ),
               ),
           const SizedBox(height: 12),
+          _StaffGrantForm(state: state),
+          const SizedBox(height: 16),
           Text(
-            'Break-glass token revocation stays on the web console — '
-            'it requires a typed reason and BREAK_GLASS role.',
+            'Break-glass token revocation requires a typed reason and SECURITY or OWNER.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
+          const SizedBox(height: 8),
+          const _BreakGlassForm(),
         ],
       ),
     );
@@ -686,6 +711,8 @@ class _InfraBody extends StatelessWidget {
                       trailing: StatusPill(status: (c.conclusion ?? c.status ?? 'UNKNOWN').toUpperCase()),
                     ),
                   ),
+              const SizedBox(height: 16),
+              const _PromoteForm(),
               const SizedBox(height: 16),
               Text('Distribution', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
@@ -864,3 +891,303 @@ TextStyle? _label(BuildContext context) =>
           letterSpacing: 1.4,
           fontSize: 11,
         );
+
+class _IdentityBody extends StatelessWidget {
+  const _IdentityBody({required this.state});
+  final AppState state;
+
+  @override
+  Widget build(BuildContext context) {
+    if (state.identityUsers.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(24),
+        child: Text('No Identity users loaded.'),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        children: [
+          for (final u in state.identityUsers)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _Tile(
+                title: u.email,
+                subtitle: [u.displayName, u.status].whereType<String>().join(' · '),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (u.locked)
+                      TextButton(
+                        onPressed: () => state.identityAction(u, 'unlock'),
+                        child: const Text('Unlock'),
+                      ),
+                    TextButton(
+                      onPressed: () => state.identityAction(u, 'disable'),
+                      child: const Text('Disable'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MailHealthBody extends StatelessWidget {
+  const _MailHealthBody({required this.state});
+  final AppState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final h = state.mailHealth;
+    if (h == null) {
+      return const Padding(
+        padding: EdgeInsets.all(24),
+        child: Text('Mail health is not loaded yet.'),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Mail health', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          _Tile(
+            title: 'SES',
+            subtitle: h.sesNote ?? (h.sesOk == true ? 'OK' : 'Unknown'),
+            trailing: StatusPill(status: h.sesOk == true ? 'OK' : 'CHECK'),
+          ),
+          const SizedBox(height: 8),
+          _MetricRow(values: [
+            ('In flight', '${h.outboxInFlight}'),
+            ('Failed', '${h.outboxFailed}'),
+            ('Mailboxes', '${h.mailboxes}'),
+          ]),
+          const SizedBox(height: 8),
+          _MetricRow(values: [
+            ('Domains', '${h.domainsVerified}/${h.domainsTotal}'),
+            ('Bounces', '${h.bounces}'),
+            ('Complaints', '${h.complaints}'),
+          ]),
+        ],
+      ),
+    );
+  }
+}
+
+class _CommonsBody extends StatelessWidget {
+  const _CommonsBody({required this.state});
+  final AppState state;
+
+  @override
+  Widget build(BuildContext context) {
+    if (state.commonsQueue.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(24),
+        child: Text('Commons queue is empty.'),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        children: [
+          for (final item in state.commonsQueue)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _Tile(
+                title: item.title ?? item.id,
+                subtitle: [item.subtitle, item.status].whereType<String>().join(' · '),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextButton(
+                      onPressed: () => state.reviewCommonsItem(item, 'accept'),
+                      child: const Text('Approve'),
+                    ),
+                    TextButton(
+                      onPressed: () => state.reviewCommonsItem(item, 'reject'),
+                      child: const Text('Reject'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StaffGrantForm extends StatefulWidget {
+  const _StaffGrantForm({required this.state});
+  final AppState state;
+
+  @override
+  State<_StaffGrantForm> createState() => _StaffGrantFormState();
+}
+
+class _StaffGrantFormState extends State<_StaffGrantForm> {
+  final _userId = TextEditingController();
+  String _role = 'SUPPORT';
+
+  @override
+  void dispose() {
+    _userId.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Grant a staff role', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _userId,
+          decoration: const InputDecoration(
+            labelText: 'User id',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          value: _role,
+          decoration: const InputDecoration(
+            labelText: 'Role',
+            border: OutlineInputBorder(),
+          ),
+          items: const [
+            DropdownMenuItem(value: 'SUPPORT', child: Text('SUPPORT')),
+            DropdownMenuItem(value: 'BILLING', child: Text('BILLING')),
+            DropdownMenuItem(value: 'OPERATOR', child: Text('OPERATOR')),
+            DropdownMenuItem(value: 'SECURITY', child: Text('SECURITY')),
+            DropdownMenuItem(value: 'OWNER', child: Text('OWNER')),
+          ],
+          onChanged: (v) => setState(() => _role = v ?? 'SUPPORT'),
+        ),
+        const SizedBox(height: 8),
+        FilledButton(
+          onPressed: () => widget.state.grantRole(userId: _userId.text.trim(), role: _role),
+          child: const Text('Grant'),
+        ),
+      ],
+    );
+  }
+}
+
+class _BreakGlassForm extends StatefulWidget {
+  const _BreakGlassForm();
+
+  @override
+  State<_BreakGlassForm> createState() => _BreakGlassFormState();
+}
+
+class _BreakGlassFormState extends State<_BreakGlassForm> {
+  final _userId = TextEditingController();
+  final _reason = TextEditingController();
+
+  @override
+  void dispose() {
+    _userId.dispose();
+    _reason.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        TextField(
+          controller: _userId,
+          decoration: const InputDecoration(
+            labelText: 'User id',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _reason,
+          decoration: const InputDecoration(
+            labelText: 'Reason',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: FilledButton(
+            onPressed: () => context.read<AppState>().breakGlass(
+                  userId: _userId.text.trim(),
+                  reason: _reason.text.trim(),
+                ),
+            child: const Text('Revoke tokens'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PromoteForm extends StatefulWidget {
+  const _PromoteForm();
+
+  @override
+  State<_PromoteForm> createState() => _PromoteFormState();
+}
+
+class _PromoteFormState extends State<_PromoteForm> {
+  final _tag = TextEditingController();
+  String _service = 'oneops';
+
+  @override
+  void dispose() {
+    _tag.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Promote', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          value: _service,
+          decoration: const InputDecoration(
+            labelText: 'Service',
+            border: OutlineInputBorder(),
+          ),
+          items: const [
+            DropdownMenuItem(value: 'oneops', child: Text('oneops')),
+            DropdownMenuItem(value: 'identity', child: Text('identity')),
+            DropdownMenuItem(value: 'mobistack', child: Text('mobistack')),
+            DropdownMenuItem(value: 'mailroom', child: Text('mailroom')),
+          ],
+          onChanged: (v) => setState(() => _service = v ?? 'oneops'),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _tag,
+          decoration: const InputDecoration(
+            labelText: 'Tag',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 8),
+        FilledButton(
+          onPressed: () => context.read<AppState>().promote(
+                service: _service,
+                tag: _tag.text.trim(),
+              ),
+          child: const Text('Promote'),
+        ),
+      ],
+    );
+  }
+}

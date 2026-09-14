@@ -13,7 +13,8 @@ enum AuthPhase { loading, signedOut, needsOrg, ready }
 
 class AppState extends ChangeNotifier {
   AppState({required AppConfig config})
-      : identity = IdentityClient(config: config.identity) {
+      : config = config,
+        identity = IdentityClient(config: config.identity) {
     api = ApiClient(config: config.product, identity: identity);
     mail = MailApi(api);
     offline = OfflineRuntime(
@@ -23,6 +24,7 @@ class AppState extends ChangeNotifier {
     );
   }
 
+  final AppConfig config;
   final IdentityClient identity;
   late final ApiClient api;
   late final MailApi mail;
@@ -42,8 +44,9 @@ class AppState extends ChangeNotifier {
   String? selectedFolderId;
   bool starredMode = false;
   List<MailThreadSummary> threads = const [];
-  List<HelpdeskTicket> queue = const [];
-  List<CannedReply> canned = const [];
+  List<MailAlias> aliases = const [];
+  String signature = '';
+  bool companyMail = false;
 
   String searchQuery = '';
   bool selecting = false;
@@ -51,11 +54,6 @@ class AppState extends ChangeNotifier {
 
   /// Last move for Undo snackbar.
   UndoMove? lastUndo;
-
-  String queueStatus = 'OPEN';
-  String? queuePriority;
-  bool queueMineOnly = false;
-  String queueQuery = '';
 
   bool get online => offline.connectivity.online;
   bool get offlineMode => offline.connectivity.offline;
@@ -80,6 +78,8 @@ class AppState extends ChangeNotifier {
   }
 
   int get unreadInView => visibleThreads.where((t) => t.unread).length;
+
+  bool get canReadCompany => me?.hasPermission('MAIL_READ_ALL') ?? false;
 
   Future<void> bootstrap() async {
     phase = AuthPhase.loading;
@@ -199,11 +199,20 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setCompanyMail(bool value) async {
+    final next = value && canReadCompany;
+    if (companyMail == next) return;
+    companyMail = next;
+    selectedFolderId = null;
+    starredMode = false;
+    await loadMailbox();
+  }
+
   Future<void> _pullLive() async {
     final failures = <String>[];
 
     try {
-      final side = await mail.sidebar();
+      final side = await mail.sidebar(company: companyMail && canReadCompany);
       mailboxes = side.mailboxes;
       folders = side.folders;
       if (!starredMode) {
@@ -248,23 +257,6 @@ class AppState extends ChangeNotifier {
     } catch (e, st) {
       debugPrint('threads failed: $e\n$st');
       failures.add('threads');
-    }
-
-    try {
-      await refreshQueue(silent: true);
-    } catch (e, st) {
-      debugPrint('helpdesk failed: $e\n$st');
-      failures.add('helpdesk');
-    }
-
-    try {
-      canned = await mail.cannedReplies();
-      await offline.store.putJson(
-        'canned',
-        canned.map((c) => c.toJson()).toList(),
-      );
-    } catch (e) {
-      debugPrint('canned skipped: $e');
     }
 
     lastSyncedAt = DateTime.now();
@@ -314,22 +306,6 @@ class AppState extends ChangeNotifier {
             .map((e) => MailThreadSummary.fromJson(Map<String, dynamic>.from(e)))
             .toList();
       }
-    }
-
-    final queueRaw = await offline.store.getJson('helpdesk.queue');
-    if (queueRaw is List) {
-      queue = queueRaw
-          .whereType<Map>()
-          .map((e) => HelpdeskTicket.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
-    }
-
-    final cannedRaw = await offline.store.getJson('canned');
-    if (cannedRaw is List) {
-      canned = cannedRaw
-          .whereType<Map>()
-          .map((e) => CannedReply.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
     }
 
     final synced = await offline.store.getMeta('lastSyncedAt');
@@ -464,62 +440,6 @@ class AppState extends ChangeNotifier {
       busy = false;
       notifyListeners();
     }
-  }
-
-  Future<void> refreshQueue({bool silent = false}) async {
-    if (!silent) {
-      busy = true;
-      error = null;
-      notifyListeners();
-    }
-    try {
-      if (offlineMode) {
-        final raw = await offline.store.getJson('helpdesk.queue');
-        if (raw is List) {
-          queue = raw
-              .whereType<Map>()
-              .map((e) => HelpdeskTicket.fromJson(Map<String, dynamic>.from(e)))
-              .toList();
-        }
-        servingFromCache = true;
-        return;
-      }
-      queue = await mail.helpdeskThreads(
-        status: queueStatus,
-        priority: queuePriority,
-        q: queueQuery.isEmpty ? null : queueQuery,
-        mine: queueMineOnly,
-        assigneeUserId: queueMineOnly ? me?.id : null,
-      );
-      await offline.store.putJson(
-        'helpdesk.queue',
-        queue.map((t) => t.toJson()).toList(),
-      );
-      debugPrint('helpdesk queue ok count=${queue.length}');
-    } catch (e) {
-      if (!silent) error = '$e';
-      rethrow;
-    } finally {
-      if (!silent) {
-        busy = false;
-        notifyListeners();
-      }
-    }
-  }
-
-  Future<void> setQueueFilters({
-    String? status,
-    String? priority,
-    bool? mineOnly,
-    String? query,
-  }) async {
-    if (status != null) queueStatus = status;
-    if (priority != null) {
-      queuePriority = priority.isEmpty ? null : priority;
-    }
-    if (mineOnly != null) queueMineOnly = mineOnly;
-    if (query != null) queueQuery = query;
-    await refreshQueue();
   }
 
   Future<void> toggleStar(MailThreadSummary thread) async {
@@ -698,6 +618,59 @@ class AppState extends ChangeNotifier {
 
   void bump() => notifyListeners();
 
+  Future<void> loadAliasesAndSignature(String mailboxId) async {
+    try {
+      aliases = await mail.aliases(mailboxId);
+    } catch (e) {
+      debugPrint('aliases failed: $e');
+      aliases = const [];
+    }
+    try {
+      signature = await mail.signature(mailboxId);
+    } catch (e) {
+      debugPrint('signature failed: $e');
+    }
+    notifyListeners();
+  }
+
+  Future<void> addAlias(String mailboxId, String address) async {
+    if (address.isEmpty) return;
+    try {
+      final created = await mail.createAlias(mailboxId: mailboxId, address: address);
+      aliases = [...aliases, created];
+      notifyListeners();
+    } catch (e) {
+      error = '$e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> deleteAlias(String mailboxId, String aliasId) async {
+    try {
+      await mail.deleteAlias(mailboxId: mailboxId, aliasId: aliasId);
+      aliases = aliases.where((a) => a.id != aliasId).toList();
+      notifyListeners();
+    } catch (e) {
+      error = '$e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> saveSignature(String mailboxId, String value) async {
+    try {
+      await mail.saveSignature(mailboxId: mailboxId, signature: value);
+      signature = value;
+      notifyListeners();
+    } catch (e) {
+      error = '$e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> openAccount() {
+    return identity.openAccount();
+  }
+
   Future<void> signOut() async {
     busy = true;
     notifyListeners();
@@ -709,8 +682,8 @@ class AppState extends ChangeNotifier {
       mailboxes = const [];
       folders = const [];
       threads = const [];
-      queue = const [];
-      canned = const [];
+      aliases = const [];
+      signature = '';
       phase = AuthPhase.signedOut;
       busy = false;
       notifyListeners();

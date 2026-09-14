@@ -5,6 +5,8 @@ class MailboxSummary {
     required this.address,
     this.kind,
     this.mine = false,
+    this.ownerUserId,
+    this.ownerLabel,
     this.folders = const [],
   });
 
@@ -13,6 +15,8 @@ class MailboxSummary {
   final String address;
   final String? kind;
   final bool mine;
+  final String? ownerUserId;
+  final String? ownerLabel;
   final List<MailFolder> folders;
 
   factory MailboxSummary.fromJson(Map<String, dynamic> json) {
@@ -23,6 +27,8 @@ class MailboxSummary {
       address: '${json['address'] ?? ''}',
       kind: json['kind']?.toString(),
       mine: json['mine'] == true,
+      ownerUserId: json['ownerUserId']?.toString(),
+      ownerLabel: json['ownerLabel']?.toString(),
       folders: nested is List
           ? nested
               .whereType<Map>()
@@ -38,6 +44,8 @@ class MailboxSummary {
         'address': address,
         'kind': kind,
         'mine': mine,
+        'ownerUserId': ownerUserId,
+        'ownerLabel': ownerLabel,
         'folders': folders.map((f) => f.toJson()).toList(),
       };
 }
@@ -276,161 +284,18 @@ class MailMessage {
   }
 }
 
-class HelpdeskTicket {
-  HelpdeskTicket({
-    required this.id,
-    required this.subject,
-    this.status,
-    this.priority,
-    this.assigneeName,
-    this.assigneeUserId,
-    this.preview,
-    this.customerEmail,
-    this.referenceKey,
-    this.unreadCount = 0,
-    this.hasAttachments = false,
-    this.lastMessageAt,
-    this.slaDueAt,
-    this.slaBreachedAt,
-    this.mailboxId,
-    this.tags = const [],
-  });
+class MailAlias {
+  MailAlias({required this.id, required this.address, this.mailboxId});
 
   final String id;
-  final String subject;
-  final String? status;
-  final String? priority;
-  final String? assigneeName;
-  final String? assigneeUserId;
-  final String? preview;
-  final String? customerEmail;
-  final String? referenceKey;
-  final int unreadCount;
-  final bool hasAttachments;
-  final String? lastMessageAt;
-  final String? slaDueAt;
-  final String? slaBreachedAt;
+  final String address;
   final String? mailboxId;
-  final List<String> tags;
 
-  bool get isBreached => slaBreachedAt != null && slaBreachedAt!.isNotEmpty;
-
-  factory HelpdeskTicket.fromJson(Map<String, dynamic> json) {
-    final tagRaw = json['tags'];
-    final tags = <String>[];
-    if (tagRaw is List) {
-      for (final t in tagRaw) {
-        if (t is Map) {
-          final name = t['name'] ?? t['slug'];
-          if (name != null) tags.add('$name');
-        } else {
-          tags.add('$t');
-        }
-      }
-    }
-    return HelpdeskTicket(
-      id: '${json['id']}',
-      subject: '${json['subject'] ?? '(no subject)'}',
-      status: json['status']?.toString(),
-      priority: json['priority']?.toString(),
-      assigneeName: json['assigneeName']?.toString(),
-      assigneeUserId: json['assigneeUserId']?.toString(),
-      preview: json['preview']?.toString() ?? json['snippet']?.toString(),
-      customerEmail: json['customerEmail']?.toString(),
-      referenceKey: json['referenceKey']?.toString(),
-      unreadCount: _int(json['unreadCount']),
-      hasAttachments: json['hasAttachments'] == true,
-      lastMessageAt: json['lastMessageAt']?.toString(),
-      slaDueAt: json['slaDueAt']?.toString(),
-      slaBreachedAt: json['slaBreachedAt']?.toString(),
-      mailboxId: json['mailboxId']?.toString(),
-      tags: tags,
-    );
-  }
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'subject': subject,
-        'status': status,
-        'priority': priority,
-        'assigneeName': assigneeName,
-        'assigneeUserId': assigneeUserId,
-        'preview': preview,
-        'customerEmail': customerEmail,
-        'referenceKey': referenceKey,
-        'unreadCount': unreadCount,
-        'hasAttachments': hasAttachments,
-        'lastMessageAt': lastMessageAt,
-        'slaDueAt': slaDueAt,
-        'slaBreachedAt': slaBreachedAt,
-        'mailboxId': mailboxId,
-        'tags': tags,
-      };
-}
-
-class CannedReply {
-  CannedReply({
-    required this.id,
-    required this.title,
-    required this.bodyHtml,
-    this.shortcut,
-  });
-
-  final String id;
-  final String title;
-  final String bodyHtml;
-  final String? shortcut;
-
-  String get bodyText => MailMessage._stripHtml(bodyHtml);
-
-  factory CannedReply.fromJson(Map<String, dynamic> json) => CannedReply(
+  factory MailAlias.fromJson(Map<String, dynamic> json) => MailAlias(
         id: '${json['id']}',
-        title: '${json['title'] ?? json['name'] ?? 'Reply'}',
-        bodyHtml: '${json['bodyHtml'] ?? json['body'] ?? ''}',
-        shortcut: json['shortcut']?.toString(),
+        address: '${json['address'] ?? ''}',
+        mailboxId: json['mailboxId']?.toString(),
       );
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'bodyHtml': bodyHtml,
-        'shortcut': shortcut,
-      };
-}
-
-class TicketNote {
-  TicketNote({
-    required this.id,
-    required this.body,
-    this.authorUserId,
-    this.createdAt,
-  });
-
-  final String id;
-  final String body;
-  final String? authorUserId;
-  final String? createdAt;
-
-  factory TicketNote.fromJson(Map<String, dynamic> json) => TicketNote(
-        id: '${json['id']}',
-        body: MailMessage._stripHtml(
-          '${json['bodyHtml'] ?? json['body'] ?? json['bodyText'] ?? ''}',
-        ),
-        authorUserId: json['authorUserId']?.toString(),
-        createdAt: json['createdAt']?.toString(),
-      );
-}
-
-class HelpdeskDetail {
-  HelpdeskDetail({
-    required this.ticket,
-    this.messages = const [],
-    this.notes = const [],
-  });
-
-  final HelpdeskTicket ticket;
-  final List<MailMessage> messages;
-  final List<TicketNote> notes;
 }
 
 int _int(dynamic value) {

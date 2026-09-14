@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'screens/barcode_scanner_screen.dart';
 import 'screens/billing_screen.dart';
+import 'screens/commons_component_screen.dart';
 import 'screens/compatibility_screen.dart';
 import 'screens/customers_screen.dart';
 import 'screens/device_detail_screen.dart';
@@ -14,6 +15,7 @@ import 'screens/login_screen.dart';
 import 'screens/members_screen.dart';
 import 'screens/more_screen.dart';
 import 'screens/movements_screen.dart';
+import 'screens/private_notes_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/purchases_screen.dart';
 import 'screens/repairs_screen.dart';
@@ -95,7 +97,7 @@ class _MobiStackAppState extends State<MobiStackApp> {
                   const NoTransitionPage(child: HomeScreen()),
             ),
             GoRoute(
-              path: '/compatibility',
+              path: '/commons',
               pageBuilder: (_, __) =>
                   const NoTransitionPage(child: CompatibilityScreen()),
             ),
@@ -122,6 +124,7 @@ class _MobiStackAppState extends State<MobiStackApp> {
           ],
         ),
         GoRoute(path: '/workspaces', builder: (_, __) => const WorkspacesScreen()),
+        GoRoute(path: '/compatibility', builder: (_, __) => const PrivateNotesScreen()),
         GoRoute(path: '/customers', builder: (_, __) => const CustomersScreen()),
         GoRoute(path: '/suppliers', builder: (_, __) => const SuppliersScreen()),
         GoRoute(path: '/purchases', builder: (_, __) => const PurchasesScreen()),
@@ -138,6 +141,16 @@ class _MobiStackAppState extends State<MobiStackApp> {
           path: '/devices/:id',
           builder: (_, state) =>
               DeviceDetailScreen(deviceId: state.pathParameters['id']!),
+        ),
+        GoRoute(
+          path: '/commons/devices/:id',
+          builder: (_, state) =>
+              DeviceDetailScreen(deviceId: state.pathParameters['id']!),
+        ),
+        GoRoute(
+          path: '/commons/components/:id',
+          builder: (_, state) =>
+              CommonsComponentScreen(componentId: state.pathParameters['id']!),
         ),
       ],
     );

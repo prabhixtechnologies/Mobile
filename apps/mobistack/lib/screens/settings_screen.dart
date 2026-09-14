@@ -14,6 +14,12 @@ class SettingsScreen extends StatelessWidget {
       body: ListView(
         children: [
           ListTile(
+            title: const Text('Manage account'),
+            subtitle: const Text('Password and passkeys on Identity'),
+            trailing: const Icon(Icons.open_in_new_rounded),
+            onTap: () => state.openAccount(),
+          ),
+          ListTile(
             title: const Text('API base'),
             subtitle: Text(state.config.product.apiBaseUrl),
           ),

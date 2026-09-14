@@ -2,12 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import 'screens/account_screen.dart';
 import 'screens/chat_detail_screen.dart';
 import 'screens/chat_inbox_screen.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/inbox_detail_screen.dart';
+import 'screens/inbox_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/members_screen.dart';
+import 'screens/notifications_screen.dart';
+import 'screens/orders_screen.dart';
 import 'screens/org_select_screen.dart';
 import 'screens/shell_screen.dart';
+import 'screens/visitor_detail_screen.dart';
 import 'screens/visitors_screen.dart';
 import 'state/app_state.dart';
 import 'theme/prabhix_theme.dart';
@@ -73,6 +80,10 @@ class _OneOpsAppState extends State<OneOpsApp> {
               pageBuilder: (_, __) => const NoTransitionPage(child: DashboardScreen()),
             ),
             GoRoute(
+              path: '/home/inbox',
+              pageBuilder: (_, __) => const NoTransitionPage(child: InboxScreen()),
+            ),
+            GoRoute(
               path: '/home/chat',
               pageBuilder: (_, __) => const NoTransitionPage(child: ChatInboxScreen()),
             ),
@@ -86,6 +97,19 @@ class _OneOpsAppState extends State<OneOpsApp> {
           path: '/chat/:id',
           builder: (_, state) => ChatDetailScreen(conversationId: state.pathParameters['id']!),
         ),
+        GoRoute(
+          path: '/inbox/:id',
+          builder: (_, state) => InboxDetailScreen(threadId: state.pathParameters['id']!),
+        ),
+        GoRoute(
+          path: '/visitors/:id',
+          builder: (_, state) =>
+              VisitorDetailScreen(visitorId: state.pathParameters['id']!),
+        ),
+        GoRoute(path: '/orders', builder: (_, __) => const OrdersScreen()),
+        GoRoute(path: '/members', builder: (_, __) => const MembersScreen()),
+        GoRoute(path: '/notifications', builder: (_, __) => const NotificationsScreen()),
+        GoRoute(path: '/account', builder: (_, __) => const AccountScreen()),
       ],
     );
   }

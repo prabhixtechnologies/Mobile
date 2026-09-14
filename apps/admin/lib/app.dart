@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import 'screens/account_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/org_select_screen.dart';
 import 'screens/platform_screen.dart';
@@ -49,6 +50,7 @@ class _AdminAppState extends State<AdminApp> {
         GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
         GoRoute(path: '/orgs', builder: (_, __) => const OrgSelectScreen()),
         GoRoute(path: '/platform', builder: (_, __) => const PlatformScreen()),
+        GoRoute(path: '/account', builder: (_, __) => const AccountScreen()),
       ],
     );
   }

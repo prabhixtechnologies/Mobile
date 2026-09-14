@@ -10,8 +10,9 @@ class ShellScreen extends StatelessWidget {
   final Widget child;
 
   int _indexFor(String loc) {
-    if (loc.startsWith('/home/chat')) return 1;
-    if (loc.startsWith('/home/visitors')) return 2;
+    if (loc.startsWith('/home/inbox')) return 1;
+    if (loc.startsWith('/home/chat')) return 2;
+    if (loc.startsWith('/home/visitors')) return 3;
     return 0;
   }
 
@@ -28,13 +29,16 @@ class ShellScreen extends StatelessWidget {
             case 0:
               context.go('/home/dashboard');
             case 1:
-              context.go('/home/chat');
+              context.go('/home/inbox');
             case 2:
+              context.go('/home/chat');
+            case 3:
               context.go('/home/visitors');
           }
         },
         destinations: [
           const NavigationDestination(icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
+          const NavigationDestination(icon: Icon(Icons.inbox_outlined), label: 'Inbox'),
           NavigationDestination(
             icon: Badge(
               isLabelVisible: state.pendingOutbound > 0,

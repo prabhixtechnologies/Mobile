@@ -1,10 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter_appauth/flutter_appauth.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'identity_config.dart';
 import 'session_state.dart';
 import 'token_store.dart';
+
+typedef UrlOpener = Future<bool> Function(Uri uri);
 
 /// Signs in against Prabhix Identity through the system browser / Custom Tab.
 ///
@@ -14,13 +17,27 @@ class IdentityClient {
     required this.config,
     TokenStore? tokenStore,
     FlutterAppAuth? appAuth,
+    UrlOpener? openUrl,
   })  : tokenStore = tokenStore ?? TokenStore(),
-        _appAuth = appAuth ?? const FlutterAppAuth();
+        _appAuth = appAuth ?? const FlutterAppAuth(),
+        _openUrl = openUrl;
 
   final IdentityConfig config;
   final TokenStore tokenStore;
   final FlutterAppAuth _appAuth;
+  final UrlOpener? _openUrl;
   Completer<String?>? _inFlightRefresh;
+
+  /// Opens `{issuer}/account?return_to=...` in the system browser.
+  Future<bool> openAccount({String? returnTo}) {
+    final uri = config.accountUri(returnTo: returnTo);
+    final opener = _openUrl ?? _launchExternal;
+    return opener(uri);
+  }
+
+  static Future<bool> _launchExternal(Uri uri) {
+    return launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
 
   Future<OidcTokens> signIn({String? promptOverride}) async {
     final AuthorizationTokenResponse result =

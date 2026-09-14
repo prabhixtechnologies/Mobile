@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../state/app_state.dart';
@@ -58,12 +59,13 @@ class VisitorsScreen extends StatelessWidget {
                 ...state.visitors.map((v) {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: Px.surface.withValues(alpha: 0.88),
+                    child: Material(
+                      color: Px.surface.withValues(alpha: 0.88),
+                      shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Px.line),
+                        side: const BorderSide(color: Px.line),
                       ),
+                      clipBehavior: Clip.antiAlias,
                       child: ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         title: Text(v.label, style: Theme.of(context).textTheme.titleMedium),
@@ -75,6 +77,7 @@ class VisitorsScreen extends StatelessWidget {
                           ].join('\n'),
                         ),
                         isThreeLine: true,
+                        onTap: () => context.push('/visitors/${v.visitorId}'),
                       ),
                     ),
                   );

@@ -62,6 +62,11 @@ class SyncStore {
       await _put('snapshot.repairs', data['repairs'] ?? []);
       await _put('snapshot.customers', data['customers'] ?? []);
       await _put('snapshot.devices', data['devices'] ?? []);
+      final commons = data['commons'];
+      if (commons is Map) {
+        await _put('snapshot.commons.devices', commons['devices'] ?? []);
+        await _put('snapshot.commons.brands', commons['brands'] ?? []);
+      }
       await _put('snapshot.dashboard', data['dashboard'] ?? {});
       await _put('snapshot.pulledAt', data['pulledAt'] ?? DateTime.now().toIso8601String());
     } catch (_) {
@@ -102,6 +107,15 @@ class SyncStore {
     return raw
         .whereType<Map>()
         .map((e) => CachedCustomer.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+  }
+
+  Future<List<CachedDevice>> commonsDevices() async {
+    final raw = await _get('snapshot.commons.devices');
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((e) => CachedDevice.fromJson(Map<String, dynamic>.from(e)))
         .toList();
   }
 
