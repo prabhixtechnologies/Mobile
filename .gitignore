@@ -22,3 +22,6 @@ GoogleService-Info.plist
 **/gradle.properties.local
 .DS_Store
 Thumbs.db
+
+# Local `flutter build` transcripts (build-<app>.log); never source.
+*.log
