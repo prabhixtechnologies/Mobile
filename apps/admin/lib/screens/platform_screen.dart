@@ -114,6 +114,11 @@ class _HubHeader extends StatelessWidget {
                 : const Icon(Icons.refresh_rounded),
           ),
           IconButton(
+            tooltip: 'Account',
+            onPressed: state.busy ? null : () => state.openAccount(),
+            icon: const Icon(Icons.manage_accounts_rounded),
+          ),
+          IconButton(
             tooltip: 'Sign out',
             onPressed: state.busy ? null : () => state.signOut(),
             icon: const Icon(Icons.logout_rounded),

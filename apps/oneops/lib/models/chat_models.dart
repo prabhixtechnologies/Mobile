@@ -125,6 +125,89 @@ class LiveVisitor {
           : (email?.isNotEmpty == true ? email! : visitorId);
 }
 
+class VisitorDetail {
+  VisitorDetail({
+    required this.id,
+    this.displayName,
+    this.email,
+    this.identified = false,
+    this.firstSeenAt,
+    this.lastSeenAt,
+    this.currentPath,
+    this.currentTitle,
+    this.sessions = const [],
+  });
+
+  final String id;
+  final String? displayName;
+  final String? email;
+  final bool identified;
+  final String? firstSeenAt;
+  final String? lastSeenAt;
+  final String? currentPath;
+  final String? currentTitle;
+  final List<VisitorSessionRow> sessions;
+
+  factory VisitorDetail.fromJson(Map<String, dynamic> json) {
+    final visitor = json['visitor'] is Map
+        ? Map<String, dynamic>.from(json['visitor'] as Map)
+        : json;
+    final rawSessions = json['sessions'] is List ? json['sessions'] as List : const [];
+    return VisitorDetail(
+      id: '${visitor['id'] ?? visitor['visitorId'] ?? ''}',
+      displayName: visitor['displayName']?.toString(),
+      email: visitor['email']?.toString(),
+      identified: visitor['identified'] == true,
+      firstSeenAt: visitor['firstSeenAt']?.toString(),
+      lastSeenAt: visitor['lastSeenAt']?.toString(),
+      currentPath: visitor['currentPath']?.toString(),
+      currentTitle: visitor['currentTitle']?.toString(),
+      sessions: rawSessions
+          .whereType<Map>()
+          .map((e) => VisitorSessionRow.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+    );
+  }
+
+  String get label =>
+      displayName?.isNotEmpty == true
+          ? displayName!
+          : (email?.isNotEmpty == true ? email! : id);
+}
+
+class VisitorSessionRow {
+  VisitorSessionRow({
+    required this.id,
+    this.startedAt,
+    this.entryUrl,
+    this.deviceType,
+    this.browser,
+    this.geoCity,
+  });
+
+  final String id;
+  final String? startedAt;
+  final String? entryUrl;
+  final String? deviceType;
+  final String? browser;
+  final String? geoCity;
+
+  factory VisitorSessionRow.fromJson(Map<String, dynamic> json) {
+    return VisitorSessionRow(
+      id: '${json['id']}',
+      startedAt: json['startedAt']?.toString(),
+      entryUrl: json['entryUrl']?.toString(),
+      deviceType: json['deviceType']?.toString(),
+      browser: json['browser']?.toString(),
+      geoCity: json['geoCity']?.toString(),
+    );
+  }
+
+  String get title => [deviceType, browser, geoCity].where((e) => e != null && e.isNotEmpty).join(' · ');
+
+  String get subtitle => [startedAt, entryUrl].where((e) => e != null && e.isNotEmpty).join('\n');
+}
+
 class DashboardKpis {
   DashboardKpis({
     this.openConversations = 0,

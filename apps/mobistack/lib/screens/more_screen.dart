@@ -15,18 +15,22 @@ class MoreScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
 
-    final floor = <_Item>[
+    final catalog = <_Item>[
+      _Item('Browse catalog', Icons.public_outlined, '/commons'),
+      _Item('Private fitment notes', Icons.lock_outline_rounded, '/compatibility'),
+    ];
+
+    final shop = <_Item>[
       if (state.hasFeature('INVENTORY'))
         _Item('Stock', Icons.inventory_2_rounded, '/inventory'),
       if (state.hasFeature('SALES'))
         _Item('Sales', Icons.point_of_sale_rounded, '/sales'),
       if (state.hasFeature('REPAIRS'))
         _Item('Repairs', Icons.build_rounded, '/repairs'),
+      if (state.hasFeature('PURCHASES'))
+        _Item('Purchases', Icons.shopping_bag_outlined, '/purchases'),
       if (state.hasFeature('INVENTORY'))
         _Item('Movements', Icons.swap_horiz_rounded, '/movements'),
-    ];
-
-    final people = <_Item>[
       if (state.hasFeature('CUSTOMERS'))
         _Item('Customers', Icons.people_outline_rounded, '/customers'),
       if (state.hasFeature('SUPPLIERS'))
@@ -37,8 +41,6 @@ class MoreScreen extends StatelessWidget {
     ];
 
     final ops = <_Item>[
-      if (state.hasFeature('PURCHASES'))
-        _Item('Purchases', Icons.shopping_bag_outlined, '/purchases'),
       if (state.hasFeature('REPORTS'))
         _Item('Reports', Icons.bar_chart_rounded, '/reports'),
       _Item('Billing', Icons.credit_card_rounded, '/billing'),
@@ -63,13 +65,20 @@ class MoreScreen extends StatelessWidget {
                 child: ListView(
                   padding: const EdgeInsets.only(bottom: 28),
                   children: [
-                    _Section(title: 'Floor', items: floor),
-                    _Section(title: 'People', items: people),
+                    _Section(
+                      title: 'Fitment Catalog',
+                      hint: 'shared with every shop',
+                      items: catalog,
+                    ),
+                    _Section(
+                      title: 'My Shop',
+                      hint: 'private to your shop',
+                      items: shop,
+                    ),
                     _Section(title: 'Ops', items: ops),
                     const SizedBox(height: 8),
                     ShopListTile(
-                      leading:
-                          const Icon(Icons.logout_rounded, color: Px.danger),
+                      leading: const Icon(Icons.logout_rounded, color: Px.danger),
                       title: 'Sign out',
                       onTap: () => state.signOut(),
                     ),
@@ -85,9 +94,10 @@ class MoreScreen extends StatelessWidget {
 }
 
 class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.items});
+  const _Section({required this.title, required this.items, this.hint});
 
   final String title;
+  final String? hint;
   final List<_Item> items;
 
   @override
@@ -97,7 +107,7 @@ class _Section extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 4),
           child: Text(
             title.toUpperCase(),
             style: GoogleFonts.sourceSans3(
@@ -108,6 +118,11 @@ class _Section extends StatelessWidget {
             ),
           ),
         ),
+        if (hint != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            child: Text(hint!, style: Theme.of(context).textTheme.bodySmall),
+          ),
         ...items.map(
           (item) => ShopListTile(
             leading: Icon(item.icon, color: Px.accent),
@@ -116,7 +131,8 @@ class _Section extends StatelessWidget {
             onTap: () {
               if (item.route == '/inventory' ||
                   item.route == '/sales' ||
-                  item.route == '/repairs') {
+                  item.route == '/repairs' ||
+                  item.route == '/commons') {
                 context.go(item.route);
               } else {
                 context.push(item.route);

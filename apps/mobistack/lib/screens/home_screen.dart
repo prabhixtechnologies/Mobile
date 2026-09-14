@@ -213,9 +213,9 @@ class HomeScreen extends StatelessWidget {
                               ),
                             _ModuleRow(
                               icon: Icons.phone_android_rounded,
-                              title: 'Compatibility',
-                              subtitle: 'Parts that fit a phone',
-                              onTap: () => context.go('/compatibility'),
+                              title: 'Fitment Catalog',
+                              subtitle: 'Shared phones · see what fits',
+                              onTap: () => context.go('/commons'),
                               accent: true,
                             ),
                             _ModuleRow(
@@ -267,7 +267,7 @@ class _ModuleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    final tile = Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
         color: accent
@@ -322,6 +322,8 @@ class _ModuleRow extends StatelessWidget {
           ),
         ),
       ),
-    ).animate().fadeIn(duration: 320.ms).moveY(begin: 8, end: 0);
+    );
+    if (skipMotionForTests) return tile;
+    return tile.animate().fadeIn(duration: 320.ms).moveY(begin: 8, end: 0);
   }
 }

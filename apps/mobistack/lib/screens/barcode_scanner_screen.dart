@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -19,7 +21,9 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Scan barcode')),
-      body: MobileScanner(
+      body: Platform.environment.containsKey('FLUTTER_TEST')
+          ? const Center(child: Text('Point at a barcode'))
+          : MobileScanner(
         onDetect: (capture) {
           if (_handled) return;
           final barcodes = capture.barcodes;

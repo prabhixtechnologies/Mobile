@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      integration:
+        description: Run live integration tests against a seeded stack
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -33,12 +38,62 @@ jobs:
       - name: Pub get api_core
         working-directory: packages/prabhix_api_core
         run: flutter pub get
+      - name: OpenAPI Dart clients
+        if: matrix.app == 'admin'
+        working-directory: packages/prabhix_api_core
+        run: |
+          set -euo pipefail
+          echo "Dart Dio clients are generated from sibling OpenAPI snapshots:"
+          echo "  powershell -File tool/generate.ps1"
+          echo "This Mobile checkout does not include oneOps/MobiStack; generation runs in the workspace, not here."
+          test -f lib/generated/README.md
+          echo "See lib/generated/README.md"
       - name: Pub get offline
         working-directory: packages/prabhix_offline
         run: flutter pub get
       - run: flutter pub get
       - run: flutter analyze --no-fatal-infos
       - run: flutter test
+
+  # Opt-in: needs a reachable seeded stack (Identity + product APIs).
+  # Default CI skips these tests inside `flutter test` unless INTEGRATION=1.
+  integration:
+    if: github.event_name == 'workflow_dispatch' && inputs.integration
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: admin
+            api_base: http://127.0.0.1:8080/api/v1
+          - app: mailroom
+            api_base: http://127.0.0.1:8080/api/v1
+          - app: oneops
+            api_base: http://127.0.0.1:8080/api/v1
+          - app: mobistack
+            api_base: http://127.0.0.1:8085/api/v1
+    defaults:
+      run:
+        working-directory: apps/${{ matrix.app }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+        working-directory: packages/prabhix_identity
+      - run: flutter pub get
+        working-directory: packages/prabhix_api_core
+      - run: flutter pub get
+        working-directory: packages/prabhix_offline
+      - run: flutter pub get
+      - name: Live integration tests
+        env:
+          INTEGRATION: "1"
+          IDENTITY_ISSUER: ${{ vars.IDENTITY_ISSUER != '' && vars.IDENTITY_ISSUER || 'http://127.0.0.1:8081' }}
+          API_BASE_URL: ${{ matrix.api_base }}
+        run: flutter test test/integration_stack_test.dart
 
   # Build store-facing APKs and publish to s3://prabhix-apk-downloads
   # → https://store.prabhixtechnologies.com/{product}/android.apk
@@ -164,7 +219,6 @@ jobs:
           DEFINES=(
             --dart-define=IDENTITY_ISSUER=https://api.prabhixtechnologies.com
             --dart-define=API_BASE_URL=https://api.prabhixtechnologies.com/api/v1
-            --dart-define=MOBISTACK_API_BASE_URL=https://mobistack.prabhixtechnologies.com/api/v1
           )
           if flutter build apk --release "${DEFINES[@]}"; then
             echo "apk=build/app/outputs/flutter-apk/app-release.apk" >> "$GITHUB_OUTPUT"

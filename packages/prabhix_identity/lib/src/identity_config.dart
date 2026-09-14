@@ -30,6 +30,17 @@ class IdentityConfig {
   String get tokenEndpoint => '$issuer/oauth2/token';
   String get endSessionEndpoint => '$issuer/connect/logout';
 
+  /// Hosted Identity account page (password, passkeys, email, sessions).
+  ///
+  /// [returnTo] must be a redirect URI already registered for this client;
+  /// anything else is ignored by Identity. Defaults to [redirectUri].
+  Uri accountUri({String? returnTo}) {
+    final target = (returnTo == null || returnTo.isEmpty) ? redirectUri : returnTo;
+    return Uri.parse('$issuer/account').replace(
+      queryParameters: {'return_to': target},
+    );
+  }
+
   /// OneOps / Admin / Mailroom style: scheme == applicationId.
   factory IdentityConfig.applicationIdScheme({
     required String issuer,

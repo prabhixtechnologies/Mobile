@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/live_api_list.dart';
+
 class SuppliersScreen extends StatelessWidget {
   const SuppliersScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Suppliers')),
-      body: const Center(child: Text('Suppliers load from sync snapshot when available.')),
+    return LiveApiListScreen(
+      title: 'Suppliers',
+      path: 'suppliers',
+      titleOf: (row) => '${row['name'] ?? 'Supplier'}',
+      subtitleOf: (row) => '${row['phone'] ?? row['city'] ?? ''}',
+      emptyTitle: 'No suppliers yet',
+      emptySubtitle: 'Add a supplier from the shop web app, or they appear after sync.',
+      emptyIcon: Icons.local_shipping_outlined,
     );
   }
 }

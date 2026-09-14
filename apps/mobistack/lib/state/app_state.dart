@@ -39,6 +39,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   List<CachedRepair> repairs = const [];
   List<CachedCustomer> customers = const [];
   List<CachedDevice> devices = const [];
+  List<CachedDevice> commonsDevices = const [];
   int pendingOps = 0;
   String? lastScan;
   bool servingFromCache = false;
@@ -151,6 +152,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       repairs = await sync.repairs();
       customers = await sync.customers();
       devices = await sync.devices();
+      commonsDevices = await sync.commonsDevices();
       pendingOps = await sync.pendingCount();
       servingFromCache = !online || failures.contains('pull');
       debugPrint(
@@ -206,6 +208,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
+  Future<void> openAccount() {
+    return identity.openAccount();
+  }
+
   Future<void> signOut() async {
     busy = true;
     notifyListeners();
@@ -219,6 +225,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       repairs = const [];
       customers = const [];
       devices = const [];
+      commonsDevices = const [];
       phase = AuthPhase.signedOut;
       busy = false;
       notifyListeners();

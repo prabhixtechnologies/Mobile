@@ -20,4 +20,16 @@ void main() {
     expect(config.redirectUri, 'mobistack://oauth2redirect');
     expect(config.clientId, 'prabhix-mobistack-android');
   });
+
+  test('accountUri points at issuer /account with return_to', () {
+    final config = IdentityConfig.applicationIdScheme(
+      issuer: 'https://api.prabhixtechnologies.com/',
+      clientId: 'prabhix-oneops-android',
+      applicationId: 'com.prabhix.operator',
+    );
+    final uri = config.accountUri();
+    expect(uri.path, '/account');
+    expect(uri.queryParameters['return_to'], 'com.prabhix.operator:/oauth2redirect');
+    expect(uri.origin, 'https://api.prabhixtechnologies.com');
+  });
 }

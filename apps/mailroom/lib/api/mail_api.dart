@@ -2,7 +2,7 @@ import 'package:prabhix_api_core/prabhix_api_core.dart';
 
 import '../models/mail_models.dart';
 
-/// Mailbox + helpdesk API surface on top of [ApiClient.dio].
+/// Personal mailbox API on top of [ApiClient.dio]. Helpdesk lives in OneOps.
 class MailApi {
   MailApi(this.api);
 
@@ -20,8 +20,12 @@ class MailApi {
 
   /// Flatten folders from sidebar mailboxes; prefer `mine` first.
   Future<({List<MailboxSummary> mailboxes, List<MailFolder> folders})>
-      sidebar() async {
-    final boxes = await mailboxes();
+      sidebar({bool company = false}) async {
+    final res = await api.dio.get<dynamic>(
+      'mailbox',
+      queryParameters: company ? {'mode': 'company'} : null,
+    );
+    final boxes = _list(res.data).map(MailboxSummary.fromJson).toList();
     boxes.sort((a, b) {
       if (a.mine == b.mine) return a.name.compareTo(b.name);
       return a.mine ? -1 : 1;
@@ -72,8 +76,7 @@ class MailApi {
           await api.dio.get<dynamic>('mailbox/threads/$threadId/messages');
       return _list(res.data).map(MailMessage.fromJson).toList();
     } catch (_) {
-      final detail = await helpdeskThread(threadId);
-      return detail.messages;
+      return const [];
     }
   }
 
@@ -117,46 +120,11 @@ class MailApi {
     );
   }
 
-  Future<List<HelpdeskTicket>> helpdeskThreads({
-    String? status,
-    String? priority,
-    String? q,
-    bool mine = false,
-    String? assigneeUserId,
-  }) async {
-    final res = await api.dio.get<dynamic>(
-      'mail/threads',
-      queryParameters: {
-        if (status != null && status.isNotEmpty) 'status': status,
-        if (priority != null && priority.isNotEmpty) 'priority': priority,
-        if (q != null && q.isNotEmpty) 'q': q,
-        if (mine) 'assigneeUserId': assigneeUserId,
-        'limit': 50,
-      },
-    );
-    return _list(res.data).map(HelpdeskTicket.fromJson).toList();
-  }
-
-  Future<HelpdeskDetail> helpdeskThread(String id) async {
-    final res = await api.dio.get<Map<String, dynamic>>('mail/threads/$id');
-    final data = res.data ?? {};
-    final threadRaw = data['thread'];
-    final ticket = HelpdeskTicket.fromJson(
-      threadRaw is Map
-          ? Map<String, dynamic>.from(threadRaw)
-          : Map<String, dynamic>.from(data),
-    );
-    final messages = _list(data['messages']).map(MailMessage.fromJson).toList();
-    final notes = _list(data['notes']).map(TicketNote.fromJson).toList();
-    return HelpdeskDetail(ticket: ticket, messages: messages, notes: notes);
-  }
-
   Future<void> reply({
     required String threadId,
     required String body,
     String replyMode = 'REPLY',
     List<String> to = const [],
-    String? cannedReplyId,
   }) async {
     await api.dio.post<void>(
       'mail/threads/$threadId/reply',
@@ -165,52 +133,8 @@ class MailApi {
         if (to.isNotEmpty) 'to': to,
         'bodyHtml': body.replaceAll('\n', '<br/>'),
         'bodyText': body,
-        if (cannedReplyId != null) 'cannedReplyId': cannedReplyId,
       },
     );
-  }
-
-  Future<void> addNote({required String threadId, required String body}) async {
-    await api.dio.post<void>(
-      'mail/threads/$threadId/notes',
-      data: {'bodyHtml': body.replaceAll('\n', '<br/>')},
-    );
-  }
-
-  Future<HelpdeskTicket> patchTicket({
-    required String threadId,
-    String? status,
-    String? priority,
-  }) async {
-    final res = await api.dio.patch<Map<String, dynamic>>(
-      'mail/threads/$threadId',
-      data: {
-        if (status != null) 'status': status,
-        if (priority != null) 'priority': priority,
-      },
-    );
-    final data = res.data ?? {};
-    final thread = data['thread'];
-    if (thread is Map) {
-      return HelpdeskTicket.fromJson(Map<String, dynamic>.from(thread));
-    }
-    return HelpdeskTicket.fromJson(data);
-  }
-
-  Future<void> assign({required String threadId, required String userId}) async {
-    await api.dio.post<void>(
-      'mail/threads/$threadId/assign',
-      data: {'userId': userId},
-    );
-  }
-
-  Future<void> unassign({required String threadId}) async {
-    await api.dio.post<void>('mail/threads/$threadId/unassign');
-  }
-
-  Future<List<CannedReply>> cannedReplies() async {
-    final res = await api.dio.get<dynamic>('mail/canned-replies');
-    return _list(res.data).map(CannedReply.fromJson).toList();
   }
 
   Future<void> compose({
@@ -230,6 +154,44 @@ class MailApi {
         'bodyHtml': body.replaceAll('\n', '<br/>'),
         'bodyText': body,
       },
+    );
+  }
+
+  Future<List<MailAlias>> aliases(String mailboxId) async {
+    final res = await api.dio.get<dynamic>('mailbox/$mailboxId/aliases');
+    return _list(res.data).map(MailAlias.fromJson).toList();
+  }
+
+  Future<MailAlias> createAlias({
+    required String mailboxId,
+    required String address,
+  }) async {
+    final res = await api.dio.post<Map<String, dynamic>>(
+      'mailbox/$mailboxId/aliases',
+      data: {'address': address},
+    );
+    return MailAlias.fromJson(res.data ?? {});
+  }
+
+  Future<void> deleteAlias({
+    required String mailboxId,
+    required String aliasId,
+  }) async {
+    await api.dio.delete<void>('mailbox/$mailboxId/aliases/$aliasId');
+  }
+
+  Future<String> signature(String mailboxId) async {
+    final res = await api.dio.get<Map<String, dynamic>>('mail/mailboxes/$mailboxId');
+    return '${res.data?['signature'] ?? ''}';
+  }
+
+  Future<void> saveSignature({
+    required String mailboxId,
+    required String signature,
+  }) async {
+    await api.dio.patch<void>(
+      'mail/mailboxes/$mailboxId',
+      data: {'signature': signature},
     );
   }
 

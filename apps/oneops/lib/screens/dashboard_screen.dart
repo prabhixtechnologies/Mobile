@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../state/app_state.dart';
@@ -30,6 +31,11 @@ class DashboardScreen extends StatelessWidget {
                 children: [
                   const Expanded(child: BrandMark(compact: true)),
                   IconButton(
+                    tooltip: 'Account',
+                    onPressed: () => context.push('/account'),
+                    icon: const Icon(Icons.manage_accounts_rounded),
+                  ),
+                  IconButton(
                     tooltip: 'Refresh',
                     onPressed: state.busy ? null : () => state.refreshHome(),
                     icon: const Icon(Icons.refresh_rounded),
@@ -55,6 +61,29 @@ class DashboardScreen extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text(state.error!, style: const TextStyle(color: Px.danger)),
               ],
+              const SizedBox(height: 24),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ActionChip(
+                    label: const Text('Orders'),
+                    onPressed: () => context.push('/orders'),
+                  ),
+                  ActionChip(
+                    label: const Text('Members'),
+                    onPressed: () => context.push('/members'),
+                  ),
+                  ActionChip(
+                    label: const Text('Notifications'),
+                    onPressed: () => context.push('/notifications'),
+                  ),
+                  ActionChip(
+                    label: const Text('Account'),
+                    onPressed: () => context.push('/account'),
+                  ),
+                ],
+              ),
               const SizedBox(height: 24),
               Wrap(
                 spacing: 12,

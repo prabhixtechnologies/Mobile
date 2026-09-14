@@ -11,14 +11,14 @@ enum AuthPhase { loading, signedOut, needsOrg, ready }
 
 class AppState extends ChangeNotifier {
   AppState({required AppConfig config})
-      : identity = IdentityClient(config: config.identity) {
+      : config = config,
+        identity = IdentityClient(config: config.identity) {
     api = ApiClient(config: config.product, identity: identity);
-    mobi = ApiClient(config: config.mobistack, identity: identity);
   }
 
+  final AppConfig config;
   final IdentityClient identity;
   late final ApiClient api;
-  late final ApiClient mobi;
   final ConnectivityMonitor connectivity = ConnectivityMonitor();
   final SyncNotifier syncNotifier = SyncNotifier();
   final KvStore cache = KvStore('admin_offline.db');
@@ -42,6 +42,9 @@ class AppState extends ChangeNotifier {
   List<AdminAppRelease> releases = const [];
   List<StaffGrant> staffGrants = const [];
   Set<String> staffRoles = const {};
+  List<IdentityUserRow> identityUsers = const [];
+  MailHealth? mailHealth;
+  List<CommonsReviewItem> commonsQueue = const [];
 
   RevenueSnapshot mobiRevenue = const RevenueSnapshot();
   RevenueSnapshot oneopsRevenue = const RevenueSnapshot();
@@ -150,6 +153,7 @@ class AppState extends ChangeNotifier {
       refreshHub(),
       refreshCommerce(),
       refreshInfra(),
+      refreshStaffTools(),
     ]);
   }
 
@@ -259,7 +263,7 @@ class AppState extends ChangeNotifier {
         debugPrint('refreshCommerce $label failed: $e');
         if (e.statusCode == 403) {
           commerceAuthError =
-              'MobiStack system_admin required. Run deploy/promote-system-admin.sql for this email.';
+              'This needs a SUPPORT or BILLING staff role on the oneOps admin BFF.';
         }
         failures.add(label);
         return null;
@@ -271,14 +275,14 @@ class AppState extends ChangeNotifier {
     }
 
     final results = await Future.wait([
-      soft('workspaces', mobi.adminWorkspaces),
-      soft('payments', mobi.adminBillingOrders),
-      soft('plans', mobi.adminPlans),
-      soft('flags', mobi.adminFeatureFlags),
-      soft('live', mobi.adminLiveUsers),
-      soft('support', mobi.adminSupportTickets),
-      soft('releases', mobi.adminAppReleases),
-      soft('mobiRevenue', mobi.adminBillingRevenue),
+      soft('workspaces', api.adminWorkspaces),
+      soft('payments', api.adminBillingOrders),
+      soft('plans', api.adminPlans),
+      soft('flags', api.adminFeatureFlags),
+      soft('live', api.adminLiveUsers),
+      soft('support', api.adminSupportTickets),
+      soft('releases', api.adminAppReleases),
+      soft('mobiRevenue', api.adminBillingRevenue),
     ]);
 
     final nextShops = results[0] as List<AdminWorkspace>?;
@@ -306,7 +310,7 @@ class AppState extends ChangeNotifier {
     if (commerceAuthError != null) {
       error = commerceAuthError;
     } else if (failures.isNotEmpty) {
-      final msg = 'MobiStack admin partial: ${failures.join(', ')}';
+      final msg = 'MobiStack ops partial: ${failures.join(', ')}';
       error = error == null ? msg : '$error · $msg';
     }
 
@@ -376,7 +380,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> toggleWorkspace(AdminWorkspace workspace) async {
     try {
-      await mobi.setWorkspaceActive(
+      await api.setWorkspaceActive(
         id: workspace.id,
         active: !workspace.active,
       );
@@ -392,7 +396,7 @@ class AppState extends ChangeNotifier {
     int extraScreens,
   ) async {
     try {
-      await mobi.setWorkspaceScreens(
+      await api.setWorkspaceScreens(
         id: workspace.id,
         extraScreens: extraScreens,
       );
@@ -405,7 +409,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> toggleFeatureFlag(AdminFeatureFlag flag) async {
     try {
-      await mobi.setFeatureFlag(code: flag.code, enabled: !flag.enabled);
+      await api.setFeatureFlag(code: flag.code, enabled: !flag.enabled);
       await refreshCommerce();
     } catch (e) {
       error = '$e';
@@ -415,7 +419,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> resolveTicket(AdminSupportTicket ticket) async {
     try {
-      await mobi.resolveSupportTicket(ticket.id);
+      await api.resolveSupportTicket(ticket.id);
       await refreshCommerce();
     } catch (e) {
       error = '$e';
@@ -425,7 +429,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> replyTicket(AdminSupportTicket ticket, String body) async {
     try {
-      await mobi.replySupportTicket(id: ticket.id, body: body);
+      await api.replySupportTicket(id: ticket.id, body: body);
       await refreshCommerce();
     } catch (e) {
       error = '$e';
@@ -464,6 +468,99 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  Future<void> refreshStaffTools() async {
+    Future<T?> soft<T>(String label, Future<T> Function() run) async {
+      try {
+        return await run();
+      } catch (e, st) {
+        debugPrint('refreshStaffTools $label failed: $e\n$st');
+        return null;
+      }
+    }
+
+    final results = await Future.wait([
+      soft('identity', api.platformIdentityUsers),
+      soft('mailHealth', api.platformMailHealth),
+      soft('commons', api.platformCommonsQueue),
+    ]);
+    final users = results[0] as List<IdentityUserRow>?;
+    final health = results[1] as MailHealth?;
+    final commons = results[2] as List<CommonsReviewItem>?;
+    if (users != null) identityUsers = users;
+    if (health != null) mailHealth = health;
+    if (commons != null) commonsQueue = commons;
+    notifyListeners();
+  }
+
+  Future<void> identityAction(IdentityUserRow user, String action) async {
+    try {
+      await api.identityUserAction(userId: user.id, action: action);
+      await refreshStaffTools();
+    } catch (e) {
+      error = '$e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> grantRole({
+    required String userId,
+    required String role,
+    String? note,
+  }) async {
+    try {
+      await api.grantStaffRole(userId: userId, role: role, note: note);
+      await refreshHub();
+    } catch (e) {
+      error = '$e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> breakGlass({
+    required String userId,
+    required String reason,
+  }) async {
+    try {
+      await api.breakGlassRevokeTokens(userId: userId, reason: reason);
+    } catch (e) {
+      error = '$e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> kickUser(AdminLiveUser user) async {
+    try {
+      await api.kickLiveUser(userId: user.userId, deviceId: user.deviceId);
+      await refreshCommerce();
+    } catch (e) {
+      error = '$e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> promote({required String service, required String tag}) async {
+    try {
+      await api.promoteRelease(service: service, tag: tag);
+    } catch (e) {
+      error = '$e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> reviewCommonsItem(CommonsReviewItem item, String decision) async {
+    try {
+      await api.reviewCommons(id: item.id, decision: decision);
+      await refreshStaffTools();
+    } catch (e) {
+      error = '$e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> openAccount() {
+    return identity.openAccount();
+  }
+
   Future<void> signOut() async {
     busy = true;
     notifyListeners();
@@ -488,6 +585,9 @@ class AppState extends ChangeNotifier {
       releases = const [];
       staffGrants = const [];
       staffRoles = const {};
+      identityUsers = const [];
+      mailHealth = null;
+      commonsQueue = const [];
       mobiRevenue = const RevenueSnapshot();
       oneopsRevenue = const RevenueSnapshot();
       awsSummary = null;

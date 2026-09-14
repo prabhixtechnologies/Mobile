@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import 'screens/account_screen.dart';
 import 'screens/compose_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/mailbox_screen.dart';
 import 'screens/org_select_screen.dart';
 import 'screens/queue_screen.dart';
+import 'screens/settings_screen.dart';
 import 'screens/shell_screen.dart';
 import 'screens/thread_detail_screen.dart';
-import 'screens/ticket_detail_screen.dart';
 import 'state/app_state.dart';
 import 'theme/prabhix_theme.dart';
 
@@ -79,10 +80,11 @@ class _MailroomAppState extends State<MailroomApp> {
         ),
         GoRoute(
           path: '/ticket/:id',
-          builder: (_, state) =>
-              TicketDetailScreen(threadId: state.pathParameters['id']!),
+          redirect: (_, __) => '/queue',
         ),
         GoRoute(path: '/compose', builder: (_, __) => const ComposeScreen()),
+        GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
+        GoRoute(path: '/account', builder: (_, __) => const AccountScreen()),
       ],
     );
   }

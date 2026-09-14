@@ -113,10 +113,12 @@ class _MailboxScreenState extends State<MailboxScreen> {
                       PopupMenuButton<String>(
                         onSelected: (v) {
                           if (v == 'select') state.enterSelection();
+                          if (v == 'account') state.openAccount();
                           if (v == 'out') state.signOut();
                         },
                         itemBuilder: (_) => const [
                           PopupMenuItem(value: 'select', child: Text('Select')),
+                          PopupMenuItem(value: 'account', child: Text('Manage account')),
                           PopupMenuItem(value: 'out', child: Text('Sign out')),
                         ],
                       ),
@@ -124,15 +126,25 @@ class _MailboxScreenState extends State<MailboxScreen> {
                   ),
         floatingActionButton: state.selecting
             ? null
-            : FloatingActionButton(
-                onPressed: () => context.push('/compose'),
-                backgroundColor: Px.accent,
-                foregroundColor: Px.accentInk,
-                elevation: 6,
-                child: const Icon(Icons.edit_rounded),
-              )
-                .animate()
-                .scale(delay: 200.ms, duration: 420.ms, curve: Px.curve),
+            : skipMotionForTests
+                ? FloatingActionButton(
+                    onPressed: () => context.push('/compose'),
+                    backgroundColor: Px.accent,
+                    foregroundColor: Px.accentInk,
+                    elevation: 6,
+                    child: const Icon(Icons.edit_rounded),
+                  )
+                : FloatingActionButton(
+                    onPressed: () => context.push('/compose'),
+                    backgroundColor: Px.accent,
+                    foregroundColor: Px.accentInk,
+                    elevation: 6,
+                    child: const Icon(Icons.edit_rounded),
+                  ).animate().scale(
+                    delay: 200.ms,
+                    duration: 420.ms,
+                    curve: Px.curve,
+                  ),
         body: Column(
           children: [
             SyncStatusBar(state: state),
@@ -242,7 +254,7 @@ class SyncStatusBar extends StatelessWidget {
                 'Cached view · pull to refresh',
               );
 
-    return Material(
+    final bar = Material(
       color: bg,
       child: InkWell(
         onTap: offline ? null : () => state.syncNow(),
@@ -273,7 +285,9 @@ class SyncStatusBar extends StatelessWidget {
           ),
         ),
       ),
-    ).animate().fadeIn(duration: 280.ms);
+    );
+    if (skipMotionForTests) return bar;
+    return bar.animate().fadeIn(duration: 280.ms);
   }
 }
 
@@ -371,6 +385,29 @@ class _MailNav extends StatelessWidget {
 
   final AppState state;
 
+  List<(String, List<MailboxSummary>)> _ownerGroups() {
+    if (!state.companyMail) {
+      return [
+        for (final box in state.mailboxes)
+          (box.mine ? 'Personal · ${box.name}' : box.name, [box]),
+      ];
+    }
+    final order = <String>[];
+    final grouped = <String, List<MailboxSummary>>{};
+    final labels = <String, String>{};
+    for (final box in state.mailboxes) {
+      final key = box.ownerUserId ?? 'shared';
+      labels[key] = box.ownerUserId != null
+          ? (box.ownerLabel ?? box.name)
+          : 'Shared inboxes';
+      grouped.putIfAbsent(key, () {
+        order.add(key);
+        return <MailboxSummary>[];
+      }).add(box);
+    }
+    return [for (final key in order) (labels[key]!, grouped[key]!)];
+  }
+
   @override
   Widget build(BuildContext context) {
     return Drawer(
@@ -432,11 +469,11 @@ class _MailNav extends StatelessWidget {
                   state.showStarred();
                 },
               ),
-              for (final box in state.mailboxes) ...[
+              for (final group in _ownerGroups()) ...[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
                   child: Text(
-                    box.mine ? 'Personal · ${box.name}' : box.name,
+                    group.$1,
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(
                           color: Px.accent,
                           letterSpacing: 1.2,
@@ -444,25 +481,62 @@ class _MailNav extends StatelessWidget {
                         ),
                   ),
                 ),
-                ...box.folders.map(
-                  (f) => _NavTile(
-                    icon: folderIcon(f.iconHint),
-                    label: f.name,
-                    trailing: f.unreadCount > 0 ? '${f.unreadCount}' : null,
-                    selected:
-                        !state.starredMode && state.selectedFolderId == f.id,
-                    onTap: () {
-                      Navigator.pop(context);
-                      state.selectFolder(f.id);
-                    },
+                for (final box in group.$2) ...[
+                  if (state.companyMail && group.$2.length > 1)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+                      child: Text(
+                        box.name,
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                              color: Px.muted,
+                              fontSize: 11,
+                            ),
+                      ),
+                    ),
+                  ...box.folders.map(
+                    (f) => _NavTile(
+                      icon: folderIcon(f.iconHint),
+                      label: f.name,
+                      trailing: f.unreadCount > 0 ? '${f.unreadCount}' : null,
+                      selected:
+                          !state.starredMode && state.selectedFolderId == f.id,
+                      onTap: () {
+                        Navigator.pop(context);
+                        state.selectFolder(f.id);
+                      },
+                    ),
                   ),
-                ),
+                ],
               ],
               const SizedBox(height: 12),
+              if (state.canReadCompany)
+                _NavTile(
+                  icon: Icons.corporate_fare_rounded,
+                  label: state.companyMail ? 'My mail' : 'Company mail',
+                  onTap: () {
+                    Navigator.pop(context);
+                    state.setCompanyMail(!state.companyMail);
+                  },
+                ),
+              _NavTile(
+                icon: Icons.alternate_email_rounded,
+                label: 'Aliases and signature',
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push('/settings');
+                },
+              ),
+              _NavTile(
+                icon: Icons.manage_accounts_outlined,
+                label: 'Account',
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push('/account');
+                },
+              ),
               _NavTile(
                 icon: Icons.support_agent_rounded,
-                label: 'Helpdesk queue',
-                trailing: state.queue.isEmpty ? null : '${state.queue.length}',
+                label: 'Helpdesk is in OneOps',
                 onTap: () {
                   Navigator.pop(context);
                   context.go('/queue');

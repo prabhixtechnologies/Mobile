@@ -5,12 +5,10 @@ class AppConfig {
   const AppConfig({
     required this.identity,
     required this.product,
-    required this.mobistack,
   });
 
   final IdentityConfig identity;
   final ProductConfig product;
-  final ProductConfig mobistack;
 
   factory AppConfig.fromEnvironment() {
     const issuer = String.fromEnvironment(
@@ -20,10 +18,6 @@ class AppConfig {
     const apiBase = String.fromEnvironment(
       'API_BASE_URL',
       defaultValue: 'http://10.0.2.2:8080/api/v1',
-    );
-    const mobiBase = String.fromEnvironment(
-      'MOBISTACK_API_BASE_URL',
-      defaultValue: 'http://10.0.2.2:8085/api/v1',
     );
     return AppConfig(
       identity: IdentityConfig.applicationIdScheme(
@@ -36,7 +30,6 @@ class AppConfig {
         apiBaseUrl: apiBase,
         deviceHeader: 'mobile-android-admin',
       ),
-      mobistack: ProductConfig.mobistack(apiBaseUrl: mobiBase),
     );
   }
 }
