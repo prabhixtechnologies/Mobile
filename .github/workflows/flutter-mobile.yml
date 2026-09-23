@@ -136,8 +136,18 @@ jobs:
       - run: flutter pub get
         working-directory: packages/prabhix_offline
       - run: flutter pub get
+      - name: Detect Play upload keystore
+        id: keystore
+        env:
+          ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$ANDROID_RELEASE_KEYSTORE_BASE64" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Write Play upload keystore
-        if: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 != '' }}
+        if: steps.keystore.outputs.present == 'true'
         working-directory: apps/${{ matrix.app }}/android
         env:
           ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
@@ -229,8 +239,18 @@ jobs:
       - run: flutter pub get
         working-directory: packages/prabhix_offline
       - run: flutter pub get
+      - name: Detect Play upload keystore
+        id: keystore
+        env:
+          ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$ANDROID_RELEASE_KEYSTORE_BASE64" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Write Play upload keystore
-        if: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 != '' }}
+        if: steps.keystore.outputs.present == 'true'
         working-directory: apps/admin/android
         env:
           ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
