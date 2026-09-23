@@ -11,6 +11,7 @@ import 'screens/device_detail_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/inbox_screen.dart';
 import 'screens/inventory_screen.dart';
+import 'screens/invoice_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/members_screen.dart';
 import 'screens/more_screen.dart';
@@ -22,6 +23,7 @@ import 'screens/repairs_screen.dart';
 import 'screens/reports_screen.dart';
 import 'screens/sales_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/shop_ops_screens.dart';
 import 'screens/shell_screen.dart';
 import 'screens/suppliers_screen.dart';
 import 'screens/support_screen.dart';
@@ -73,7 +75,7 @@ class _MobiStackAppState extends State<MobiStackApp> {
                   children: [
                     const BrandMark(),
                     const SizedBox(height: 28),
-                    const SizedBox(
+                    SizedBox(
                       width: 28,
                       height: 28,
                       child: CircularProgressIndicator(
@@ -130,13 +132,25 @@ class _MobiStackAppState extends State<MobiStackApp> {
         GoRoute(path: '/purchases', builder: (_, __) => const PurchasesScreen()),
         GoRoute(path: '/members', builder: (_, __) => const MembersScreen()),
         GoRoute(path: '/reports', builder: (_, __) => const ReportsScreen()),
-        GoRoute(path: '/movements', builder: (_, __) => const MovementsScreen()),
+        GoRoute(
+          path: '/movements',
+          builder: (_, state) => MovementsScreen(variantId: state.uri.queryParameters['variant']),
+        ),
         GoRoute(path: '/billing', builder: (_, __) => const BillingScreen()),
         GoRoute(path: '/inbox', builder: (_, __) => const InboxScreen()),
         GoRoute(path: '/support', builder: (_, __) => const SupportScreen()),
         GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
+        GoRoute(path: '/audit', builder: (_, __) => const AuditScreen()),
+        GoRoute(path: '/health', builder: (_, __) => const HealthScreen()),
+        GoRoute(path: '/standing', builder: (_, __) => const StandingScreen()),
+        GoRoute(path: '/notifications', builder: (_, __) => const NotificationPrefsScreen()),
+        GoRoute(path: '/import', builder: (_, __) => const ImportScreen()),
         GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
         GoRoute(path: '/scan', builder: (_, __) => const BarcodeScannerScreen()),
+        GoRoute(
+          path: '/invoice/:id',
+          builder: (_, state) => InvoiceScreen(saleId: state.pathParameters['id']!),
+        ),
         GoRoute(
           path: '/devices/:id',
           builder: (_, state) =>
@@ -158,9 +172,13 @@ class _MobiStackAppState extends State<MobiStackApp> {
 
   @override
   Widget build(BuildContext context) {
+    final mode = context.watch<AppState>().themeMode;
+    Px.active = mode == ThemeMode.light ? PxPalette.lightMode : PxPalette.darkMode;
     return MaterialApp.router(
       title: 'MobiStack',
-      theme: buildPrabhixAdminTheme(),
+      theme: buildMobiStackTheme(PxPalette.lightMode),
+      darkTheme: buildMobiStackTheme(PxPalette.darkMode),
+      themeMode: mode,
       routerConfig: _router,
     );
   }

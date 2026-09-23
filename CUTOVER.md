@@ -30,7 +30,7 @@ Admin stays internal (GitHub Actions artifact `prabhix-admin` — not on the pub
 | Analyze + APK build on `main` | Passing |
 | S3 `PutObject` to `prabhix-apk-downloads` | **Blocked** — CI role has no S3 write policy |
 | Store URLs serving Flutter builds | Not yet (still older artifacts until S3 works) |
-| Release signing secrets | Optional next — unsigned release sideloads; Play/update continuity needs keystore |
+| Release signing secrets | Local Play upload keystore exists (`D:\Projects\KEYS\prabhix-play-upload.jks`). GitHub secrets still optional — see PLAY-STORE.md |
 
 ### IAM (one-time, AWS root / IAM admin — `prabhix` IAM user cannot do this)
 
@@ -48,8 +48,8 @@ aws iam attach-role-policy \
 Then re-run **Flutter mobile CI** → **Run workflow** on `main` (workflow_dispatch), or push
 another commit. No long-lived AWS keys needed — the workflow uses OIDC (`id-token: write`).
 
-Signing: follow `ANDROID-RELEASE-SIGNING.md` (same keystores / applicationIds as natives so
-Play continuity is preserved).
+Signing: follow `Infra/docs/PLAY-STORE.md` and `ANDROID-RELEASE-SIGNING.md`. Frozen
+applicationIds. Play upload key is `prabhix-play-upload.jks` (not the debug keystore).
 
 ## Manual
 

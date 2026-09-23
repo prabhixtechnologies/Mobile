@@ -1,6 +1,18 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+val playKeystoreProperties = Properties()
+val playKeystorePropertiesFile = listOf(
+    rootProject.file("key.properties"),
+    file("D:/Projects/KEYS/prabhix-play-upload.key.properties"),
+).firstOrNull { it.exists() }
+if (playKeystorePropertiesFile != null) {
+    playKeystoreProperties.load(FileInputStream(playKeystorePropertiesFile))
 }
 
 android {
@@ -25,11 +37,28 @@ android {
         versionName = flutter.versionName
         multiDexEnabled = true
         manifestPlaceholders["appAuthRedirectScheme"] = "mobistack"
+        manifestPlaceholders["usesCleartextTraffic"] = "true"
+    }
+
+    if (playKeystorePropertiesFile != null) {
+        signingConfigs {
+            create("release") {
+                keyAlias = playKeystoreProperties.getProperty("keyAlias")
+                keyPassword = playKeystoreProperties.getProperty("keyPassword")
+                storeFile = file(playKeystoreProperties.getProperty("storeFile")!!)
+                storePassword = playKeystoreProperties.getProperty("storePassword")
+            }
+        }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (playKeystorePropertiesFile != null) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
+            manifestPlaceholders["usesCleartextTraffic"] = "false"
         }
     }
 }

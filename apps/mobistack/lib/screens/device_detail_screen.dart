@@ -24,6 +24,9 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
   List<Map<String, dynamic>> _stock = const [];
   String? _error;
   bool _loading = true;
+  bool _refreshing = false;
+
+  String get _cacheKey => 'device.${widget.deviceId}';
 
   @override
   void initState() {
@@ -31,37 +34,76 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
+  Future<void> _applyCache(AppState state) async {
+    final cached = await state.sync.commonsPage(_cacheKey);
+    if (!mounted || cached == null) return;
+    final device = cached['device'];
+    setState(() {
+      _device = device is Map ? Map<String, dynamic>.from(device) : _device;
+      _fits = pageRows(cached['fits']);
+      _stock = pageRows(cached['stock']);
+      _loading = false;
+    });
+  }
+
   Future<void> _load() async {
     final state = context.read<AppState>();
+    await _applyCache(state);
+    if (!mounted) return;
+    if (!state.online) {
+      setState(() {
+        _loading = false;
+        _refreshing = false;
+        _error = _device == null ? 'Offline · this phone is not cached yet' : null;
+      });
+      return;
+    }
     setState(() {
-      _loading = true;
+      _refreshing = true;
       _error = null;
+      if (_device == null) _loading = true;
     });
     try {
-      final device = await state.api.dio.get<dynamic>('commons/devices/${widget.deviceId}');
-      final fits = await state.api.dio.get<dynamic>('commons/devices/${widget.deviceId}/fits');
-      List<Map<String, dynamic>> stock = const [];
-      try {
-        final stockRes = await state.api.dio
-            .get<dynamic>('inventory/catalog-links/devices/${widget.deviceId}/stock');
-        stock = pageRows(stockRes.data);
-      } catch (_) {
-        stock = const [];
-      }
+      final deviceFuture =
+          state.api.dio.get<dynamic>('commons/devices/${widget.deviceId}');
+      final fitsFuture =
+          state.api.dio.get<dynamic>('commons/devices/${widget.deviceId}/fits');
+      final stockFuture = () async {
+        try {
+          return await state.api.dio.get<dynamic>(
+            'inventory/catalog-links/devices/${widget.deviceId}/stock',
+          );
+        } catch (_) {
+          return null;
+        }
+      }();
+      final deviceRes = await deviceFuture;
+      final fitsRes = await fitsFuture;
+      final stockRes = await stockFuture;
+      final device = deviceRes.data is Map
+          ? Map<String, dynamic>.from(deviceRes.data as Map)
+          : null;
+      final fits = pageRows(fitsRes.data);
+      final stock = stockRes == null ? _stock : pageRows(stockRes.data);
+      await state.sync.saveCommonsPage(_cacheKey, {
+        'device': device,
+        'fits': fits,
+        'stock': stock,
+      });
       if (!mounted) return;
       setState(() {
-        _device = device.data is Map
-            ? Map<String, dynamic>.from(device.data as Map)
-            : null;
-        _fits = pageRows(fits.data);
+        _device = device;
+        _fits = fits;
         _stock = stock;
         _loading = false;
+        _refreshing = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = '$e';
+        _error = _device == null ? '$e' : null;
         _loading = false;
+        _refreshing = false;
       });
     }
   }
@@ -99,16 +141,21 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
                   children: [
+                    if (_refreshing)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 12),
+                        child: LinearProgressIndicator(minHeight: 2),
+                      ),
                     if (_error != null)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12),
-                        child: Text(_error!, style: const TextStyle(color: Px.muted)),
+                        child: Text(_error!, style: TextStyle(color: Px.muted)),
                       ),
                     Container(
                       padding: const EdgeInsets.all(22),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(22),
-                        gradient: const LinearGradient(
+                        gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [Px.accent, Px.accentStrong],
@@ -132,7 +179,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                               if (brand.isNotEmpty) brand,
                               if (_device?['modelCode'] != null) '${_device!['modelCode']}',
                             ].join(' · '),
-                            style: const TextStyle(color: Px.accentInk, fontSize: 15),
+                            style: TextStyle(color: Px.accentInk, fontSize: 15),
                           ),
                         ],
                       ),

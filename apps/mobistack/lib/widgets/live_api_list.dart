@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../state/app_state.dart';
-import '../widgets/chrome.dart';
 import '../widgets/shop_ui.dart';
 
 List<Map<String, dynamic>> pageRows(dynamic data) {
@@ -40,6 +39,8 @@ class LiveApiListScreen extends StatefulWidget {
     this.emptyTitle = 'Nothing here yet',
     this.emptySubtitle = 'The list fills when the shop has rows.',
     this.emptyIcon = Icons.inbox_outlined,
+    this.onTap,
+    this.floatingActionButton,
   });
 
   final String title;
@@ -49,6 +50,8 @@ class LiveApiListScreen extends StatefulWidget {
   final String emptyTitle;
   final String emptySubtitle;
   final IconData emptyIcon;
+  final void Function(Map<String, dynamic> row)? onTap;
+  final Widget? floatingActionButton;
 
   @override
   State<LiveApiListScreen> createState() => _LiveApiListScreenState();
@@ -56,6 +59,7 @@ class LiveApiListScreen extends StatefulWidget {
 
 class _LiveApiListScreenState extends State<LiveApiListScreen> {
   bool _loading = true;
+  bool _refreshing = false;
   String? _error;
   List<Map<String, dynamic>> _rows = const [];
 
@@ -69,35 +73,62 @@ class _LiveApiListScreenState extends State<LiveApiListScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
+  @override
+  void didUpdateWidget(covariant LiveApiListScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.path != widget.path) _load();
+  }
+
   Future<void> _load() async {
     final state = context.read<AppState>();
+    final cached = await state.sync.cachedList(widget.path);
+    if (!mounted) return;
+    if (cached != null) {
+      setState(() {
+        _rows = cached;
+        _loading = false;
+        _error = null;
+      });
+    }
+    if (!state.online) {
+      setState(() {
+        _loading = false;
+        _refreshing = false;
+        _error = _rows.isEmpty ? 'Offline · nothing saved for this list yet' : null;
+      });
+      return;
+    }
     setState(() {
-      _loading = true;
+      _refreshing = _rows.isNotEmpty;
+      _loading = _rows.isEmpty;
       _error = null;
     });
     try {
       final res = await state.api.dio.get<dynamic>(widget.path);
+      final rows = pageRows(res.data);
+      await state.sync.saveList(widget.path, rows);
       if (!mounted) return;
       setState(() {
-        _rows = pageRows(res.data);
+        _rows = rows;
         _loading = false;
+        _refreshing = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = '$e';
+        _error = _rows.isEmpty ? '$e' : null;
         _loading = false;
+        _refreshing = false;
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Atmosphere(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(title: Text(widget.title)),
-        body: RefreshIndicator(
+    return ShopPage(
+      title: widget.title,
+      floatingActionButton: widget.floatingActionButton,
+      child: RefreshIndicator(
           onRefresh: _load,
           child: _loading && _rows.isEmpty
               ? const Center(child: CircularProgressIndicator())
@@ -125,17 +156,20 @@ class _LiveApiListScreenState extends State<LiveApiListScreen> {
                         )
                       : ListView.separated(
                           physics: const AlwaysScrollableScrollPhysics(),
-                          itemCount: _rows.length,
+                          itemCount: _rows.length + (_refreshing ? 1 : 0),
                           separatorBuilder: (_, __) => const Divider(height: 1),
                           itemBuilder: (context, i) {
-                            final row = _rows[i];
+                            if (_refreshing && i == 0) {
+                              return const LinearProgressIndicator(minHeight: 2);
+                            }
+                            final row = _rows[_refreshing ? i - 1 : i];
                             return ShopListTile(
                               title: widget.titleOf(row),
                               subtitle: widget.subtitleOf?.call(row),
+                              onTap: widget.onTap == null ? null : () => widget.onTap!(row),
                             );
                           },
                         ),
-        ),
       ),
     );
   }

@@ -12,18 +12,21 @@ class AppConfig {
   final ProductConfig product;
 
   factory AppConfig.fromEnvironment() {
-    const issuer = String.fromEnvironment(
-      'IDENTITY_ISSUER',
-      defaultValue: 'http://10.0.2.2:8081',
-    );
+    const issuerOverride = String.fromEnvironment('IDENTITY_ISSUER');
+    const apiOverride = String.fromEnvironment('API_BASE_URL');
+    final issuer = issuerOverride.isNotEmpty
+        ? issuerOverride
+        : (kReleaseMode
+            ? 'https://api.prabhixtechnologies.com'
+            : 'http://10.0.2.2:8081');
     final defaultApi = kReleaseMode
         ? 'https://mobistack.prabhixtechnologies.com/api/v1'
         : 'http://10.0.2.2:8085/api/v1';
-    const apiBase = String.fromEnvironment('API_BASE_URL', defaultValue: '');
+    final apiBase = apiOverride.isNotEmpty ? apiOverride : defaultApi;
     return AppConfig(
       identity: IdentityConfig.mobistack(issuer: issuer),
       product: ProductConfig.mobistack(
-        apiBaseUrl: apiBase.isEmpty ? defaultApi : apiBase,
+        apiBaseUrl: apiBase,
       ),
     );
   }

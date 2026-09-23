@@ -17,6 +17,9 @@ build/
 *.env
 *.jks
 *.keystore
+**/key.properties
+**/keystore.properties
+**/adi-registration.properties
 google-services.json
 GoogleService-Info.plist
 **/gradle.properties.local

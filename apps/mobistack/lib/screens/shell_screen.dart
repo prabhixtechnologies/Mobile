@@ -19,37 +19,122 @@ class ShellScreen extends StatelessWidget {
     final state = context.watch<AppState>();
     var selected = _routes.indexWhere((r) => loc.startsWith(r));
     if (selected < 0) selected = 0;
+    final bottom = MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
+      backgroundColor: Px.bg,
       body: child,
-      bottomNavigationBar: NavigationBar(
-        height: 70,
-        backgroundColor: Px.surface.withValues(alpha: 0.96),
-        indicatorColor: Px.bgAccent,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        selectedIndex: selected,
-        onDestinationSelected: (i) => context.go(_routes[i]),
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.home_outlined),
-            selectedIcon: const Icon(Icons.home_rounded),
-            label: state.online ? 'Home' : 'Offline',
+      bottomNavigationBar: Padding(
+        padding: EdgeInsets.fromLTRB(16, 0, 16, 12 + bottom),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: Px.surface.withValues(alpha: 0.96),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: Px.line),
+            boxShadow: Px.isDark
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.45),
+                      blurRadius: 28,
+                      offset: const Offset(0, 12),
+                    ),
+                  ]
+                : Px.lift,
           ),
-          NavigationDestination(
-            icon: const Icon(Icons.public_outlined),
-            selectedIcon: const Icon(Icons.public_rounded),
-            label: 'Catalog',
-          ),
-          NavigationDestination(
-            icon: Badge(
-              isLabelVisible: state.pendingOps > 0,
-              label: Text('${state.pendingOps}'),
-              child: const Icon(Icons.grid_view_outlined),
+          child: Padding(
+            padding: const EdgeInsets.all(6),
+            child: Row(
+              children: [
+                _DockItem(
+                  selected: selected == 0,
+                  icon: Icons.home_outlined,
+                  activeIcon: Icons.home_rounded,
+                  label: state.online ? 'Home' : 'Offline',
+                  onTap: () => context.go(_routes[0]),
+                ),
+                _DockItem(
+                  selected: selected == 1,
+                  icon: Icons.public_outlined,
+                  activeIcon: Icons.public_rounded,
+                  label: 'Catalog',
+                  onTap: () => context.go(_routes[1]),
+                ),
+                _DockItem(
+                  selected: selected == 2,
+                  icon: Icons.grid_view_outlined,
+                  activeIcon: Icons.grid_view_rounded,
+                  label: 'More',
+                  badge: state.pendingOps > 0 ? '${state.pendingOps}' : null,
+                  onTap: () => context.go(_routes[2]),
+                ),
+              ],
             ),
-            selectedIcon: const Icon(Icons.grid_view_rounded),
-            label: 'More',
           ),
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DockItem extends StatelessWidget {
+  const _DockItem({
+    required this.selected,
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+    required this.onTap,
+    this.badge,
+  });
+
+  final bool selected;
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final VoidCallback onTap;
+  final String? badge;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? Px.accentInk : Px.muted;
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(22),
+            onTap: onTap,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Px.curve,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: selected ? Px.accent : Colors.transparent,
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Badge(
+                    isLabelVisible: badge != null,
+                    label: Text(badge ?? ''),
+                    backgroundColor: Px.warning,
+                    textColor: Px.accentInk,
+                    child: Icon(selected ? activeIcon : icon, color: color, size: 22),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    label,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: color,
+                          fontSize: 11,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -87,6 +87,38 @@ class ApiClient {
 
   Dio get dio => _dio;
 
+  /// Logs method, URL, status, and elapsed time. Safe for a release build:
+  /// no headers, no body.
+  void traceRequests(void Function(String message) log) {
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          options.extra['t0'] = DateTime.now();
+          log('→ ${options.method} ${options.uri}');
+          handler.next(options);
+        },
+        onResponse: (response, handler) {
+          final started = response.requestOptions.extra['t0'];
+          final ms = started is DateTime
+              ? DateTime.now().difference(started).inMilliseconds
+              : -1;
+          log('← ${response.statusCode} ${response.requestOptions.uri} ${ms}ms');
+          handler.next(response);
+        },
+        onError: (error, handler) {
+          final started = error.requestOptions.extra['t0'];
+          final ms = started is DateTime
+              ? DateTime.now().difference(started).inMilliseconds
+              : -1;
+          log(
+            '✕ ${error.response?.statusCode ?? '-'} ${error.requestOptions.uri} ${ms}ms ${error.type}',
+          );
+          handler.next(error);
+        },
+      ),
+    );
+  }
+
   Future<AuthMe> authMe() async {
     debugPrint('GET ${config.apiBaseUrl}/auth/me');
     final res = await _get('auth/me');
@@ -119,7 +151,7 @@ class ApiClient {
   /// Pins the active org for subsequent product API calls.
   Future<void> selectOrganization(String organizationId) async {
     try {
-      await _dio.post<void>('organizations/$organizationId/select');
+      await _dio.post<void>(config.selectPath(organizationId));
     } catch (_) {
       // Some products only need the header; continue with local pin.
     }
@@ -608,6 +640,21 @@ class ApiClient {
     try {
       final res = await _dio.get<dynamic>(path);
       return _parseMapList(res.data).map(parse).toList();
+    } on DioException catch (e) {
+      throw _map(e);
+    }
+  }
+
+  Future<String> getText(String path) async {
+    try {
+      final res = await _dio.get<String>(
+        path,
+        options: Options(
+          responseType: ResponseType.plain,
+          headers: {'Accept': 'text/html'},
+        ),
+      );
+      return res.data ?? '';
     } on DioException catch (e) {
       throw _map(e);
     }

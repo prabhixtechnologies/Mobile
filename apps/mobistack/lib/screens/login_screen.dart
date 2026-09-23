@@ -46,7 +46,7 @@ class LoginScreen extends StatelessWidget {
                 FadeSlide(
                   delay: 180.ms,
                   child: Text(
-                    'Inventory, sales, and repairs — signed in with Prabhix Identity.',
+                    'Inventory, sales, and repairs.',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: Px.muted,
                           fontSize: 17,
@@ -57,12 +57,12 @@ class LoginScreen extends StatelessWidget {
                 if (state.error != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 14),
-                    child: Text(state.error!, style: const TextStyle(color: Px.danger)),
+                    child: Text(state.error!, style: TextStyle(color: Px.danger)),
                   ),
                 FadeSlide(
                   delay: 240.ms,
                   child: PxPrimaryButton(
-                    label: state.busy ? 'Opening Identity…' : 'Continue with Identity',
+                    label: state.busy ? 'Signing in…' : 'Login with Prabhix Identity',
                     busy: state.busy,
                     icon: Icons.arrow_forward_rounded,
                     onPressed: state.busy ? null : () => state.signIn(),
@@ -72,12 +72,6 @@ class LoginScreen extends StatelessWidget {
                 TextButton(
                   onPressed: state.busy ? null : () => state.signIn(create: true),
                   child: const Text('Create account'),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'MobiStack by Prabhix',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(letterSpacing: 0.4),
                 ),
               ],
             ),
