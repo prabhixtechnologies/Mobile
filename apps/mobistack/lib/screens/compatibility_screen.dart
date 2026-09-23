@@ -96,6 +96,9 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
+    if (state.me?.paymentRequired == true) {
+      return const SizedBox.shrink();
+    }
     final library = _library;
     final category = _category;
     final title = _brand ?? category?.label ?? 'Parts';

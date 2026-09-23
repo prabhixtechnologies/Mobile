@@ -58,6 +58,9 @@ class _MobiStackAppState extends State<MobiStackApp> {
           case AuthPhase.signedOut:
             return loc == '/login' ? null : '/login';
           case AuthPhase.ready:
+            if (app.me?.paymentRequired == true) {
+              return loc == '/billing' ? null : '/billing';
+            }
             if (loc == '/login' || loc == '/splash' || loc == '/home' || loc == '/more') {
               return '/commons';
             }
