@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
 
-import '../state/app_state.dart';
 import '../theme/prabhix_theme.dart';
 
 /// Primary shop chrome: Home · Catalog · More.
@@ -11,12 +9,11 @@ class ShellScreen extends StatelessWidget {
 
   final Widget child;
 
-  static const _routes = ['/home', '/commons', '/more'];
+  static const _routes = ['/commons', '/billing'];
 
   @override
   Widget build(BuildContext context) {
     final loc = GoRouterState.of(context).uri.toString();
-    final state = context.watch<AppState>();
     var selected = _routes.indexWhere((r) => loc.startsWith(r));
     if (selected < 0) selected = 0;
     final bottom = MediaQuery.paddingOf(context).bottom;
@@ -47,25 +44,17 @@ class ShellScreen extends StatelessWidget {
               children: [
                 _DockItem(
                   selected: selected == 0,
-                  icon: Icons.home_outlined,
-                  activeIcon: Icons.home_rounded,
-                  label: state.online ? 'Home' : 'Offline',
+                  icon: Icons.public_outlined,
+                  activeIcon: Icons.public_rounded,
+                  label: 'Catalog',
                   onTap: () => context.go(_routes[0]),
                 ),
                 _DockItem(
                   selected: selected == 1,
-                  icon: Icons.public_outlined,
-                  activeIcon: Icons.public_rounded,
-                  label: 'Catalog',
+                  icon: Icons.credit_card_outlined,
+                  activeIcon: Icons.credit_card_rounded,
+                  label: 'Billing',
                   onTap: () => context.go(_routes[1]),
-                ),
-                _DockItem(
-                  selected: selected == 2,
-                  icon: Icons.grid_view_outlined,
-                  activeIcon: Icons.grid_view_rounded,
-                  label: 'More',
-                  badge: state.pendingOps > 0 ? '${state.pendingOps}' : null,
-                  onTap: () => context.go(_routes[2]),
                 ),
               ],
             ),
@@ -83,7 +72,6 @@ class _DockItem extends StatelessWidget {
     required this.activeIcon,
     required this.label,
     required this.onTap,
-    this.badge,
   });
 
   final bool selected;
@@ -91,7 +79,6 @@ class _DockItem extends StatelessWidget {
   final IconData activeIcon;
   final String label;
   final VoidCallback onTap;
-  final String? badge;
 
   @override
   Widget build(BuildContext context) {
@@ -115,13 +102,7 @@ class _DockItem extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Badge(
-                    isLabelVisible: badge != null,
-                    label: Text(badge ?? ''),
-                    backgroundColor: Px.warning,
-                    textColor: Px.accentInk,
-                    child: Icon(selected ? activeIcon : icon, color: color, size: 22),
-                  ),
+                  Icon(selected ? activeIcon : icon, color: color, size: 22),
                   const SizedBox(height: 2),
                   Text(
                     label,

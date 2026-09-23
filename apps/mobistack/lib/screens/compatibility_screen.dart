@@ -67,7 +67,6 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<AppState>();
     final library = _library;
     final category = _category;
     final title = _brand ?? category?.label ?? 'Parts';
@@ -85,10 +84,11 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
         body: SafeArea(
           child: Column(
             children: [
-              ShopSyncBar(state: state),
               ShopHeroHeader(
-                title: title,
-                subtitle: subtitle,
+                title: category == null ? 'Fitment catalog' : title,
+                subtitle: category == null
+                    ? (library == null ? 'Phones and the parts that fit them' : '${library.phones.length} phones')
+                    : subtitle,
                 actions: [
                   if (category != null)
                     IconButton(

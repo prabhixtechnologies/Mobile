@@ -58,8 +58,11 @@ class _MobiStackAppState extends State<MobiStackApp> {
           case AuthPhase.signedOut:
             return loc == '/login' ? null : '/login';
           case AuthPhase.ready:
-            if (loc == '/login' || loc == '/splash') return '/home';
-            return null;
+            if (loc == '/login' || loc == '/splash' || loc == '/home' || loc == '/more') {
+              return '/commons';
+            }
+            final open = loc == '/billing' || loc.startsWith('/commons');
+            return open ? null : '/commons';
         }
       },
       routes: [
@@ -104,6 +107,11 @@ class _MobiStackAppState extends State<MobiStackApp> {
                   const NoTransitionPage(child: CompatibilityScreen()),
             ),
             GoRoute(
+              path: '/billing',
+              pageBuilder: (_, __) =>
+                  const NoTransitionPage(child: BillingScreen()),
+            ),
+            GoRoute(
               path: '/more',
               pageBuilder: (_, __) =>
                   const NoTransitionPage(child: MoreScreen()),
@@ -136,7 +144,6 @@ class _MobiStackAppState extends State<MobiStackApp> {
           path: '/movements',
           builder: (_, state) => MovementsScreen(variantId: state.uri.queryParameters['variant']),
         ),
-        GoRoute(path: '/billing', builder: (_, __) => const BillingScreen()),
         GoRoute(path: '/inbox', builder: (_, __) => const InboxScreen()),
         GoRoute(path: '/support', builder: (_, __) => const SupportScreen()),
         GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
