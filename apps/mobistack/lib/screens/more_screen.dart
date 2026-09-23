@@ -18,6 +18,8 @@ class MoreScreen extends StatelessWidget {
     final catalog = <_Item>[
       _Item('Browse catalog', Icons.public_outlined, '/commons'),
       _Item('Private fitment notes', Icons.lock_outline_rounded, '/compatibility'),
+      _Item('Standing', Icons.military_tech_outlined, '/standing'),
+      _Item('Catalog import', Icons.upload_file_rounded, '/import'),
     ];
 
     final shop = <_Item>[
@@ -45,6 +47,9 @@ class MoreScreen extends StatelessWidget {
         _Item('Reports', Icons.bar_chart_rounded, '/reports'),
       _Item('Billing', Icons.credit_card_rounded, '/billing'),
       _Item('Inbox', Icons.inbox_outlined, '/inbox'),
+      _Item('Notifications', Icons.notifications_outlined, '/notifications'),
+      _Item('Audit', Icons.history_rounded, '/audit'),
+      _Item('Health', Icons.monitor_heart_outlined, '/health'),
       _Item('Support', Icons.help_outline_rounded, '/support'),
       _Item('Settings', Icons.settings_outlined, '/settings'),
       _Item('Profile', Icons.person_outline_rounded, '/profile'),
@@ -60,6 +65,35 @@ class MoreScreen extends StatelessWidget {
               ShopHeroHeader(
                 title: 'More',
                 subtitle: state.me?.email ?? 'Shop tools & settings',
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                child: TextField(
+                  decoration: const InputDecoration(hintText: 'Search the shop'),
+                  onSubmitted: (value) async {
+                    final term = value.trim();
+                    if (term.length < 2 || !context.mounted) return;
+                    try {
+                      final res = await context.read<AppState>().api.dio.get<dynamic>(
+                        'search',
+                        queryParameters: {'q': term},
+                      );
+                      final data = res.data;
+                      final parts = data is Map && data['parts'] is List ? data['parts'] as List : const [];
+                      if (!context.mounted) return;
+                      final names = [
+                        for (final row in parts)
+                          if (row is Map) '${row['name'] ?? row['variantName'] ?? row['sku'] ?? ''}',
+                      ].where((name) => name.isNotEmpty).take(8).join('\n');
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(names.isEmpty ? 'Nothing matched' : names)),
+                      );
+                    } catch (e) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+                    }
+                  },
+                ),
               ),
               Expanded(
                 child: ListView(
@@ -78,7 +112,7 @@ class MoreScreen extends StatelessWidget {
                     _Section(title: 'Ops', items: ops),
                     const SizedBox(height: 8),
                     ShopListTile(
-                      leading: const Icon(Icons.logout_rounded, color: Px.danger),
+                      leading: Icon(Icons.logout_rounded, color: Px.danger),
                       title: 'Sign out',
                       onTap: () => state.signOut(),
                     ),
@@ -127,7 +161,7 @@ class _Section extends StatelessWidget {
           (item) => ShopListTile(
             leading: Icon(item.icon, color: Px.accent),
             title: item.label,
-            trailing: const Icon(Icons.chevron_right_rounded, color: Px.faint),
+            trailing: Icon(Icons.chevron_right_rounded, color: Px.faint),
             onTap: () {
               if (item.route == '/inventory' ||
                   item.route == '/sales' ||

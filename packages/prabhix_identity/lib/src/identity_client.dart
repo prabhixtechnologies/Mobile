@@ -71,6 +71,12 @@ class IdentityClient {
   }
 
   Future<String?> refreshIfNeeded({bool force = false}) async {
+    if (!force) {
+      final cached = tokenStore.cachedSession;
+      if (cached != null && cached.accessTokenFresh) {
+        return cached.accessToken;
+      }
+    }
     if (_inFlightRefresh != null) {
       return _inFlightRefresh!.future;
     }

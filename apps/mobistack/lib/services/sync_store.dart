@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:prabhix_api_core/prabhix_api_core.dart';
 import 'package:sqflite/sqflite.dart';
@@ -119,6 +120,107 @@ class SyncStore {
         .toList();
   }
 
+  /// Last fitment page opened for this phone or part. The snapshot only stores
+  /// popular device names; these pages are what make a repeat tap instant.
+  Future<Map<String, dynamic>?> commonsPage(String key) async {
+    final raw = await _get('commons.page.$key');
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    return null;
+  }
+
+  Future<void> saveCommonsPage(String key, Map<String, dynamic> value) async {
+    await _put('commons.page.$key', value);
+  }
+
+  /// Lists the counter opens that are not part of the shop snapshot.
+  static const offlineListPaths = <String>[
+    'purchases',
+    'suppliers',
+    'users',
+    'inventory/transactions',
+    'inbox',
+    'compatibility-groups',
+  ];
+
+  Future<void> saveSession(Map<String, dynamic> me) async {
+    await _put('session.me', me);
+  }
+
+  Future<Map<String, dynamic>?> sessionProfile() async {
+    final raw = await _get('session.me');
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    return null;
+  }
+
+  Future<void> saveList(String path, List<Map<String, dynamic>> rows) async {
+    await _put('list.$path', rows);
+  }
+
+  Future<List<Map<String, dynamic>>?> cachedList(String path) async {
+    final raw = await _get('list.$path');
+    if (raw is! List) return null;
+    return raw
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList();
+  }
+
+  Future<void> saveJson(String key, Map<String, dynamic> value) async {
+    await _put(key, value);
+  }
+
+  Future<Map<String, dynamic>?> readJson(String key) async {
+    final raw = await _get(key);
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    return null;
+  }
+
+  /// Refresh the screens that are not in `/sync/snapshot`. A failed path keeps
+  /// the previous copy.
+  Future<void> pullOfflineLists() async {
+    await Future.wait([
+      for (final path in offlineListPaths) _pullList(path),
+      _pullBilling(),
+    ]);
+  }
+
+  Future<void> _pullList(String path) async {
+    try {
+      final res = await api.dio.get<dynamic>(path);
+      await saveList(path, _pageRows(res.data));
+    } catch (e) {
+      debugPrint('list $path unchanged: $e');
+    }
+  }
+
+  Future<void> _pullBilling() async {
+    try {
+      final res = await api.dio.get<dynamic>('billing');
+      if (res.data is Map) {
+        await saveJson('cache.billing', Map<String, dynamic>.from(res.data as Map));
+      }
+    } catch (e) {
+      debugPrint('billing cache unchanged: $e');
+    }
+  }
+
+  Future<void> clearLocal() async {
+    final theme = await _get('ui.theme');
+    final db = await _open();
+    await db.delete('kv');
+    await db.delete('outbox');
+    if (theme is String && theme.isNotEmpty) {
+      await _put('ui.theme', theme);
+    }
+  }
+
+  Future<String?> appearance() async {
+    final raw = await _get('ui.theme');
+    return raw is String ? raw : null;
+  }
+
+  Future<void> saveAppearance(String mode) => _put('ui.theme', mode);
+
   Future<List<CachedDevice>> devices() async {
     final raw = await _get('snapshot.devices');
     if (raw is! List) return const [];
@@ -196,4 +298,36 @@ class SyncStore {
       return const [];
     }
   }
+
+  Future<List<Map<String, dynamic>>> spareGroups() async {
+    final raw = await _get('catalog.spareGroups');
+    if (raw is! List) return const [];
+    return raw.whereType<Map>().map((row) => Map<String, dynamic>.from(row)).toList();
+  }
+
+  Future<void> saveSpareGroups(List<Map<String, dynamic>> groups) async {
+    await _put('catalog.spareGroups', groups);
+  }
+}
+
+List<Map<String, dynamic>> _pageRows(dynamic data) {
+  if (data is Map) {
+    final map = Map<String, dynamic>.from(data);
+    for (final key in ['content', 'items', 'rows']) {
+      final value = map[key];
+      if (value is List) {
+        return value
+            .whereType<Map>()
+            .map((row) => Map<String, dynamic>.from(row))
+            .toList();
+      }
+    }
+  }
+  if (data is List) {
+    return data
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList();
+  }
+  return const [];
 }

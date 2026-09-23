@@ -159,15 +159,23 @@ class KpiTile extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       decoration: BoxDecoration(
-        color: Px.surface.withValues(alpha: 0.88),
-        borderRadius: BorderRadius.circular(18),
-        border: Border(
-          left: BorderSide(color: accent, width: 4),
-        ),
+        color: Px.surface.withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Px.line),
+        boxShadow: Px.lift,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Container(
+            width: 28,
+            height: 3,
+            margin: const EdgeInsets.only(bottom: 10),
+            decoration: BoxDecoration(
+              color: accent,
+              borderRadius: BorderRadius.circular(99),
+            ),
+          ),
           Text(
             label.toUpperCase(),
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
@@ -197,6 +205,71 @@ class KpiTile extends StatelessWidget {
 }
 
 enum KpiTone { neutral, accent, warning, danger, success }
+
+class ShopPage extends StatelessWidget {
+  const ShopPage({
+    super.key,
+    required this.title,
+    required this.child,
+    this.subtitle,
+    this.floatingActionButton,
+  });
+
+  final String title;
+  final String? subtitle;
+  final Widget child;
+  final Widget? floatingActionButton;
+
+  @override
+  Widget build(BuildContext context) {
+    return Atmosphere(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        floatingActionButton: floatingActionButton,
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 4, 8, 0),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.maybePop(context),
+                      icon: const Icon(Icons.arrow_back_rounded),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: GoogleFonts.fraunces(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w600,
+                              color: Px.ink,
+                              height: 1.05,
+                            ),
+                          ),
+                          if (subtitle != null)
+                            Text(
+                              subtitle!,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(child: child),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class ShopEmpty extends StatelessWidget {
   const ShopEmpty({
@@ -266,13 +339,13 @@ class ShopSearchField extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: Px.surface.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(16),
+        color: Px.surfaceHigh.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: Px.line),
       ),
       child: Row(
         children: [
-          const Icon(Icons.search_rounded, color: Px.faint),
+          Icon(Icons.search_rounded, color: Px.faint),
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
@@ -301,6 +374,7 @@ class ShopListTile extends StatelessWidget {
     this.trailing,
     this.leading,
     this.onTap,
+    this.onLongPress,
   });
 
   final String title;
@@ -308,17 +382,24 @@ class ShopListTile extends StatelessWidget {
   final Widget? trailing;
   final Widget? leading;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
       child: Material(
-        color: Px.surface.withValues(alpha: 0.86),
-        borderRadius: BorderRadius.circular(16),
+        color: Px.surface,
+        elevation: Px.isDark ? 0 : 1,
+        shadowColor: const Color(0x22087A6E),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: Px.line),
+        ),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: onTap,
+          onLongPress: onLongPress,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
             child: Row(

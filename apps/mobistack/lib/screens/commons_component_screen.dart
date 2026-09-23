@@ -20,7 +20,10 @@ class _CommonsComponentScreenState extends State<CommonsComponentScreen> {
   Map<String, dynamic>? _component;
   List<Map<String, dynamic>> _devices = const [];
   bool _loading = true;
+  bool _refreshing = false;
   String? _error;
+
+  String get _cacheKey => 'component.${widget.componentId}';
 
   @override
   void initState() {
@@ -28,26 +31,60 @@ class _CommonsComponentScreenState extends State<CommonsComponentScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
+  Future<void> _applyCache(AppState state) async {
+    final cached = await state.sync.commonsPage(_cacheKey);
+    if (!mounted || cached == null) return;
+    final component = cached['component'];
+    setState(() {
+      _component = component is Map ? Map<String, dynamic>.from(component) : _component;
+      _devices = pageRows(cached['devices']);
+      _loading = false;
+    });
+  }
+
   Future<void> _load() async {
     final state = context.read<AppState>();
+    await _applyCache(state);
+    if (!mounted) return;
+    if (!state.online) {
+      setState(() {
+        _loading = false;
+        _refreshing = false;
+        _error = _component == null ? 'Offline · this part is not cached yet' : null;
+      });
+      return;
+    }
+    setState(() {
+      _refreshing = true;
+      _error = null;
+      if (_component == null) _loading = true;
+    });
     try {
-      final component =
-          await state.api.dio.get<dynamic>('commons/components/${widget.componentId}');
-      final devices =
-          await state.api.dio.get<dynamic>('commons/components/${widget.componentId}/devices');
+      final results = await Future.wait([
+        state.api.dio.get<dynamic>('commons/components/${widget.componentId}'),
+        state.api.dio.get<dynamic>('commons/components/${widget.componentId}/devices'),
+      ]);
+      final component = results[0].data is Map
+          ? Map<String, dynamic>.from(results[0].data as Map)
+          : null;
+      final devices = pageRows(results[1].data);
+      await state.sync.saveCommonsPage(_cacheKey, {
+        'component': component,
+        'devices': devices,
+      });
       if (!mounted) return;
       setState(() {
-        _component = component.data is Map
-            ? Map<String, dynamic>.from(component.data as Map)
-            : null;
-        _devices = pageRows(devices.data);
+        _component = component;
+        _devices = devices;
         _loading = false;
+        _refreshing = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = '$e';
+        _error = _component == null ? '$e' : null;
         _loading = false;
+        _refreshing = false;
       });
     }
   }
@@ -63,6 +100,11 @@ class _CommonsComponentScreenState extends State<CommonsComponentScreen> {
             : ListView(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
                 children: [
+                  if (_refreshing)
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 12),
+                      child: LinearProgressIndicator(minHeight: 2),
+                    ),
                   if (_error != null) Text(_error!),
                   if (_component?['description'] != null)
                     Padding(

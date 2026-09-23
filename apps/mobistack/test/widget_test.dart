@@ -17,6 +17,8 @@ import 'package:mobistack/screens/purchases_screen.dart';
 import 'package:mobistack/screens/repairs_screen.dart';
 import 'package:mobistack/screens/sales_screen.dart';
 import 'package:mobistack/screens/settings_screen.dart';
+import 'package:mobistack/services/counter_payloads.dart';
+import 'package:mobistack/services/open_bill.dart';
 import 'package:mobistack/screens/suppliers_screen.dart';
 import 'package:mobistack/state/app_state.dart';
 import 'package:prabhix_api_core/prabhix_api_core.dart';
@@ -75,7 +77,7 @@ void main() {
     state.phase = AuthPhase.signedOut;
     await tester.pumpWidget(wrap(state, const LoginScreen()));
     await tester.pump();
-    expect(find.text('Continue with Identity'), findsOneWidget);
+    expect(find.text('Login with Prabhix Identity'), findsOneWidget);
     state.dispose();
   });
 
@@ -92,8 +94,10 @@ void main() {
     final state = readyState();
     await tester.pumpWidget(wrap(state, const CompatibilityScreen()));
     await tester.pump();
-    expect(find.text('Fitment Catalog'), findsOneWidget);
-    expect(find.text('Pixel 8'), findsOneWidget);
+    expect(find.text('Parts'), findsOneWidget);
+    expect(find.text('Saved spares'), findsOneWidget);
+    expect(find.text('Display'), findsOneWidget);
+    expect(find.text('Battery'), findsOneWidget);
     state.dispose();
   });
 
@@ -175,5 +179,56 @@ void main() {
     expect(find.text('Manage account'), findsOneWidget);
     expect(find.text('shop@prabhix.test'), findsOneWidget);
     state.dispose();
+  });
+
+  test('mobistack select path is the workspace endpoint', () {
+    final mobistack = ProductConfig.mobistack(
+      apiBaseUrl: 'https://mobistack.prabhixtechnologies.com/api/v1',
+    );
+    expect(
+      mobistack.selectPath('ff7cce39-e964-4973-9e98-8e219e44d708'),
+      'workspaces/ff7cce39-e964-4973-9e98-8e219e44d708/select',
+    );
+    final platform = ProductConfig.platform(
+      apiBaseUrl: 'https://api.prabhixtechnologies.com/api/v1',
+      deviceHeader: 'oneops',
+    );
+    expect(platform.selectPath('org-1'), 'organizations/org-1/select');
+  });
+
+  test('open bill stacks the same part and pays cash', () {
+    final bill = OpenBill();
+    final variant = CachedVariant(
+      id: 'v1',
+      productName: 'Screen',
+      variantName: 'OLED',
+      sku: 'SCR-1',
+      retailPrice: 100,
+    );
+    bill.add(variant);
+    bill.add(variant);
+    expect(bill.lines.single.quantity, 2);
+    expect(bill.total, 200);
+    final body = bill.toSaleBody();
+    expect((body['items'] as List).single['quantity'], 2);
+    expect((body['payments'] as List).single['method'], 'CASH');
+    expect((body['payments'] as List).single['amount'], 200);
+  });
+
+  test('sale payload is a cash sale with one line', () {
+    final body = salePayload(CachedVariant(
+      id: 'v1',
+      productName: 'Screen',
+      variantName: 'OLED',
+      sku: 'SCR-1',
+      retailPrice: 499,
+    ));
+    final items = body['items'] as List;
+    expect(items.single['variantId'], 'v1');
+    expect(items.single['quantity'], 1);
+    expect(items.single['unitPrice'], 499);
+    final payments = body['payments'] as List;
+    expect(payments.single['method'], 'CASH');
+    expect(payments.single['amount'], 499);
   });
 }

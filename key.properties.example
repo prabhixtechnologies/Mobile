@@ -1,0 +1,6 @@
+# Copy to each app's android/key.properties (git-ignored).
+# Canonical file on this machine: D:/Projects/KEYS/prabhix-play-upload.key.properties
+storeFile=D:/Projects/KEYS/prabhix-play-upload.jks
+storePassword=REPLACE_ME
+keyAlias=upload
+keyPassword=REPLACE_ME

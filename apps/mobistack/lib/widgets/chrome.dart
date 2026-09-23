@@ -20,36 +20,40 @@ class Atmosphere extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final light = !Px.isDark;
     return Stack(
       fit: StackFit.expand,
       children: [
-        const ColoredBox(color: Px.bg),
-        Positioned(
-          top: -120,
-          right: -80,
-          child: _Glow(
-            size: intense ? 340 : 280,
-            color: Px.focus.withValues(alpha: intense ? 0.22 : 0.14),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: light
+                ? const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0xFFDDF6F0), Color(0xFFF7FBFA)],
+                  )
+                : null,
+            color: light ? null : Px.bg,
           ),
         ),
         Positioned(
-          bottom: -160,
-          left: -100,
+          top: light ? -80 : -160,
+          right: light ? -40 : -90,
           child: _Glow(
-            size: intense ? 380 : 300,
-            color: Px.accent.withValues(alpha: intense ? 0.18 : 0.12),
+            size: intense ? 420 : (light ? 220 : 320),
+            color: Px.accent.withValues(alpha: light ? 0.18 : (intense ? 0.28 : 0.16)),
           ),
         ),
-        Positioned(
-          top: MediaQuery.sizeOf(context).height * 0.35,
-          left: MediaQuery.sizeOf(context).width * 0.2,
-          child: _Glow(
-            size: 200,
-            color: Px.bgAccent.withValues(alpha: 0.9),
+        if (!light)
+          Positioned(
+            bottom: -180,
+            left: -120,
+            child: _Glow(
+              size: intense ? 460 : 340,
+              color: Px.focus.withValues(alpha: intense ? 0.16 : 0.08),
+            ),
           ),
-        ),
-        // Fine grain mesh lines
-        CustomPaint(painter: _MeshPainter(), child: const SizedBox.expand()),
+        if (!light) const CustomPaint(painter: _HorizonPainter(), child: SizedBox.expand()),
         child,
       ],
     );
@@ -88,36 +92,38 @@ class _Glow extends StatelessWidget {
   }
 }
 
-class _MeshPainter extends CustomPainter {
+class _HorizonPainter extends CustomPainter {
+  const _HorizonPainter();
+
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Px.ink.withValues(alpha: 0.035)
-      ..strokeWidth = 1;
-    const step = 48.0;
-    for (double x = 0; x < size.width; x += step) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-    for (double y = 0; y < size.height; y += step) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-    // Diagonal accent slash
-    final slash = Paint()
+    final glow = Paint()
       ..shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
         colors: [
           Px.accent.withValues(alpha: 0.0),
-          Px.accent.withValues(alpha: 0.06),
-          Px.accent.withValues(alpha: 0.0),
+          Px.accent.withValues(alpha: 0.05),
+          Colors.transparent,
         ],
-      ).createShader(Offset.zero & size)
-      ..strokeWidth = 120
-      ..style = PaintingStyle.stroke;
-    canvas.drawLine(
-      Offset(size.width * 0.15, -40),
-      Offset(size.width * 1.1, size.height * 0.7),
-      slash,
+        stops: const [0.0, 0.22, 0.55],
+      ).createShader(Offset.zero & size);
+    canvas.drawRect(Offset.zero & size, glow);
+
+    final arc = Path()
+      ..moveTo(-20, size.height * 0.18)
+      ..quadraticBezierTo(
+        size.width * 0.55,
+        size.height * 0.02,
+        size.width + 20,
+        size.height * 0.22,
+      );
+    canvas.drawPath(
+      arc,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..color = Px.accent.withValues(alpha: 0.22),
     );
   }
 
@@ -126,14 +132,13 @@ class _MeshPainter extends CustomPainter {
 }
 
 class BrandMark extends StatelessWidget {
-  const BrandMark({super.key, this.compact = false, this.product = 'MobiStack'});
+  const BrandMark({super.key, this.compact = false});
 
   final bool compact;
-  final String product;
 
   @override
   Widget build(BuildContext context) {
-    final size = compact ? 36.0 : 52.0;
+    final size = compact ? 36.0 : 56.0;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -142,8 +147,8 @@ class BrandMark extends StatelessWidget {
           height: size,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(compact ? 10 : 14),
-            gradient: const LinearGradient(
+            borderRadius: BorderRadius.circular(compact ? 12 : 16),
+            gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [Px.accent, Px.accentStrong],
@@ -157,36 +162,24 @@ class BrandMark extends StatelessWidget {
             ],
           ),
           child: Text(
-            'P',
+            'M',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   color: Px.accentInk,
                   fontWeight: FontWeight.w700,
-                  fontSize: compact ? 18 : 24,
+                  fontSize: compact ? 18 : 26,
                 ),
           ),
         ),
         SizedBox(width: compact ? 10 : 14),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Prabhix',
-              style: GoogleFonts.fraunces(
-                fontWeight: FontWeight.w700,
-                fontSize: compact ? 18 : 22,
-                height: 1.05,
-                color: Px.ink,
-              ),
-            ),            Text(
-              product.toUpperCase(),
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: Px.accent,
-                    letterSpacing: 1.6,
-                    fontSize: compact ? 11 : 12,
-                  ),
-            ),
-          ],
+        Text(
+          'MobiStack',
+          style: GoogleFonts.fraunces(
+            fontWeight: FontWeight.w700,
+            fontSize: compact ? 20 : 28,
+            height: 1.05,
+            color: Px.ink,
+            letterSpacing: -0.4,
+          ),
         ),
       ],
     );
@@ -218,7 +211,7 @@ class PxPrimaryButton extends StatelessWidget {
           gradient: LinearGradient(
             colors: onPressed == null
                 ? [Px.faint, Px.muted]
-                : const [Px.accent, Px.accentStrong],
+                : [Px.accent, Px.accentStrong],
           ),
           boxShadow: onPressed == null
               ? null
@@ -237,7 +230,7 @@ class PxPrimaryButton extends StatelessWidget {
             onTap: busy ? null : onPressed,
             child: Center(
               child: busy
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 22,
                       height: 22,
                       child: CircularProgressIndicator(

@@ -16,7 +16,10 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final d = state.dashboard;
-    final shop = state.me?.displayName ?? 'Shop floor';
+    final orgs = state.me?.organizations ?? const [];
+    final shop = orgs.isNotEmpty && orgs.first.name.isNotEmpty
+        ? orgs.first.name
+        : (state.me?.displayName ?? 'Shop floor');
 
     return Atmosphere(
       child: Scaffold(
@@ -68,7 +71,7 @@ class HomeScreen extends StatelessWidget {
                                 padding: const EdgeInsets.all(16),
                                 child: Row(
                                   children: [
-                                    const Icon(Icons.payments_rounded,
+                                    Icon(Icons.payments_rounded,
                                         color: Px.warning),
                                     const SizedBox(width: 12),
                                     Expanded(
@@ -87,14 +90,14 @@ class HomeScreen extends StatelessWidget {
                                                 ),
                                           ),
                                           const SizedBox(height: 4),
-                                          const Text(
+                                          Text(
                                             'Inventory, sales, and repairs unlock after you pick a plan.',
                                             style: TextStyle(color: Px.ink),
                                           ),
                                         ],
                                       ),
                                     ),
-                                    const Icon(Icons.chevron_right_rounded,
+                                    Icon(Icons.chevron_right_rounded,
                                         color: Px.warning),
                                   ],
                                 ),
@@ -118,63 +121,46 @@ class HomeScreen extends StatelessWidget {
                           ),
                         ),
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 10),
+                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
                         child: Text(
                           'Today on the floor',
                           style: GoogleFonts.fraunces(
-                            fontSize: 18,
+                            fontSize: 16,
                             fontWeight: FontWeight.w600,
                             color: Px.ink,
                           ),
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: GridView.count(
-                          crossAxisCount: 2,
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          mainAxisSpacing: 10,
-                          crossAxisSpacing: 10,
-                          childAspectRatio: 1.32,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Row(
                           children: [
-                            FadeSlide(
-                              child: KpiTile(
-                                label: 'Sales',
-                                value: d.todaySales.toStringAsFixed(0),
-                                tone: KpiTone.accent,
-                              ),
+                            _FloorStat(
+                              label: 'Sales',
+                              value: d.todaySales.toStringAsFixed(0),
+                              tone: KpiTone.accent,
                             ),
-                            FadeSlide(
-                              delay: 40.ms,
-                              child: KpiTile(
-                                label: 'Tickets',
-                                value: '${d.todayTransactions}',
-                              ),
+                            _FloorStat(
+                              label: 'Tickets',
+                              value: '${d.todayTransactions}',
                             ),
-                            FadeSlide(
-                              delay: 80.ms,
-                              child: KpiTile(
-                                label: 'Repairs',
-                                value: '${d.pendingRepairs}',
-                                tone: KpiTone.warning,
-                              ),
+                            _FloorStat(
+                              label: 'Repairs',
+                              value: '${d.pendingRepairs}',
+                              tone: KpiTone.warning,
                             ),
-                            FadeSlide(
-                              delay: 120.ms,
-                              child: KpiTile(
-                                label: 'Low stock',
-                                value: '${d.lowStockCount}',
-                                tone: d.lowStockCount > 0
-                                    ? KpiTone.danger
-                                    : KpiTone.success,
-                              ),
+                            _FloorStat(
+                              label: 'Low',
+                              value: '${d.lowStockCount}',
+                              tone: d.lowStockCount > 0
+                                  ? KpiTone.danger
+                                  : KpiTone.success,
                             ),
                           ],
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 26, 20, 12),
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                         child: Text(
                           'Floor modules',
                           style: GoogleFonts.fraunces(
@@ -232,7 +218,7 @@ class HomeScreen extends StatelessWidget {
                           padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                           child: Text(
                             state.error!,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Px.muted,
                               fontSize: 13,
                             ),
@@ -243,6 +229,83 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FloorStat extends StatelessWidget {
+  const _FloorStat({
+    required this.label,
+    required this.value,
+    this.tone = KpiTone.neutral,
+  });
+
+  final String label;
+  final String value;
+  final KpiTone tone;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = switch (tone) {
+      KpiTone.accent => Px.accent,
+      KpiTone.warning => Px.warning,
+      KpiTone.danger => Px.danger,
+      KpiTone.success => Px.success,
+      KpiTone.neutral => Px.focus,
+    };
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: Px.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Px.line),
+            boxShadow: Px.lift,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 16,
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: accent,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    style: GoogleFonts.fraunces(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 22,
+                      color: Px.ink,
+                      height: 1,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label.toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: Px.muted,
+                        letterSpacing: 0.6,
+                        fontSize: 10,
+                      ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -270,10 +333,13 @@ class _ModuleRow extends StatelessWidget {
     final tile = Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: accent
-            ? Px.accent.withValues(alpha: 0.1)
-            : Px.surface.withValues(alpha: 0.88),
-        borderRadius: BorderRadius.circular(18),
+        color: accent ? Px.bgAccent : Px.surface,
+        elevation: Px.isDark ? 0 : 1,
+        shadowColor: const Color(0x33087A6E),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: Px.line),
+        ),
         child: InkWell(
           borderRadius: BorderRadius.circular(18),
           onTap: onTap,
@@ -315,7 +381,7 @@ class _ModuleRow extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Icon(Icons.arrow_forward_ios_rounded,
+                Icon(Icons.arrow_forward_ios_rounded,
                     size: 14, color: Px.faint),
               ],
             ),

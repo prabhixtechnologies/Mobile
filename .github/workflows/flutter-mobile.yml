@@ -136,6 +136,23 @@ jobs:
       - run: flutter pub get
         working-directory: packages/prabhix_offline
       - run: flutter pub get
+      - name: Write Play upload keystore
+        if: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 != '' }}
+        working-directory: apps/${{ matrix.app }}/android
+        env:
+          ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          echo "$ANDROID_RELEASE_KEYSTORE_BASE64" | base64 -d > "$HOME/prabhix-play-upload.jks"
+          cat > key.properties <<EOF
+          storeFile=$HOME/prabhix-play-upload.jks
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=${ANDROID_KEY_ALIAS:-upload}
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOF
       - name: Build release APK (unsigned fallback to debug)
         id: build
         env:
@@ -212,6 +229,23 @@ jobs:
       - run: flutter pub get
         working-directory: packages/prabhix_offline
       - run: flutter pub get
+      - name: Write Play upload keystore
+        if: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 != '' }}
+        working-directory: apps/admin/android
+        env:
+          ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          echo "$ANDROID_RELEASE_KEYSTORE_BASE64" | base64 -d > "$HOME/prabhix-play-upload.jks"
+          cat > key.properties <<EOF
+          storeFile=$HOME/prabhix-play-upload.jks
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=${ANDROID_KEY_ALIAS:-upload}
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOF
       - name: Build Admin release APK
         id: build
         run: |

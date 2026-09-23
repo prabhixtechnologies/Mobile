@@ -32,21 +32,45 @@ class _BillingScreenState extends State<BillingScreen> {
   }
 
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    final state = context.read<AppState>();
+    final cached = await state.sync.readJson('cache.billing');
+    if (!mounted) return;
+    if (cached != null) {
+      setState(() {
+        _overview = BillingOverview.fromJson(cached);
+        _loading = false;
+        _error = null;
+      });
+    } else {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
+    if (!state.online) {
+      setState(() {
+        _loading = false;
+        _error = _overview == null ? 'Offline · billing is not saved on this phone yet' : null;
+      });
+      return;
+    }
     try {
-      final overview = await context.read<AppState>().api.billingOverview();
+      final res = await state.api.dio.get<dynamic>('billing');
+      if (res.data is! Map) {
+        throw StateError('Billing response was empty');
+      }
+      final map = Map<String, dynamic>.from(res.data as Map);
+      await state.sync.saveJson('cache.billing', map);
       if (!mounted) return;
       setState(() {
-        _overview = overview;
+        _overview = BillingOverview.fromJson(map);
         _loading = false;
+        _error = null;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = '$e';
+        _error = _overview == null ? '$e' : null;
         _loading = false;
       });
     }
@@ -143,7 +167,7 @@ class _BillingScreenState extends State<BillingScreen> {
                 onPaid: _onPaid,
               )
             : _loading
-                ? const Center(child: CircularProgressIndicator(color: Px.accent))
+                ? Center(child: CircularProgressIndicator(color: Px.accent))
                 : RefreshIndicator(
                     color: Px.accent,
                     onRefresh: _load,
@@ -200,8 +224,8 @@ class _BillingScreenState extends State<BillingScreen> {
                         ],
                         _SectionTitle('Plans'),
                         if ((overview?.plans ?? []).isEmpty)
-                          const Padding(
-                            padding: EdgeInsets.all(12),
+                          Padding(
+                            padding: const EdgeInsets.all(12),
                             child: Text(
                               'No sellable plans returned. Check billing API / permissions.',
                               style: TextStyle(color: Px.muted),
@@ -238,8 +262,8 @@ class _BillingScreenState extends State<BillingScreen> {
                             ),
                         ],
                         if (_busy)
-                          const Padding(
-                            padding: EdgeInsets.only(top: 16),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 16),
                             child: Center(
                               child: CircularProgressIndicator(color: Px.accent),
                             ),
