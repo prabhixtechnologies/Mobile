@@ -134,54 +134,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> refreshAll() async {
-    busy = true;
+    // Shop sync, sales, and stock are closed. Catalog and billing load themselves.
+    busy = false;
     error = null;
     notifyListeners();
-    final failures = <String>[];
-    final beforePending = await sync.pendingCount();
-    if (online) {
-      try {
-        await sync.flush();
-      } catch (e, st) {
-        debugPrint('sync flush failed: $e\n$st');
-        failures.add('flush');
-      }
-      try {
-        await sync.pullSnapshot();
-      } catch (e, st) {
-        debugPrint('sync pull failed: $e\n$st');
-        failures.add('pull');
-      }
-    } else {
-      failures.add('offline');
-    }
-    try {
-      await _hydrateFromDisk();
-      servingFromCache = !online || failures.contains('pull');
-      debugPrint(
-        'mobistack loaded variants=${variants.length} sales=${sales.length} '
-        'repairs=${repairs.length} customers=${customers.length} pending=$pendingOps',
-      );
-    } catch (e, st) {
-      debugPrint('sync read failed: $e\n$st');
-      failures.add('cache');
-    }
-    if (pendingOps > 0 && !online) {
-      await syncNotifier.showPendingOutbox(pendingOps);
-    } else if (beforePending > pendingOps && pendingOps == 0) {
-      await syncNotifier.showSynced(flushed: beforePending);
-    }
-    if (failures.isNotEmpty) {
-      error = online
-          ? 'Some sync steps failed: ${failures.join(', ')}'
-          : 'Offline · showing cached shop data'
-              '${pendingOps > 0 ? ' · $pendingOps queued' : ''}';
-    }
-    busy = false;
-    notifyListeners();
-    if (online) {
-      unawaited(sync.pullOfflineLists());
-    }
   }
 
   /// Queues a sync operation. Returns a failure message, or null when the
