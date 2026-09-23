@@ -44,6 +44,12 @@ class ApiClient {
                 await identity.tokenStore.deviceId();
             options.headers['X-Correlation-Id'] = const Uuid().v4();
             options.headers['X-Prabhix-Device-Label'] = config.deviceHeader;
+            final group = fitmentGroupId;
+            if (group != null && group.isNotEmpty) {
+              options.headers['X-Fitment-Group'] = group;
+            } else {
+              options.headers.remove('X-Fitment-Group');
+            }
             handler.next(options);
           } catch (e, st) {
             debugPrint('ApiClient onRequest failed: $e\n$st');
@@ -84,6 +90,9 @@ class ApiClient {
   final ProductConfig config;
   final IdentityClient identity;
   final Dio _dio;
+
+  /// Selected fitment group. Sent on every request so catalog reads stay in that group.
+  String? fitmentGroupId;
 
   Dio get dio => _dio;
 

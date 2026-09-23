@@ -48,6 +48,15 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   int pendingOps = 0;
   String? lastScan;
   bool servingFromCache = false;
+  List<FitmentGroup> fitmentGroups = const [];
+  String? fitmentGroupId;
+
+  FitmentGroup? get selectedFitmentGroup {
+    for (final group in fitmentGroups) {
+      if (group.id == fitmentGroupId) return group;
+    }
+    return fitmentGroups.isEmpty ? null : fitmentGroups.first;
+  }
 
   bool get online => connectivity.online;
 
@@ -519,6 +528,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       platformAdmin: me!.platformAdmin || me!.systemAdmin,
     );
     phase = AuthPhase.ready;
+    await loadFitmentGroups();
     debugPrint(
       'session ready paymentRequired=${me!.paymentRequired} '
       'features=${me!.features.toList()} plan=${me!.planCode}',
@@ -527,11 +537,73 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     unawaited(PushRegistration.register(api));
   }
 
+  Future<void> loadFitmentGroups() async {
+    try {
+      final res = await api.dio.get<dynamic>('groups');
+      final data = res.data;
+      final rows = data is List ? data : const [];
+      final loaded = <FitmentGroup>[
+        for (final row in rows)
+          if (row is Map) FitmentGroup.fromJson(Map<String, dynamic>.from(row)),
+      ];
+      fitmentGroups = loaded;
+      final stillThere = loaded.any((group) => group.id == fitmentGroupId);
+      fitmentGroupId = stillThere
+          ? fitmentGroupId
+          : (loaded.isEmpty ? null : loaded.first.id);
+      api.fitmentGroupId = fitmentGroupId;
+    } catch (e, st) {
+      debugPrint('fitment groups unavailable: $e\n$st');
+    }
+    notifyListeners();
+  }
+
+  void selectFitmentGroup(String id) {
+    fitmentGroupId = id;
+    api.fitmentGroupId = id;
+    notifyListeners();
+  }
+
+  Future<String?> createFitmentGroup(String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return 'A group needs a name';
+    try {
+      final res = await api.dio.post<dynamic>('groups', data: {'name': trimmed});
+      final id = res.data is Map ? '${(res.data as Map)['id'] ?? ''}' : '';
+      await loadFitmentGroups();
+      if (id.isNotEmpty) selectFitmentGroup(id);
+      return null;
+    } catch (e) {
+      final data = (e as dynamic).response?.data;
+      if (data is Map && data['message'] != null) return '${data['message']}';
+      return 'Could not create the group';
+    }
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     connectivity.removeListener(_onNet);
     connectivity.dispose();
     super.dispose();
+  }
+}
+
+class FitmentGroup {
+  const FitmentGroup({required this.id, required this.name, required this.callerRole});
+
+  final String id;
+  final String name;
+  final String callerRole;
+
+  bool get canManage => callerRole == 'OWNER' || callerRole == 'ADMIN';
+  bool get isOwner => callerRole == 'OWNER';
+
+  factory FitmentGroup.fromJson(Map<String, dynamic> json) {
+    return FitmentGroup(
+      id: '${json['id'] ?? ''}',
+      name: '${json['name'] ?? 'Group'}',
+      callerRole: '${json['callerRole'] ?? 'MEMBER'}',
+    );
   }
 }

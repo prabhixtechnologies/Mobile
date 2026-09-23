@@ -205,25 +205,8 @@ class _BillingScreenState extends State<BillingScreen> {
                             trailing: null,
                           ),
                         ],
-                        if (overview?.screens != null) ...[
-                          _SectionTitle('Screens'),
-                          _PlanCard(
-                            title: 'Device seats',
-                            subtitle:
-                                '${overview!.screens!.inUse} in use · ${overview.screens!.seats} seats · ${overview.screens!.extra} extra',
-                            trailing: FilledButton(
-                              onPressed:
-                                  _busy ? null : () => _startPay('EXTRA_SCREEN'),
-                              style: FilledButton.styleFrom(
-                                backgroundColor: Px.accent,
-                                foregroundColor: Px.accentInk,
-                              ),
-                              child: const Text('Add screen'),
-                            ),
-                          ),
-                        ],
                         _SectionTitle('Plans'),
-                        if ((overview?.plans ?? []).isEmpty)
+                        if ((overview?.plans ?? []).where((plan) => plan.code != 'FULL_SHOP').isEmpty)
                           Padding(
                             padding: const EdgeInsets.all(12),
                             child: Text(
@@ -231,7 +214,8 @@ class _BillingScreenState extends State<BillingScreen> {
                               style: TextStyle(color: Px.muted),
                             ),
                           ),
-                        for (final plan in overview?.plans ?? const <BillingPlan>[])
+                        for (final plan in (overview?.plans ?? const <BillingPlan>[])
+                            .where((plan) => plan.code != 'FULL_SHOP'))
                           _PlanCard(
                             title: plan.name,
                             subtitle:

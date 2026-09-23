@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../catalog/fitment_library.dart';
 import '../catalog/spare_group.dart';
+import 'group_members_sheet.dart';
 import 'spare_phone_page.dart';
 import '../state/app_state.dart';
 import '../theme/prabhix_theme.dart';
@@ -54,6 +55,33 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
     super.dispose();
   }
 
+  Future<void> _newGroup(BuildContext context) async {
+    final name = TextEditingController();
+    final created = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('New fitment group'),
+        content: TextField(
+          controller: name,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Group name'),
+          textInputAction: TextInputAction.done,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Create')),
+        ],
+      ),
+    );
+    final value = name.text;
+    name.dispose();
+    if (created != true || !context.mounted) return;
+    final error = await context.read<AppState>().createFitmentGroup(value);
+    if (error != null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+    }
+  }
+
   void _back() {
     setState(() {
       _query.clear();
@@ -67,6 +95,7 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
     final library = _library;
     final category = _category;
     final title = _brand ?? category?.label ?? 'Parts';
@@ -87,9 +116,23 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
               ShopHeroHeader(
                 title: category == null ? 'Fitment catalog' : title,
                 subtitle: category == null
-                    ? (library == null ? 'Phones and the parts that fit them' : '${library.phones.length} phones')
+                    ? (state.selectedFitmentGroup == null
+                        ? (library == null ? 'Phones and the parts that fit them' : '${library.phones.length} phones')
+                        : '${state.selectedFitmentGroup!.name} · ${library?.phones.length ?? 0} phones')
                     : subtitle,
                 actions: [
+                  if (category == null)
+                    IconButton(
+                      tooltip: 'New group',
+                      onPressed: () => _newGroup(context),
+                      icon: Icon(Icons.add_rounded, color: Px.ink),
+                    ),
+                  if (category == null && (state.selectedFitmentGroup?.canManage ?? false))
+                    IconButton(
+                      tooltip: 'Members',
+                      onPressed: () => showGroupMembersSheet(context),
+                      icon: Icon(Icons.group_outlined, color: Px.ink),
+                    ),
                   if (category != null)
                     IconButton(
                       tooltip: 'Back',
@@ -98,6 +141,25 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
                     ),
                 ],
               ),
+              if (category == null && state.fitmentGroups.length > 1)
+                SizedBox(
+                  height: 44,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    children: [
+                      for (final group in state.fitmentGroups)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Text(group.name),
+                            selected: group.id == state.fitmentGroupId,
+                            onSelected: (_) => state.selectFitmentGroup(group.id),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               if (category != null)
                 ShopSearchField(
                   controller: _query,
