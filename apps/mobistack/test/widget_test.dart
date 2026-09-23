@@ -94,7 +94,7 @@ void main() {
     final state = readyState();
     await tester.pumpWidget(wrap(state, const CompatibilityScreen()));
     await tester.pump();
-    expect(find.text('Parts'), findsOneWidget);
+    expect(find.text('Fitment catalog'), findsOneWidget);
     expect(find.text('Saved spares'), findsOneWidget);
     expect(find.text('Display'), findsOneWidget);
     expect(find.text('Battery'), findsOneWidget);

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../state/app_state.dart';
-import '../theme/prabhix_theme.dart';
 import '../widgets/chrome.dart';
 
 class NotificationsScreen extends StatefulWidget {
