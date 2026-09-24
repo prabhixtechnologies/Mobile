@@ -31,19 +31,19 @@ class OrderDetail {
 
      this.accessToken,
 
-     this.subtotalMinor,
+     this.subtotalPaise,
 
-     this.discountMinor,
+     this.discountPaise,
 
-     this.cgstMinor,
+     this.cgstPaise,
 
-     this.sgstMinor,
+     this.sgstPaise,
 
-     this.igstMinor,
+     this.igstPaise,
 
-     this.shippingMinor,
+     this.shippingPaise,
 
-     this.totalMinor,
+     this.totalPaise,
 
      this.currency,
 
@@ -116,85 +116,85 @@ class OrderDetail {
 
   @JsonKey(
     
-    name: r'subtotalMinor',
+    name: r'subtotalPaise',
     required: false,
     includeIfNull: false,
   )
 
 
-  final int? subtotalMinor;
+  final int? subtotalPaise;
 
 
 
   @JsonKey(
     
-    name: r'discountMinor',
+    name: r'discountPaise',
     required: false,
     includeIfNull: false,
   )
 
 
-  final int? discountMinor;
+  final int? discountPaise;
 
 
 
   @JsonKey(
     
-    name: r'cgstMinor',
+    name: r'cgstPaise',
     required: false,
     includeIfNull: false,
   )
 
 
-  final int? cgstMinor;
+  final int? cgstPaise;
 
 
 
   @JsonKey(
     
-    name: r'sgstMinor',
+    name: r'sgstPaise',
     required: false,
     includeIfNull: false,
   )
 
 
-  final int? sgstMinor;
+  final int? sgstPaise;
 
 
 
   @JsonKey(
     
-    name: r'igstMinor',
+    name: r'igstPaise',
     required: false,
     includeIfNull: false,
   )
 
 
-  final int? igstMinor;
+  final int? igstPaise;
 
 
 
   @JsonKey(
     
-    name: r'shippingMinor',
+    name: r'shippingPaise',
     required: false,
     includeIfNull: false,
   )
 
 
-  final int? shippingMinor;
+  final int? shippingPaise;
 
 
 
   @JsonKey(
     
-    name: r'totalMinor',
+    name: r'totalPaise',
     required: false,
     includeIfNull: false,
   )
 
 
-  final int? totalMinor;
+  final int? totalPaise;
 
 
 
@@ -326,13 +326,13 @@ class OrderDetail {
       other.orderNumber == orderNumber &&
       other.status == status &&
       other.accessToken == accessToken &&
-      other.subtotalMinor == subtotalMinor &&
-      other.discountMinor == discountMinor &&
-      other.cgstMinor == cgstMinor &&
-      other.sgstMinor == sgstMinor &&
-      other.igstMinor == igstMinor &&
-      other.shippingMinor == shippingMinor &&
-      other.totalMinor == totalMinor &&
+      other.subtotalPaise == subtotalPaise &&
+      other.discountPaise == discountPaise &&
+      other.cgstPaise == cgstPaise &&
+      other.sgstPaise == sgstPaise &&
+      other.igstPaise == igstPaise &&
+      other.shippingPaise == shippingPaise &&
+      other.totalPaise == totalPaise &&
       other.currency == currency &&
       other.customerEmail == customerEmail &&
       other.customerName == customerName &&
@@ -350,13 +350,13 @@ class OrderDetail {
         orderNumber.hashCode +
         status.hashCode +
         accessToken.hashCode +
-        subtotalMinor.hashCode +
-        discountMinor.hashCode +
-        cgstMinor.hashCode +
-        sgstMinor.hashCode +
-        igstMinor.hashCode +
-        shippingMinor.hashCode +
-        totalMinor.hashCode +
+        subtotalPaise.hashCode +
+        discountPaise.hashCode +
+        cgstPaise.hashCode +
+        sgstPaise.hashCode +
+        igstPaise.hashCode +
+        shippingPaise.hashCode +
+        totalPaise.hashCode +
         currency.hashCode +
         customerEmail.hashCode +
         customerName.hashCode +

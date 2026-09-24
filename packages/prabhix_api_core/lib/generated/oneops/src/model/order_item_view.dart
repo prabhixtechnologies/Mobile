@@ -33,9 +33,9 @@ class OrderItemView {
 
      this.quantity,
 
-     this.unitPriceMinor,
+     this.unitPricePaise,
 
-     this.lineSubtotalMinor,
+     this.lineSubtotalPaise,
   });
 
   @JsonKey(
@@ -112,25 +112,25 @@ class OrderItemView {
 
   @JsonKey(
     
-    name: r'unitPriceMinor',
+    name: r'unitPricePaise',
     required: false,
     includeIfNull: false,
   )
 
 
-  final int? unitPriceMinor;
+  final int? unitPricePaise;
 
 
 
   @JsonKey(
     
-    name: r'lineSubtotalMinor',
+    name: r'lineSubtotalPaise',
     required: false,
     includeIfNull: false,
   )
 
 
-  final int? lineSubtotalMinor;
+  final int? lineSubtotalPaise;
 
 
 
@@ -144,8 +144,8 @@ class OrderItemView {
       other.sku == sku &&
       other.productType == productType &&
       other.quantity == quantity &&
-      other.unitPriceMinor == unitPriceMinor &&
-      other.lineSubtotalMinor == lineSubtotalMinor;
+      other.unitPricePaise == unitPricePaise &&
+      other.lineSubtotalPaise == lineSubtotalPaise;
 
     @override
     int get hashCode =>
@@ -155,8 +155,8 @@ class OrderItemView {
         sku.hashCode +
         productType.hashCode +
         quantity.hashCode +
-        unitPriceMinor.hashCode +
-        lineSubtotalMinor.hashCode;
+        unitPricePaise.hashCode +
+        lineSubtotalPaise.hashCode;
 
   factory OrderItemView.fromJson(Map<String, dynamic> json) => _$OrderItemViewFromJson(json);
 

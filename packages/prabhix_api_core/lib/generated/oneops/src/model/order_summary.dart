@@ -26,7 +26,7 @@ class OrderSummary {
 
      this.status,
 
-     this.totalMinor,
+     this.totalPaise,
 
      this.currency,
 
@@ -75,13 +75,13 @@ class OrderSummary {
 
   @JsonKey(
     
-    name: r'totalMinor',
+    name: r'totalPaise',
     required: false,
     includeIfNull: false,
   )
 
 
-  final int? totalMinor;
+  final int? totalPaise;
 
 
 
@@ -140,7 +140,7 @@ class OrderSummary {
       other.id == id &&
       other.orderNumber == orderNumber &&
       other.status == status &&
-      other.totalMinor == totalMinor &&
+      other.totalPaise == totalPaise &&
       other.currency == currency &&
       other.customerEmail == customerEmail &&
       other.createdAt == createdAt &&
@@ -151,7 +151,7 @@ class OrderSummary {
         id.hashCode +
         orderNumber.hashCode +
         status.hashCode +
-        totalMinor.hashCode +
+        totalPaise.hashCode +
         currency.hashCode +
         customerEmail.hashCode +
         createdAt.hashCode +

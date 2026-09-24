@@ -27,15 +27,15 @@ class CartView {
 
      this.items,
 
-     this.subtotalMinor,
+     this.subtotalPaise,
 
-     this.discountMinor,
+     this.discountPaise,
 
-     this.taxMinor,
+     this.taxPaise,
 
-     this.shippingMinor,
+     this.shippingPaise,
 
-     this.totalMinor,
+     this.totalPaise,
 
      this.discountCode,
 
@@ -80,61 +80,61 @@ class CartView {
 
   @JsonKey(
     
-    name: r'subtotalMinor',
+    name: r'subtotalPaise',
     required: false,
     includeIfNull: false,
   )
 
 
-  final int? subtotalMinor;
+  final int? subtotalPaise;
 
 
 
   @JsonKey(
     
-    name: r'discountMinor',
+    name: r'discountPaise',
     required: false,
     includeIfNull: false,
   )
 
 
-  final int? discountMinor;
+  final int? discountPaise;
 
 
 
   @JsonKey(
     
-    name: r'taxMinor',
+    name: r'taxPaise',
     required: false,
     includeIfNull: false,
   )
 
 
-  final int? taxMinor;
+  final int? taxPaise;
 
 
 
   @JsonKey(
     
-    name: r'shippingMinor',
+    name: r'shippingPaise',
     required: false,
     includeIfNull: false,
   )
 
 
-  final int? shippingMinor;
+  final int? shippingPaise;
 
 
 
   @JsonKey(
     
-    name: r'totalMinor',
+    name: r'totalPaise',
     required: false,
     includeIfNull: false,
   )
 
 
-  final int? totalMinor;
+  final int? totalPaise;
 
 
 
@@ -169,11 +169,11 @@ class CartView {
       other.cartToken == cartToken &&
       other.currency == currency &&
       other.items == items &&
-      other.subtotalMinor == subtotalMinor &&
-      other.discountMinor == discountMinor &&
-      other.taxMinor == taxMinor &&
-      other.shippingMinor == shippingMinor &&
-      other.totalMinor == totalMinor &&
+      other.subtotalPaise == subtotalPaise &&
+      other.discountPaise == discountPaise &&
+      other.taxPaise == taxPaise &&
+      other.shippingPaise == shippingPaise &&
+      other.totalPaise == totalPaise &&
       other.discountCode == discountCode &&
       other.expiresAt == expiresAt;
 
@@ -182,11 +182,11 @@ class CartView {
         cartToken.hashCode +
         currency.hashCode +
         items.hashCode +
-        subtotalMinor.hashCode +
-        discountMinor.hashCode +
-        taxMinor.hashCode +
-        shippingMinor.hashCode +
-        totalMinor.hashCode +
+        subtotalPaise.hashCode +
+        discountPaise.hashCode +
+        taxPaise.hashCode +
+        shippingPaise.hashCode +
+        totalPaise.hashCode +
         discountCode.hashCode +
         expiresAt.hashCode;
 
