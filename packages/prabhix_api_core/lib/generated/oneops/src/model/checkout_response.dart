@@ -26,7 +26,7 @@ class CheckoutResponse {
 
      this.accessToken,
 
-     this.totalMinor,
+     this.totalPaise,
 
      this.currency,
 
@@ -77,13 +77,13 @@ class CheckoutResponse {
 
   @JsonKey(
     
-    name: r'totalMinor',
+    name: r'totalPaise',
     required: false,
     includeIfNull: false,
   )
 
 
-  final int? totalMinor;
+  final int? totalPaise;
 
 
 
@@ -154,7 +154,7 @@ class CheckoutResponse {
       other.orderId == orderId &&
       other.orderNumber == orderNumber &&
       other.accessToken == accessToken &&
-      other.totalMinor == totalMinor &&
+      other.totalPaise == totalPaise &&
       other.currency == currency &&
       other.razorpayOrderId == razorpayOrderId &&
       other.razorpayKeyId == razorpayKeyId &&
@@ -166,7 +166,7 @@ class CheckoutResponse {
         orderId.hashCode +
         orderNumber.hashCode +
         accessToken.hashCode +
-        totalMinor.hashCode +
+        totalPaise.hashCode +
         currency.hashCode +
         razorpayOrderId.hashCode +
         razorpayKeyId.hashCode +

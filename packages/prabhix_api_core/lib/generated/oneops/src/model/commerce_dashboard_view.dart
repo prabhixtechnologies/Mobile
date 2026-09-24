@@ -21,7 +21,7 @@ class CommerceDashboardView {
   /// Returns a new [CommerceDashboardView] instance.
   CommerceDashboardView({
 
-     this.revenueMinor30d,
+     this.revenuePaise30d,
 
      this.orderCount30d,
 
@@ -32,13 +32,13 @@ class CommerceDashboardView {
 
   @JsonKey(
     
-    name: r'revenueMinor30d',
+    name: r'revenuePaise30d',
     required: false,
     includeIfNull: false,
   )
 
 
-  final int? revenueMinor30d;
+  final int? revenuePaise30d;
 
 
 
@@ -82,14 +82,14 @@ class CommerceDashboardView {
 
     @override
     bool operator ==(Object other) => identical(this, other) || other is CommerceDashboardView &&
-      other.revenueMinor30d == revenueMinor30d &&
+      other.revenuePaise30d == revenuePaise30d &&
       other.orderCount30d == orderCount30d &&
       other.topProducts == topProducts &&
       other.conversionRate == conversionRate;
 
     @override
     int get hashCode =>
-        revenueMinor30d.hashCode +
+        revenuePaise30d.hashCode +
         orderCount30d.hashCode +
         topProducts.hashCode +
         conversionRate.hashCode;

@@ -32,9 +32,9 @@ class CartItemView {
 
      this.quantity,
 
-     this.unitPriceMinor,
+     this.unitPricePaise,
 
-     this.lineTotalMinor,
+     this.lineTotalPaise,
   });
 
   @JsonKey(
@@ -111,25 +111,25 @@ class CartItemView {
 
   @JsonKey(
     
-    name: r'unitPriceMinor',
+    name: r'unitPricePaise',
     required: false,
     includeIfNull: false,
   )
 
 
-  final int? unitPriceMinor;
+  final int? unitPricePaise;
 
 
 
   @JsonKey(
     
-    name: r'lineTotalMinor',
+    name: r'lineTotalPaise',
     required: false,
     includeIfNull: false,
   )
 
 
-  final int? lineTotalMinor;
+  final int? lineTotalPaise;
 
 
 
@@ -143,8 +143,8 @@ class CartItemView {
       other.variantName == variantName &&
       other.sku == sku &&
       other.quantity == quantity &&
-      other.unitPriceMinor == unitPriceMinor &&
-      other.lineTotalMinor == lineTotalMinor;
+      other.unitPricePaise == unitPricePaise &&
+      other.lineTotalPaise == lineTotalPaise;
 
     @override
     int get hashCode =>
@@ -154,8 +154,8 @@ class CartItemView {
         variantName.hashCode +
         sku.hashCode +
         quantity.hashCode +
-        unitPriceMinor.hashCode +
-        lineTotalMinor.hashCode;
+        unitPricePaise.hashCode +
+        lineTotalPaise.hashCode;
 
   factory CartItemView.fromJson(Map<String, dynamic> json) => _$CartItemViewFromJson(json);
 

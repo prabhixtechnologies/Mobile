@@ -37,7 +37,7 @@ class ProductSummary {
 
      this.heroImageUrl,
 
-     this.fromPriceMinor,
+     this.fromPricePaise,
 
      this.currency,
   });
@@ -140,13 +140,13 @@ class ProductSummary {
 
   @JsonKey(
     
-    name: r'fromPriceMinor',
+    name: r'fromPricePaise',
     required: false,
     includeIfNull: false,
   )
 
 
-  final int? fromPriceMinor;
+  final int? fromPricePaise;
 
 
 
@@ -174,7 +174,7 @@ class ProductSummary {
       other.featured == featured &&
       other.heroImageFileId == heroImageFileId &&
       other.heroImageUrl == heroImageUrl &&
-      other.fromPriceMinor == fromPriceMinor &&
+      other.fromPricePaise == fromPricePaise &&
       other.currency == currency;
 
     @override
@@ -187,7 +187,7 @@ class ProductSummary {
         featured.hashCode +
         heroImageFileId.hashCode +
         heroImageUrl.hashCode +
-        fromPriceMinor.hashCode +
+        fromPricePaise.hashCode +
         currency.hashCode;
 
   factory ProductSummary.fromJson(Map<String, dynamic> json) => _$ProductSummaryFromJson(json);

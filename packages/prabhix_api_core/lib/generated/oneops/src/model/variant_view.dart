@@ -27,9 +27,9 @@ class VariantView {
 
      this.sku,
 
-     this.priceMinor,
+     this.pricePaise,
 
-     this.compareAtPriceMinor,
+     this.compareAtPricePaise,
 
      this.currency,
 
@@ -86,25 +86,25 @@ class VariantView {
 
   @JsonKey(
     
-    name: r'priceMinor',
+    name: r'pricePaise',
     required: false,
     includeIfNull: false,
   )
 
 
-  final int? priceMinor;
+  final int? pricePaise;
 
 
 
   @JsonKey(
     
-    name: r'compareAtPriceMinor',
+    name: r'compareAtPricePaise',
     required: false,
     includeIfNull: false,
   )
 
 
-  final int? compareAtPriceMinor;
+  final int? compareAtPricePaise;
 
 
 
@@ -211,8 +211,8 @@ class VariantView {
       other.id == id &&
       other.name == name &&
       other.sku == sku &&
-      other.priceMinor == priceMinor &&
-      other.compareAtPriceMinor == compareAtPriceMinor &&
+      other.pricePaise == pricePaise &&
+      other.compareAtPricePaise == compareAtPricePaise &&
       other.currency == currency &&
       other.trackInventory == trackInventory &&
       other.stockAvailable == stockAvailable &&
@@ -227,8 +227,8 @@ class VariantView {
         id.hashCode +
         name.hashCode +
         sku.hashCode +
-        priceMinor.hashCode +
-        compareAtPriceMinor.hashCode +
+        pricePaise.hashCode +
+        compareAtPricePaise.hashCode +
         currency.hashCode +
         trackInventory.hashCode +
         stockAvailable.hashCode +

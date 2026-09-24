@@ -32,9 +32,9 @@ class CommerceSettingsView {
 
      this.gstPercent,
 
-     this.flatShippingMinor,
+     this.flatShippingPaise,
 
-     this.freeShippingAboveMinor,
+     this.freeShippingAbovePaise,
   });
 
   @JsonKey(
@@ -111,25 +111,25 @@ class CommerceSettingsView {
 
   @JsonKey(
     
-    name: r'flatShippingMinor',
+    name: r'flatShippingPaise',
     required: false,
     includeIfNull: false,
   )
 
 
-  final int? flatShippingMinor;
+  final int? flatShippingPaise;
 
 
 
   @JsonKey(
     
-    name: r'freeShippingAboveMinor',
+    name: r'freeShippingAbovePaise',
     required: false,
     includeIfNull: false,
   )
 
 
-  final int? freeShippingAboveMinor;
+  final int? freeShippingAbovePaise;
 
 
 
@@ -143,8 +143,8 @@ class CommerceSettingsView {
       other.sellerAddress == sellerAddress &&
       other.orderNumberPrefix == orderNumberPrefix &&
       other.gstPercent == gstPercent &&
-      other.flatShippingMinor == flatShippingMinor &&
-      other.freeShippingAboveMinor == freeShippingAboveMinor;
+      other.flatShippingPaise == flatShippingPaise &&
+      other.freeShippingAbovePaise == freeShippingAbovePaise;
 
     @override
     int get hashCode =>
@@ -154,8 +154,8 @@ class CommerceSettingsView {
         sellerAddress.hashCode +
         orderNumberPrefix.hashCode +
         gstPercent.hashCode +
-        flatShippingMinor.hashCode +
-        freeShippingAboveMinor.hashCode;
+        flatShippingPaise.hashCode +
+        freeShippingAbovePaise.hashCode;
 
   factory CommerceSettingsView.fromJson(Map<String, dynamic> json) => _$CommerceSettingsViewFromJson(json);
 

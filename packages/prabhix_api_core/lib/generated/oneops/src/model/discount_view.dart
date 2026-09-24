@@ -31,9 +31,9 @@ class DiscountView {
 
      this.percentage,
 
-     this.amountMinor,
+     this.amountPaise,
 
-     this.minOrderMinor,
+     this.minOrderPaise,
 
      this.maxUsesTotal,
 
@@ -114,25 +114,25 @@ class DiscountView {
 
   @JsonKey(
     
-    name: r'amountMinor',
+    name: r'amountPaise',
     required: false,
     includeIfNull: false,
   )
 
 
-  final int? amountMinor;
+  final int? amountPaise;
 
 
 
   @JsonKey(
     
-    name: r'minOrderMinor',
+    name: r'minOrderPaise',
     required: false,
     includeIfNull: false,
   )
 
 
-  final int? minOrderMinor;
+  final int? minOrderPaise;
 
 
 
@@ -241,8 +241,8 @@ class DiscountView {
       other.description == description &&
       other.discountType == discountType &&
       other.percentage == percentage &&
-      other.amountMinor == amountMinor &&
-      other.minOrderMinor == minOrderMinor &&
+      other.amountPaise == amountPaise &&
+      other.minOrderPaise == minOrderPaise &&
       other.maxUsesTotal == maxUsesTotal &&
       other.maxUsesPerCustomer == maxUsesPerCustomer &&
       other.usesCount == usesCount &&
@@ -259,8 +259,8 @@ class DiscountView {
         description.hashCode +
         discountType.hashCode +
         percentage.hashCode +
-        amountMinor.hashCode +
-        minOrderMinor.hashCode +
+        amountPaise.hashCode +
+        minOrderPaise.hashCode +
         maxUsesTotal.hashCode +
         maxUsesPerCustomer.hashCode +
         usesCount.hashCode +
