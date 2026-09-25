@@ -603,6 +603,116 @@ class ApiClient {
     }
   }
 
+  Future<List<Map<String, dynamic>>> myWorkspaces() async {
+    final data = await _get('workspaces');
+    final list = data['workspaces'];
+    if (list is! List) return const [];
+    return list.whereType<Map>().map((row) => Map<String, dynamic>.from(row)).toList();
+  }
+
+  Future<void> createWorkspace({required String name, String? city}) async {
+    try {
+      await _dio.post<dynamic>('workspaces', data: {
+        'name': name,
+        if (city != null && city.isNotEmpty) 'city': city,
+      });
+    } on DioException catch (e) {
+      throw _map(e);
+    }
+  }
+
+  Future<CheckoutOrder> joinShopCheckout(String joinCode) async {
+    try {
+      final res = await _dio.post<Map<String, dynamic>>(
+        'workspaces/join/checkout',
+        data: {'joinCode': joinCode},
+      );
+      return CheckoutOrder.fromJson(Map<String, dynamic>.from(res.data ?? {}));
+    } on DioException catch (e) {
+      throw _map(e);
+    }
+  }
+
+  Future<void> joinShopComplete({
+    required String joinCode,
+    String? orderId,
+    RazorpaySlip? slip,
+  }) async {
+    try {
+      await _dio.post<dynamic>('workspaces/join/complete', data: {
+        'joinCode': joinCode,
+        if (orderId != null) 'orderId': orderId,
+        if (slip != null) ...slip.toJson(),
+      });
+    } on DioException catch (e) {
+      throw _map(e);
+    }
+  }
+
+  Future<void> cancelShopJoin(String workspaceId) async {
+    try {
+      await _dio.post<void>('workspaces/$workspaceId/join/cancel');
+    } on DioException catch (e) {
+      throw _map(e);
+    }
+  }
+
+  Future<void> acceptInvite(String token) async {
+    try {
+      await _dio.post<void>('invitations/accept', data: {'token': token});
+    } on DioException catch (e) {
+      throw _map(e);
+    }
+  }
+
+  Future<CheckoutOrder> joinGroupCheckout(String joinCode) async {
+    try {
+      final res = await _dio.post<Map<String, dynamic>>(
+        'groups/join/checkout',
+        data: {'joinCode': joinCode},
+      );
+      return CheckoutOrder.fromJson(Map<String, dynamic>.from(res.data ?? {}));
+    } on DioException catch (e) {
+      throw _map(e);
+    }
+  }
+
+  Future<Map<String, dynamic>> joinGroupComplete({
+    required String joinCode,
+    String? orderId,
+    RazorpaySlip? slip,
+  }) async {
+    try {
+      final res = await _dio.post<Map<String, dynamic>>('groups/join/complete', data: {
+        'joinCode': joinCode,
+        if (orderId != null) 'orderId': orderId,
+        if (slip != null) ...slip.toJson(),
+      });
+      return Map<String, dynamic>.from(res.data ?? {});
+    } on DioException catch (e) {
+      throw _map(e);
+    }
+  }
+
+  Future<void> cancelGroupJoin() async {
+    try {
+      await _dio.post<void>('groups/join/cancel');
+    } on DioException catch (e) {
+      throw _map(e);
+    }
+  }
+
+  Future<String?> pendingGroupJoin() async {
+    try {
+      final data = await _get('groups/join');
+      final status = data['status']?.toString();
+      if (status == null || status == 'NONE') return null;
+      return data['groupName']?.toString();
+    } on DioException catch (e) {
+      throw _map(e);
+    }
+  }
+
   Future<CursorPage<T>> _cursorPage<T>({
     required String path,
     required Map<String, dynamic> query,

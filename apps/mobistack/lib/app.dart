@@ -23,6 +23,7 @@ import 'screens/repairs_screen.dart';
 import 'screens/reports_screen.dart';
 import 'screens/sales_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/shop_journey.dart';
 import 'screens/shop_ops_screens.dart';
 import 'screens/shell_screen.dart';
 import 'screens/suppliers_screen.dart';
@@ -58,14 +59,31 @@ class _MobiStackAppState extends State<MobiStackApp> {
           case AuthPhase.signedOut:
             return loc == '/login' ? null : '/login';
           case AuthPhase.ready:
-            if (app.me?.paymentRequired == true) {
-              return loc == '/billing' ? null : '/billing';
+            switch (app.gate) {
+              case ShopGate.start:
+                const open = {'/start', '/shop/new', '/shop/join', '/shop/invite'};
+                return open.contains(loc) ? null : '/start';
+              case ShopGate.joinUnion:
+                return loc == '/union/join' ? null : '/union/join';
+              case ShopGate.waitingShop:
+                return loc == '/shop/waiting' ? null : '/shop/waiting';
+              case ShopGate.waitingUnion:
+                return loc == '/union/waiting' ? null : '/union/waiting';
+              case ShopGate.outside:
+                return loc == '/shop/outside' ? null : '/shop/outside';
+              case ShopGate.catalog:
+                if (loc == '/login' ||
+                    loc == '/splash' ||
+                    loc == '/home' ||
+                    loc == '/more' ||
+                    loc == '/start' ||
+                    loc.startsWith('/shop') ||
+                    loc.startsWith('/union')) {
+                  return '/commons';
+                }
+                final open = loc == '/billing' || loc.startsWith('/commons');
+                return open ? null : '/commons';
             }
-            if (loc == '/login' || loc == '/splash' || loc == '/home' || loc == '/more') {
-              return '/commons';
-            }
-            final open = loc == '/billing' || loc.startsWith('/commons');
-            return open ? null : '/commons';
         }
       },
       routes: [
@@ -96,6 +114,14 @@ class _MobiStackAppState extends State<MobiStackApp> {
           ),
         ),
         GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+        GoRoute(path: '/start', builder: (_, __) => const ShopStartScreen()),
+        GoRoute(path: '/shop/new', builder: (_, __) => const CreateShopScreen()),
+        GoRoute(path: '/shop/join', builder: (_, __) => const JoinShopScreen()),
+        GoRoute(path: '/shop/invite', builder: (_, __) => const InviteShopScreen()),
+        GoRoute(path: '/shop/waiting', builder: (_, __) => const WaitingScreen(union: false)),
+        GoRoute(path: '/shop/outside', builder: (_, __) => const OutsideUnionScreen()),
+        GoRoute(path: '/union/join', builder: (_, __) => const JoinUnionScreen()),
+        GoRoute(path: '/union/waiting', builder: (_, __) => const WaitingScreen(union: true)),
         ShellRoute(
           builder: (context, state, child) => ShellScreen(child: child),
           routes: [
