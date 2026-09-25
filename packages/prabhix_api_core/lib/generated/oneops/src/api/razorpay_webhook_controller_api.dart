@@ -43,7 +43,7 @@ class RazorpayWebhookControllerApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/billing/webhooks/razorpay';
+    final _path = r'/api/v1/oneops/billing/webhooks/razorpay';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{

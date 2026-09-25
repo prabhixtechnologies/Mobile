@@ -39,7 +39,7 @@ class TrackingControllerApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/mail/t/c/{token}'.replaceAll('{' r'token' '}', token.toString());
+    final _path = r'/api/v1/oneops/mail/t/c';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -58,9 +58,14 @@ class TrackingControllerApi {
       validateStatus: validateStatus,
     );
 
+    final _queryParameters = <String, dynamic>{
+      r'token': token,
+    };
+
     final _response = await _dio.request<Object>(
       _path,
       options: _options,
+      queryParameters: _queryParameters,
       cancelToken: cancelToken,
       onSendProgress: onSendProgress,
       onReceiveProgress: onReceiveProgress,
@@ -92,7 +97,7 @@ class TrackingControllerApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/mail/t/o/{token}'.replaceAll('{' r'token' '}', token.toString());
+    final _path = r'/api/v1/oneops/mail/t/o';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -111,9 +116,14 @@ class TrackingControllerApi {
       validateStatus: validateStatus,
     );
 
+    final _queryParameters = <String, dynamic>{
+      r'token': token,
+    };
+
     final _response = await _dio.request<Object>(
       _path,
       options: _options,
+      queryParameters: _queryParameters,
       cancelToken: cancelToken,
       onSendProgress: onSendProgress,
       onReceiveProgress: onReceiveProgress,

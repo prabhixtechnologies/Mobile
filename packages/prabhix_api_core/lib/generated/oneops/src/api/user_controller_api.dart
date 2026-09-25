@@ -47,7 +47,7 @@ class UserControllerApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/users/me/password';
+    final _path = r'/api/v1/oneops/users/me/password';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -125,7 +125,7 @@ class UserControllerApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/users/me';
+    final _path = r'/api/v1/oneops/users/me';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -210,7 +210,7 @@ _responseData = rawData == null ? null : deserialize<UserProfile, UserProfile>(r
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/users/me/sessions/{id}'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/users/me/sessions';
     final _options = Options(
       method: r'DELETE',
       headers: <String, dynamic>{
@@ -231,6 +231,7 @@ _responseData = rawData == null ? null : deserialize<UserProfile, UserProfile>(r
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     final _response = await _dio.request<Object>(
@@ -268,7 +269,7 @@ _responseData = rawData == null ? null : deserialize<UserProfile, UserProfile>(r
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/users/me/sessions';
+    final _path = r'/api/v1/oneops/users/me/sessions';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -353,7 +354,7 @@ _responseData = rawData == null ? null : deserialize<List<DeviceSessionView>, De
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/users/me';
+    final _path = r'/api/v1/oneops/users/me';
     final _options = Options(
       method: r'PATCH',
       headers: <String, dynamic>{
@@ -458,7 +459,7 @@ _responseData = rawData == null ? null : deserialize<UserProfile, UserProfile>(r
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/users/me/notification-prefs';
+    final _path = r'/api/v1/oneops/users/me/notification-prefs';
     final _options = Options(
       method: r'PATCH',
       headers: <String, dynamic>{
@@ -563,7 +564,7 @@ _responseData = rawData == null ? null : deserialize<UserProfile, UserProfile>(r
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/users/me/avatar';
+    final _path = r'/api/v1/oneops/users/me/avatar';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{

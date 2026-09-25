@@ -41,7 +41,7 @@ class ChatStreamControllerApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/chat/stream';
+    final _path = r'/api/v1/oneops/chat/stream';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -128,7 +128,7 @@ _responseData = rawData == null ? null : deserialize<SseEmitter, SseEmitter>(raw
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/chat/public/stream';
+    final _path = r'/api/v1/oneops/chat/public/stream';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{

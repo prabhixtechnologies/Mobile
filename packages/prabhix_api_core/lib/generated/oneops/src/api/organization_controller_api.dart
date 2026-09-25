@@ -20,84 +20,6 @@ class OrganizationControllerApi {
 
   const OrganizationControllerApi(this._dio);
 
-  /// callGet
-  /// 
-  ///
-  /// Parameters:
-  /// * [id] 
-  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
-  /// * [headers] - Can be used to add additional headers to the request
-  /// * [extras] - Can be used to add flags to the request
-  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
-  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
-  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
-  ///
-  /// Returns a [Future] containing a [Response] with a [OrganizationView] as data
-  /// Throws [DioException] if API call or serialization fails
-  Future<Response<OrganizationView>> callGet({ 
-    required String id,
-    CancelToken? cancelToken,
-    Map<String, dynamic>? headers,
-    Map<String, dynamic>? extra,
-    ValidateStatus? validateStatus,
-    ProgressCallback? onSendProgress,
-    ProgressCallback? onReceiveProgress,
-  }) async {
-    final _path = r'/api/v1/organizations/{id}'.replaceAll('{' r'id' '}', id.toString());
-    final _options = Options(
-      method: r'GET',
-      headers: <String, dynamic>{
-        ...?headers,
-      },
-      extra: <String, dynamic>{
-        'secure': <Map<String, String>>[
-          {
-            'type': 'http',
-            'scheme': 'bearer',
-            'name': 'bearerAuth',
-          },
-        ],
-        ...?extra,
-      },
-      validateStatus: validateStatus,
-    );
-
-    final _response = await _dio.request<Object>(
-      _path,
-      options: _options,
-      cancelToken: cancelToken,
-      onSendProgress: onSendProgress,
-      onReceiveProgress: onReceiveProgress,
-    );
-
-    OrganizationView? _responseData;
-
-    try {
-final rawData = _response.data;
-_responseData = rawData == null ? null : deserialize<OrganizationView, OrganizationView>(rawData, 'OrganizationView', growable: true);
-
-    } catch (error, stackTrace) {
-      throw DioException(
-        requestOptions: _response.requestOptions,
-        response: _response,
-        type: DioExceptionType.unknown,
-        error: error,
-        stackTrace: stackTrace,
-      );
-    }
-
-    return Response<OrganizationView>(
-      data: _responseData,
-      headers: _response.headers,
-      isRedirect: _response.isRedirect,
-      requestOptions: _response.requestOptions,
-      redirects: _response.redirects,
-      statusCode: _response.statusCode,
-      statusMessage: _response.statusMessage,
-      extra: _response.extra,
-    );
-  }
-
   /// create3
   /// 
   ///
@@ -123,7 +45,7 @@ _responseData = rawData == null ? null : deserialize<OrganizationView, Organizat
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/organizations';
+    final _path = r'/api/v1/oneops/organizations';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -208,6 +130,7 @@ _responseData = rawData == null ? null : deserialize<OrganizationView, Organizat
   ///
   /// Parameters:
   /// * [principal] 
+  /// * [id] 
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -219,6 +142,7 @@ _responseData = rawData == null ? null : deserialize<OrganizationView, Organizat
   /// Throws [DioException] if API call or serialization fails
   Future<Response<List<OrganizationView>>> list3({ 
     required PrabhixPrincipal principal,
+    String? id,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -226,7 +150,7 @@ _responseData = rawData == null ? null : deserialize<OrganizationView, Organizat
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/organizations';
+    final _path = r'/api/v1/oneops/organizations';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -247,6 +171,7 @@ _responseData = rawData == null ? null : deserialize<OrganizationView, Organizat
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      if (id != null) r'id': id,
     };
 
     final _response = await _dio.request<Object>(
@@ -311,7 +236,7 @@ _responseData = rawData == null ? null : deserialize<List<OrganizationView>, Org
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/organizations/{id}'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/organizations';
     final _options = Options(
       method: r'PATCH',
       headers: <String, dynamic>{
@@ -331,6 +256,10 @@ _responseData = rawData == null ? null : deserialize<List<OrganizationView>, Org
       validateStatus: validateStatus,
     );
 
+    final _queryParameters = <String, dynamic>{
+      r'id': id,
+    };
+
     dynamic _bodyData;
 
     try {
@@ -341,6 +270,7 @@ _responseData = rawData == null ? null : deserialize<List<OrganizationView>, Org
          requestOptions: _options.compose(
           _dio.options,
           _path,
+          queryParameters: _queryParameters,
         ),
         type: DioExceptionType.unknown,
         error: error,
@@ -352,6 +282,7 @@ _responseData = rawData == null ? null : deserialize<List<OrganizationView>, Org
       _path,
       data: _bodyData,
       options: _options,
+      queryParameters: _queryParameters,
       cancelToken: cancelToken,
       onSendProgress: onSendProgress,
       onReceiveProgress: onReceiveProgress,

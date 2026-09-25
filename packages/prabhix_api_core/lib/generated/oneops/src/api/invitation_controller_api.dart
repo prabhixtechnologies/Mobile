@@ -44,7 +44,7 @@ class InvitationControllerApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/invites/accept';
+    final _path = r'/api/v1/oneops/invites/accept';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -143,7 +143,7 @@ _responseData = rawData == null ? null : deserialize<Map<String, String>, String
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/invites';
+    final _path = r'/api/v1/oneops/invites';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -246,7 +246,7 @@ _responseData = rawData == null ? null : deserialize<Map<String, String>, String
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/invites';
+    final _path = r'/api/v1/oneops/invites';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -329,7 +329,7 @@ _responseData = rawData == null ? null : deserialize<PageResponseInvitationView,
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/auth/invites/{token}/preview'.replaceAll('{' r'token' '}', token.toString());
+    final _path = r'/api/v1/oneops/auth/invites/preview';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -348,9 +348,14 @@ _responseData = rawData == null ? null : deserialize<PageResponseInvitationView,
       validateStatus: validateStatus,
     );
 
+    final _queryParameters = <String, dynamic>{
+      r'token': token,
+    };
+
     final _response = await _dio.request<Object>(
       _path,
       options: _options,
+      queryParameters: _queryParameters,
       cancelToken: cancelToken,
       onSendProgress: onSendProgress,
       onReceiveProgress: onReceiveProgress,
@@ -409,7 +414,7 @@ _responseData = rawData == null ? null : deserialize<InvitationPreview, Invitati
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/invites/{id}/resend'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/invites/resend';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -430,6 +435,7 @@ _responseData = rawData == null ? null : deserialize<InvitationPreview, Invitati
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     final _response = await _dio.request<Object>(
@@ -494,7 +500,7 @@ _responseData = rawData == null ? null : deserialize<Map<String, String>, String
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/invites/{id}/revoke'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/invites/revoke';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -515,6 +521,7 @@ _responseData = rawData == null ? null : deserialize<Map<String, String>, String
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     final _response = await _dio.request<Object>(

@@ -49,7 +49,7 @@ class MemberControllerApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/organizations/{orgId}/members/{memberId}/role'.replaceAll('{' r'orgId' '}', orgId.toString()).replaceAll('{' r'memberId' '}', memberId.toString());
+    final _path = r'/api/v1/oneops/organizations/members/role';
     final _options = Options(
       method: r'PATCH',
       headers: <String, dynamic>{
@@ -70,6 +70,8 @@ class MemberControllerApi {
     );
 
     final _queryParameters = <String, dynamic>{
+      r'orgId': orgId,
+      r'memberId': memberId,
       r'principal': principal,
     };
 
@@ -164,7 +166,7 @@ _responseData = rawData == null ? null : deserialize<MemberView, MemberView>(raw
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/organizations/{orgId}/members'.replaceAll('{' r'orgId' '}', orgId.toString());
+    final _path = r'/api/v1/oneops/organizations/members';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -184,6 +186,7 @@ _responseData = rawData == null ? null : deserialize<MemberView, MemberView>(raw
     );
 
     final _queryParameters = <String, dynamic>{
+      r'orgId': orgId,
       if (cursor != null) r'cursor': cursor,
       if (limit != null) r'limit': limit,
       if (search != null) r'search': search,
@@ -256,7 +259,7 @@ _responseData = rawData == null ? null : deserialize<CursorPageMemberView, Curso
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/organizations/{orgId}/members/{memberId}'.replaceAll('{' r'orgId' '}', orgId.toString()).replaceAll('{' r'memberId' '}', memberId.toString());
+    final _path = r'/api/v1/oneops/organizations/members';
     final _options = Options(
       method: r'DELETE',
       headers: <String, dynamic>{
@@ -276,6 +279,8 @@ _responseData = rawData == null ? null : deserialize<CursorPageMemberView, Curso
     );
 
     final _queryParameters = <String, dynamic>{
+      r'orgId': orgId,
+      r'memberId': memberId,
       r'principal': principal,
     };
 
@@ -318,7 +323,7 @@ _responseData = rawData == null ? null : deserialize<CursorPageMemberView, Curso
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/organizations/{orgId}/members/{memberId}/suspend'.replaceAll('{' r'orgId' '}', orgId.toString()).replaceAll('{' r'memberId' '}', memberId.toString());
+    final _path = r'/api/v1/oneops/organizations/members/suspend';
     final _options = Options(
       method: r'PATCH',
       headers: <String, dynamic>{
@@ -338,6 +343,8 @@ _responseData = rawData == null ? null : deserialize<CursorPageMemberView, Curso
     );
 
     final _queryParameters = <String, dynamic>{
+      r'orgId': orgId,
+      r'memberId': memberId,
       r'principal': principal,
     };
 

@@ -44,7 +44,7 @@ class TagControllerApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/mail/tags';
+    final _path = r'/api/v1/oneops/mail/tags';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -147,7 +147,7 @@ _responseData = rawData == null ? null : deserialize<TagResponse, TagResponse>(r
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/mail/tags';
+    final _path = r'/api/v1/oneops/mail/tags';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{

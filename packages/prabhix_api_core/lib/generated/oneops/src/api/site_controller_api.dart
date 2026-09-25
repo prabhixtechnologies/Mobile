@@ -12,7 +12,6 @@ import 'package:dio/dio.dart';
 import 'package:prabhix_oneops_api/src/model/application_ack.dart';
 import 'package:prabhix_oneops_api/src/model/generic_ack.dart';
 import 'package:prabhix_oneops_api/src/model/job_application_request.dart';
-import 'package:prabhix_oneops_api/src/model/job_role_detail.dart';
 import 'package:prabhix_oneops_api/src/model/job_role_summary.dart';
 import 'package:prabhix_oneops_api/src/model/lead_request.dart';
 import 'package:prabhix_oneops_api/src/model/subscribe_request.dart';
@@ -48,7 +47,7 @@ class SiteControllerApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/site/applications';
+    final _path = r'/api/v1/oneops/site/applications';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -125,7 +124,7 @@ _responseData = rawData == null ? null : deserialize<ApplicationAck, Application
     );
   }
 
-  /// career
+  /// careers
   /// 
   ///
   /// Parameters:
@@ -137,86 +136,10 @@ _responseData = rawData == null ? null : deserialize<ApplicationAck, Application
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [JobRoleDetail] as data
-  /// Throws [DioException] if API call or serialization fails
-  Future<Response<JobRoleDetail>> career({ 
-    required String slug,
-    CancelToken? cancelToken,
-    Map<String, dynamic>? headers,
-    Map<String, dynamic>? extra,
-    ValidateStatus? validateStatus,
-    ProgressCallback? onSendProgress,
-    ProgressCallback? onReceiveProgress,
-  }) async {
-    final _path = r'/api/v1/site/careers/{slug}'.replaceAll('{' r'slug' '}', slug.toString());
-    final _options = Options(
-      method: r'GET',
-      headers: <String, dynamic>{
-        ...?headers,
-      },
-      extra: <String, dynamic>{
-        'secure': <Map<String, String>>[
-          {
-            'type': 'http',
-            'scheme': 'bearer',
-            'name': 'bearerAuth',
-          },
-        ],
-        ...?extra,
-      },
-      validateStatus: validateStatus,
-    );
-
-    final _response = await _dio.request<Object>(
-      _path,
-      options: _options,
-      cancelToken: cancelToken,
-      onSendProgress: onSendProgress,
-      onReceiveProgress: onReceiveProgress,
-    );
-
-    JobRoleDetail? _responseData;
-
-    try {
-final rawData = _response.data;
-_responseData = rawData == null ? null : deserialize<JobRoleDetail, JobRoleDetail>(rawData, 'JobRoleDetail', growable: true);
-
-    } catch (error, stackTrace) {
-      throw DioException(
-        requestOptions: _response.requestOptions,
-        response: _response,
-        type: DioExceptionType.unknown,
-        error: error,
-        stackTrace: stackTrace,
-      );
-    }
-
-    return Response<JobRoleDetail>(
-      data: _responseData,
-      headers: _response.headers,
-      isRedirect: _response.isRedirect,
-      requestOptions: _response.requestOptions,
-      redirects: _response.redirects,
-      statusCode: _response.statusCode,
-      statusMessage: _response.statusMessage,
-      extra: _response.extra,
-    );
-  }
-
-  /// careers
-  /// 
-  ///
-  /// Parameters:
-  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
-  /// * [headers] - Can be used to add additional headers to the request
-  /// * [extras] - Can be used to add flags to the request
-  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
-  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
-  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
-  ///
   /// Returns a [Future] containing a [Response] with a [List<JobRoleSummary>] as data
   /// Throws [DioException] if API call or serialization fails
   Future<Response<List<JobRoleSummary>>> careers({ 
+    String? slug,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -224,7 +147,7 @@ _responseData = rawData == null ? null : deserialize<JobRoleDetail, JobRoleDetai
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/site/careers';
+    final _path = r'/api/v1/oneops/site/careers';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -243,9 +166,14 @@ _responseData = rawData == null ? null : deserialize<JobRoleDetail, JobRoleDetai
       validateStatus: validateStatus,
     );
 
+    final _queryParameters = <String, dynamic>{
+      if (slug != null) r'slug': slug,
+    };
+
     final _response = await _dio.request<Object>(
       _path,
       options: _options,
+      queryParameters: _queryParameters,
       cancelToken: cancelToken,
       onSendProgress: onSendProgress,
       onReceiveProgress: onReceiveProgress,
@@ -302,7 +230,7 @@ _responseData = rawData == null ? null : deserialize<List<JobRoleSummary>, JobRo
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/site/subscribers/confirm';
+    final _path = r'/api/v1/oneops/site/subscribers/confirm';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -385,7 +313,7 @@ _responseData = rawData == null ? null : deserialize<GenericAck, GenericAck>(raw
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/site/leads';
+    final _path = r'/api/v1/oneops/site/leads';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -482,7 +410,7 @@ _responseData = rawData == null ? null : deserialize<GenericAck, GenericAck>(raw
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/site/subscribers';
+    final _path = r'/api/v1/oneops/site/subscribers';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -579,7 +507,7 @@ _responseData = rawData == null ? null : deserialize<GenericAck, GenericAck>(raw
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/site/subscribers/unsubscribe';
+    final _path = r'/api/v1/oneops/site/subscribers/unsubscribe';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{

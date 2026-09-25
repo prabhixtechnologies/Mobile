@@ -41,7 +41,7 @@ class FeatureFlagControllerApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/flags';
+    final _path = r'/api/v1/oneops/flags';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{

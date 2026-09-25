@@ -51,7 +51,7 @@ class TeamControllerApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/teams/{id}/members'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/teams/members';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -73,6 +73,7 @@ class TeamControllerApi {
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     dynamic _bodyData;
@@ -156,7 +157,7 @@ _responseData = rawData == null ? null : deserialize<TeamMemberView, TeamMemberV
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/teams';
+    final _path = r'/api/v1/oneops/teams';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -261,7 +262,7 @@ _responseData = rawData == null ? null : deserialize<TeamView, TeamView>(rawData
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/teams/{id}'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/teams';
     final _options = Options(
       method: r'DELETE',
       headers: <String, dynamic>{
@@ -282,6 +283,7 @@ _responseData = rawData == null ? null : deserialize<TeamView, TeamView>(rawData
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     final _response = await _dio.request<Object>(
@@ -319,7 +321,7 @@ _responseData = rawData == null ? null : deserialize<TeamView, TeamView>(rawData
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/teams';
+    final _path = r'/api/v1/oneops/teams';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -404,7 +406,7 @@ _responseData = rawData == null ? null : deserialize<PageResponseTeamView, PageR
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/teams/{id}/members'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/teams/members';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -425,6 +427,7 @@ _responseData = rawData == null ? null : deserialize<PageResponseTeamView, PageR
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     final _response = await _dio.request<Object>(
@@ -491,7 +494,7 @@ _responseData = rawData == null ? null : deserialize<PageResponseTeamMemberView,
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/teams/{id}/members/{userId}'.replaceAll('{' r'id' '}', id.toString()).replaceAll('{' r'userId' '}', userId.toString());
+    final _path = r'/api/v1/oneops/teams/members';
     final _options = Options(
       method: r'DELETE',
       headers: <String, dynamic>{
@@ -512,6 +515,8 @@ _responseData = rawData == null ? null : deserialize<PageResponseTeamMemberView,
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
+      r'userId': userId,
     };
 
     final _response = await _dio.request<Object>(
@@ -553,7 +558,7 @@ _responseData = rawData == null ? null : deserialize<PageResponseTeamMemberView,
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/teams/{id}'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/teams';
     final _options = Options(
       method: r'PATCH',
       headers: <String, dynamic>{
@@ -575,6 +580,7 @@ _responseData = rawData == null ? null : deserialize<PageResponseTeamMemberView,
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     dynamic _bodyData;

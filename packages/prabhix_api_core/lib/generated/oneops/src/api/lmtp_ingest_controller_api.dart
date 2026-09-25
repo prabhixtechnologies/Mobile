@@ -43,7 +43,7 @@ class LmtpIngestControllerApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/mail/inbound/lmtp';
+    final _path = r'/api/v1/oneops/mail/inbound/lmtp';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{

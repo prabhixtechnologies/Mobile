@@ -17,7 +17,6 @@ import 'package:prabhix_oneops_api/src/model/message_summary.dart';
 import 'package:prabhix_oneops_api/src/model/note_summary.dart';
 import 'package:prabhix_oneops_api/src/model/prabhix_principal.dart';
 import 'package:prabhix_oneops_api/src/model/reply_request.dart';
-import 'package:prabhix_oneops_api/src/model/thread_detail.dart';
 import 'package:prabhix_oneops_api/src/model/thread_summary.dart';
 import 'package:prabhix_oneops_api/src/model/update_thread_request.dart';
 
@@ -54,7 +53,7 @@ class ThreadControllerApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/mail/threads/{id}/notes'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/mail/threads/notes';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -76,6 +75,7 @@ class ThreadControllerApi {
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     dynamic _bodyData;
@@ -161,7 +161,7 @@ _responseData = rawData == null ? null : deserialize<NoteSummary, NoteSummary>(r
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/mail/threads/{id}/assign'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/mail/threads/assign';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -183,6 +183,7 @@ _responseData = rawData == null ? null : deserialize<NoteSummary, NoteSummary>(r
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     dynamic _bodyData;
@@ -241,7 +242,7 @@ _responseData = rawData == null ? null : deserialize<NoteSummary, NoteSummary>(r
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/mail/threads/bulk';
+    final _path = r'/api/v1/oneops/mail/threads';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -321,91 +322,6 @@ _responseData = rawData == null ? null : deserialize<int, int>(rawData, 'int', g
     );
   }
 
-  /// get1
-  /// 
-  ///
-  /// Parameters:
-  /// * [principal] 
-  /// * [id] 
-  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
-  /// * [headers] - Can be used to add additional headers to the request
-  /// * [extras] - Can be used to add flags to the request
-  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
-  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
-  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
-  ///
-  /// Returns a [Future] containing a [Response] with a [ThreadDetail] as data
-  /// Throws [DioException] if API call or serialization fails
-  Future<Response<ThreadDetail>> get1({ 
-    required PrabhixPrincipal principal,
-    required String id,
-    CancelToken? cancelToken,
-    Map<String, dynamic>? headers,
-    Map<String, dynamic>? extra,
-    ValidateStatus? validateStatus,
-    ProgressCallback? onSendProgress,
-    ProgressCallback? onReceiveProgress,
-  }) async {
-    final _path = r'/api/v1/mail/threads/{id}'.replaceAll('{' r'id' '}', id.toString());
-    final _options = Options(
-      method: r'GET',
-      headers: <String, dynamic>{
-        ...?headers,
-      },
-      extra: <String, dynamic>{
-        'secure': <Map<String, String>>[
-          {
-            'type': 'http',
-            'scheme': 'bearer',
-            'name': 'bearerAuth',
-          },
-        ],
-        ...?extra,
-      },
-      validateStatus: validateStatus,
-    );
-
-    final _queryParameters = <String, dynamic>{
-      r'principal': principal,
-    };
-
-    final _response = await _dio.request<Object>(
-      _path,
-      options: _options,
-      queryParameters: _queryParameters,
-      cancelToken: cancelToken,
-      onSendProgress: onSendProgress,
-      onReceiveProgress: onReceiveProgress,
-    );
-
-    ThreadDetail? _responseData;
-
-    try {
-final rawData = _response.data;
-_responseData = rawData == null ? null : deserialize<ThreadDetail, ThreadDetail>(rawData, 'ThreadDetail', growable: true);
-
-    } catch (error, stackTrace) {
-      throw DioException(
-        requestOptions: _response.requestOptions,
-        response: _response,
-        type: DioExceptionType.unknown,
-        error: error,
-        stackTrace: stackTrace,
-      );
-    }
-
-    return Response<ThreadDetail>(
-      data: _responseData,
-      headers: _response.headers,
-      isRedirect: _response.isRedirect,
-      requestOptions: _response.requestOptions,
-      redirects: _response.redirects,
-      statusCode: _response.statusCode,
-      statusMessage: _response.statusMessage,
-      extra: _response.extra,
-    );
-  }
-
   /// list12
   /// 
   ///
@@ -422,6 +338,7 @@ _responseData = rawData == null ? null : deserialize<ThreadDetail, ThreadDetail>
   /// * [q] 
   /// * [cursor] 
   /// * [limit] 
+  /// * [id] 
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -444,6 +361,7 @@ _responseData = rawData == null ? null : deserialize<ThreadDetail, ThreadDetail>
     String? q,
     String? cursor,
     int? limit,
+    String? id,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -451,7 +369,7 @@ _responseData = rawData == null ? null : deserialize<ThreadDetail, ThreadDetail>
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/mail/threads';
+    final _path = r'/api/v1/oneops/mail/threads';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -483,6 +401,7 @@ _responseData = rawData == null ? null : deserialize<ThreadDetail, ThreadDetail>
       if (q != null) r'q': q,
       if (cursor != null) r'cursor': cursor,
       if (limit != null) r'limit': limit,
+      if (id != null) r'id': id,
     };
 
     final _response = await _dio.request<Object>(
@@ -549,7 +468,7 @@ _responseData = rawData == null ? null : deserialize<CursorPageThreadSummary, Cu
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/mail/threads/{id}/reply'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/mail/threads/reply';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -571,6 +490,7 @@ _responseData = rawData == null ? null : deserialize<CursorPageThreadSummary, Cu
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     dynamic _bodyData;
@@ -654,7 +574,7 @@ _responseData = rawData == null ? null : deserialize<MessageSummary, MessageSumm
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/mail/threads/{id}/unassign'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/mail/threads/unassign';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -675,6 +595,7 @@ _responseData = rawData == null ? null : deserialize<MessageSummary, MessageSumm
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     final _response = await _dio.request<Object>(
@@ -716,7 +637,7 @@ _responseData = rawData == null ? null : deserialize<MessageSummary, MessageSumm
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/mail/threads/{id}'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/mail/threads';
     final _options = Options(
       method: r'PATCH',
       headers: <String, dynamic>{
@@ -738,6 +659,7 @@ _responseData = rawData == null ? null : deserialize<MessageSummary, MessageSumm
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     dynamic _bodyData;

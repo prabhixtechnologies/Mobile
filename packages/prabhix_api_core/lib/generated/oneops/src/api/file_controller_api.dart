@@ -44,7 +44,7 @@ class FileControllerApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/files/{id}'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/files';
     final _options = Options(
       method: r'DELETE',
       headers: <String, dynamic>{
@@ -65,6 +65,7 @@ class FileControllerApi {
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     final _response = await _dio.request<Object>(
@@ -104,7 +105,7 @@ class FileControllerApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/files/{id}'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/files';
     final _options = Options(
       method: r'GET',
       responseType: ResponseType.bytes,
@@ -126,6 +127,7 @@ class FileControllerApi {
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     final _response = await _dio.request<Object>(
@@ -192,7 +194,7 @@ _responseData = rawData == null ? null : rawData as Uint8List;
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/files';
+    final _path = r'/api/v1/oneops/files';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{

@@ -44,7 +44,7 @@ class VisitorTrackingPublicApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/visitor/public/{orgSlug}/identify'.replaceAll('{' r'orgSlug' '}', orgSlug.toString());
+    final _path = r'/api/v1/oneops/visitor/public/identify';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -64,6 +64,10 @@ class VisitorTrackingPublicApi {
       validateStatus: validateStatus,
     );
 
+    final _queryParameters = <String, dynamic>{
+      r'orgSlug': orgSlug,
+    };
+
     dynamic _bodyData;
 
     try {
@@ -74,6 +78,7 @@ class VisitorTrackingPublicApi {
          requestOptions: _options.compose(
           _dio.options,
           _path,
+          queryParameters: _queryParameters,
         ),
         type: DioExceptionType.unknown,
         error: error,
@@ -85,6 +90,7 @@ class VisitorTrackingPublicApi {
       _path,
       data: _bodyData,
       options: _options,
+      queryParameters: _queryParameters,
       cancelToken: cancelToken,
       onSendProgress: onSendProgress,
       onReceiveProgress: onReceiveProgress,
@@ -118,7 +124,7 @@ class VisitorTrackingPublicApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/visitor/public/{orgSlug}/ingest'.replaceAll('{' r'orgSlug' '}', orgSlug.toString());
+    final _path = r'/api/v1/oneops/visitor/public/ingest';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -138,6 +144,10 @@ class VisitorTrackingPublicApi {
       validateStatus: validateStatus,
     );
 
+    final _queryParameters = <String, dynamic>{
+      r'orgSlug': orgSlug,
+    };
+
     dynamic _bodyData;
 
     try {
@@ -148,6 +158,7 @@ class VisitorTrackingPublicApi {
          requestOptions: _options.compose(
           _dio.options,
           _path,
+          queryParameters: _queryParameters,
         ),
         type: DioExceptionType.unknown,
         error: error,
@@ -159,6 +170,7 @@ class VisitorTrackingPublicApi {
       _path,
       data: _bodyData,
       options: _options,
+      queryParameters: _queryParameters,
       cancelToken: cancelToken,
       onSendProgress: onSendProgress,
       onReceiveProgress: onReceiveProgress,
