@@ -192,6 +192,7 @@ jobs:
         with:
           role-to-assume: ${{ vars.AWS_APK_ROLE_ARN != '' && vars.AWS_APK_ROLE_ARN || 'arn:aws:iam::029096972251:role/prabhix-github-ecr-push' }}
           aws-region: ap-south-1
+      # Inline policy prabhix-apk-s3-push on prabhix-github-ecr-push allows this upload.
       - name: Upload APK to S3 store bucket
         working-directory: apps/${{ matrix.app }}
         env:
