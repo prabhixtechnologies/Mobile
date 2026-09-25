@@ -14,6 +14,9 @@ import '../services/sync_store.dart';
 
 enum AuthPhase { loading, signedOut, ready }
 
+/// Where a signed-in person is in the shop and union journey.
+enum ShopGate { catalog, start, joinUnion, waitingShop, waitingUnion, outside }
+
 class AppState extends ChangeNotifier with WidgetsBindingObserver {
   AppState({required this.config})
       : identity = IdentityClient(config: config.identity) {
@@ -31,6 +34,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   final SyncNotifier syncNotifier = SyncNotifier();
 
   AuthPhase phase = AuthPhase.loading;
+  ShopGate gate = ShopGate.catalog;
+  String? waitingTitle;
+  String? waitingShopId;
   AuthMe? me;
   String? error;
   bool busy = false;
@@ -528,7 +534,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       platformAdmin: me!.platformAdmin || me!.systemAdmin,
     );
     phase = AuthPhase.ready;
-    await loadFitmentGroups();
+    await refreshJourney();
     debugPrint(
       'session ready paymentRequired=${me!.paymentRequired} '
       'features=${me!.features.toList()} plan=${me!.planCode}',
@@ -537,7 +543,93 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     unawaited(PushRegistration.register(api));
   }
 
-  Future<void> loadFitmentGroups() async {
+  Future<void> refreshJourney() async {
+    try {
+      final rows = await api.myWorkspaces();
+      final active = rows.where((row) => '${row['status']}' == 'ACTIVE').toList();
+      final waiting = rows.where((row) {
+        final status = '${row['status']}';
+        return status == 'PENDING' || status == 'INVITED';
+      }).toList();
+      if (active.isEmpty) {
+        fitmentGroups = const [];
+        api.fitmentGroupId = null;
+        if (waiting.isNotEmpty) {
+          gate = ShopGate.waitingShop;
+          waitingShopId = '${waiting.first['id']}';
+          waitingTitle = '${waiting.first['name'] ?? 'the shop'}';
+        } else {
+          gate = ShopGate.start;
+          waitingShopId = null;
+          waitingTitle = null;
+        }
+        notifyListeners();
+        return;
+      }
+      final selected = active.cast<Map<String, dynamic>>().firstWhere(
+            (row) => row['selected'] == true,
+            orElse: () => active.first,
+          );
+      final owner = '${selected['role']}' == 'OWNER';
+      await loadFitmentGroups(notify: false);
+      if (fitmentGroups.isNotEmpty) {
+        gate = ShopGate.catalog;
+        waitingTitle = null;
+      } else if (!owner) {
+        gate = ShopGate.outside;
+        waitingTitle = '${selected['name'] ?? 'This shop'}';
+      } else {
+        final groupName = await api.pendingGroupJoin();
+        if (groupName != null && groupName.isNotEmpty) {
+          gate = ShopGate.waitingUnion;
+          waitingTitle = groupName;
+        } else {
+          gate = ShopGate.joinUnion;
+          waitingTitle = null;
+        }
+      }
+    } catch (e, st) {
+      debugPrint('journey: $e\n$st');
+      gate = me?.organizations.isEmpty ?? true ? ShopGate.start : ShopGate.catalog;
+    }
+    notifyListeners();
+  }
+
+  Future<String?> createShop({required String name, String? city}) async {
+    try {
+      await api.createWorkspace(name: name, city: city);
+      await _loadSession();
+      return null;
+    } catch (e) {
+      return '$e';
+    }
+  }
+
+  Future<String?> acceptShopInvite(String token) async {
+    try {
+      await api.acceptInvite(token);
+      await _loadSession();
+      return null;
+    } catch (e) {
+      return '$e';
+    }
+  }
+
+  Future<String?> cancelWaitingJoin() async {
+    try {
+      if (gate == ShopGate.waitingUnion) {
+        await api.cancelGroupJoin();
+      } else if (waitingShopId != null) {
+        await api.cancelShopJoin(waitingShopId!);
+      }
+      await _loadSession();
+      return null;
+    } catch (e) {
+      return '$e';
+    }
+  }
+
+  Future<void> loadFitmentGroups({bool notify = true}) async {
     try {
       final res = await api.dio.get<dynamic>('groups');
       final data = res.data;
@@ -555,7 +647,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     } catch (e, st) {
       debugPrint('fitment groups unavailable: $e\n$st');
     }
-    notifyListeners();
+    if (notify) notifyListeners();
   }
 
   void selectFitmentGroup(String id) {
