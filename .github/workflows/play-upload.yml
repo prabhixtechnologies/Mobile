@@ -1,0 +1,158 @@
+# Manual Play upload. A push to main does not publish an app.
+#
+# GitHub → Actions → Play upload → Run workflow. The production environment should have required
+# reviewers before this is used for a public track. See Infra/docs/DEPLOY.md.
+#
+# Secret PLAY_SERVICE_ACCOUNT_JSON is the Play Console API service account key (not the Android
+# keystore). The keystore secrets are the same ones the APK job already uses.
+
+name: Play upload
+
+on:
+  workflow_dispatch:
+    inputs:
+      track:
+        description: Play track
+        required: true
+        type: choice
+        default: internal
+        options:
+          - internal
+          - alpha
+          - beta
+          - production
+      confirm:
+        description: Type APPROVE PRODUCTION to use the production track. Other tracks need deploy.
+        required: true
+        type: string
+      apps:
+        description: Comma-separated apps, or all
+        required: true
+        default: all
+
+concurrency:
+  group: play-upload
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: Check the approval
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Require an explicit approval word
+        env:
+          TRACK: ${{ inputs.track }}
+          CONFIRM: ${{ inputs.confirm }}
+          JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          if [ -z "$JSON" ]; then
+            echo "::error title=Play API key missing::Add secret PLAY_SERVICE_ACCOUNT_JSON on this repository. Play Console → Setup → API access → service account with Release permissions → JSON key."
+            exit 1
+          fi
+          if [ "$TRACK" = "production" ]; then
+            if [ "$CONFIRM" != "APPROVE PRODUCTION" ]; then
+              echo "::error title=Production not approved::The confirm box must be exactly APPROVE PRODUCTION."
+              exit 1
+            fi
+          elif [ "$CONFIRM" != "deploy" ]; then
+            echo "::error title=Upload not approved::The confirm box must be exactly deploy."
+            exit 1
+          fi
+
+  upload:
+    name: Upload ${{ matrix.app }}
+    needs: guard
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: mobistack
+            package: app.prabhix.fixflow
+            api_base: https://mobistack.prabhixtechnologies.com/api/v1
+          - app: oneops
+            package: com.prabhix.operator
+            api_base: https://api.prabhixtechnologies.com/api/v1
+          - app: mailroom
+            package: com.prabhix.mailroom
+            api_base: https://api.prabhixtechnologies.com/api/v1
+          - app: admin
+            package: com.prabhix.admin
+            api_base: https://api.prabhixtechnologies.com/api/v1
+    defaults:
+      run:
+        working-directory: apps/${{ matrix.app }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Selected apps only
+        if: inputs.apps != 'all' && !contains(format(',{0},', inputs.apps), format(',{0},', matrix.app))
+        run: echo "Skipping ${{ matrix.app }}"
+      - uses: actions/setup-java@v4
+        if: inputs.apps == 'all' || contains(format(',{0},', inputs.apps), format(',{0},', matrix.app))
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: subosito/flutter-action@v2
+        if: inputs.apps == 'all' || contains(format(',{0},', inputs.apps), format(',{0},', matrix.app))
+        with:
+          channel: stable
+          cache: true
+      - name: Pub get
+        if: inputs.apps == 'all' || contains(format(',{0},', inputs.apps), format(',{0},', matrix.app))
+        run: |
+          set -euo pipefail
+          flutter pub get
+        working-directory: packages/prabhix_identity
+      - run: flutter pub get
+        if: inputs.apps == 'all' || contains(format(',{0},', inputs.apps), format(',{0},', matrix.app))
+        working-directory: packages/prabhix_api_core
+      - run: flutter pub get
+        if: inputs.apps == 'all' || contains(format(',{0},', inputs.apps), format(',{0},', matrix.app))
+        working-directory: packages/prabhix_offline
+      - run: flutter pub get
+        if: inputs.apps == 'all' || contains(format(',{0},', inputs.apps), format(',{0},', matrix.app))
+      - name: Write Play upload keystore
+        if: inputs.apps == 'all' || contains(format(',{0},', inputs.apps), format(',{0},', matrix.app))
+        working-directory: apps/${{ matrix.app }}/android
+        env:
+          ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$ANDROID_RELEASE_KEYSTORE_BASE64" ]; then
+            echo "::error title=Upload key missing::Set ANDROID_RELEASE_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, and ANDROID_KEY_PASSWORD."
+            exit 1
+          fi
+          echo "$ANDROID_RELEASE_KEYSTORE_BASE64" | base64 -d > "$HOME/prabhix-play-upload.jks"
+          cat > key.properties <<EOF
+          storeFile=$HOME/prabhix-play-upload.jks
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=${ANDROID_KEY_ALIAS:-upload}
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOF
+      - name: Build the app bundle
+        if: inputs.apps == 'all' || contains(format(',{0},', inputs.apps), format(',{0},', matrix.app))
+        env:
+          IDENTITY_ISSUER: https://api.prabhixtechnologies.com
+          API_BASE_URL: ${{ matrix.api_base }}
+        run: |
+          set -euo pipefail
+          flutter build appbundle --release \
+            --dart-define=IDENTITY_ISSUER="$IDENTITY_ISSUER" \
+            --dart-define=API_BASE_URL="$API_BASE_URL"
+      - name: Upload to Google Play
+        if: inputs.apps == 'all' || contains(format(',{0},', inputs.apps), format(',{0},', matrix.app))
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: ${{ matrix.package }}
+          releaseFiles: apps/${{ matrix.app }}/build/app/outputs/bundle/release/app-release.aab
+          track: ${{ inputs.track }}
+          status: completed
