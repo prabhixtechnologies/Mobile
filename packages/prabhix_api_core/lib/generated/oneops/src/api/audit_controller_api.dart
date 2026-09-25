@@ -55,7 +55,7 @@ class AuditControllerApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/audit-logs';
+    final _path = r'/api/v1/oneops/audit-logs';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{

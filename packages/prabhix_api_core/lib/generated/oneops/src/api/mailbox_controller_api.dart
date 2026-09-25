@@ -50,7 +50,7 @@ class MailboxControllerApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/mail/mailboxes/{id}/members'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/mail/mailboxes/members';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -72,6 +72,7 @@ class MailboxControllerApi {
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     dynamic _bodyData;
@@ -155,7 +156,7 @@ _responseData = rawData == null ? null : deserialize<MailboxMemberResponse, Mail
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/mail/mailboxes';
+    final _path = r'/api/v1/oneops/mail/mailboxes';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -260,7 +261,7 @@ _responseData = rawData == null ? null : deserialize<MailboxResponse, MailboxRes
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/mail/mailboxes/{id}'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/mail/mailboxes';
     final _options = Options(
       method: r'DELETE',
       headers: <String, dynamic>{
@@ -281,6 +282,7 @@ _responseData = rawData == null ? null : deserialize<MailboxResponse, MailboxRes
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     final _response = await _dio.request<Object>(
@@ -295,7 +297,7 @@ _responseData = rawData == null ? null : deserialize<MailboxResponse, MailboxRes
     return _response;
   }
 
-  /// get3
+  /// list6
   /// 
   ///
   /// Parameters:
@@ -308,94 +310,11 @@ _responseData = rawData == null ? null : deserialize<MailboxResponse, MailboxRes
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [MailboxDetailResponse] as data
-  /// Throws [DioException] if API call or serialization fails
-  Future<Response<MailboxDetailResponse>> get3({ 
-    required PrabhixPrincipal principal,
-    required String id,
-    CancelToken? cancelToken,
-    Map<String, dynamic>? headers,
-    Map<String, dynamic>? extra,
-    ValidateStatus? validateStatus,
-    ProgressCallback? onSendProgress,
-    ProgressCallback? onReceiveProgress,
-  }) async {
-    final _path = r'/api/v1/mail/mailboxes/{id}'.replaceAll('{' r'id' '}', id.toString());
-    final _options = Options(
-      method: r'GET',
-      headers: <String, dynamic>{
-        ...?headers,
-      },
-      extra: <String, dynamic>{
-        'secure': <Map<String, String>>[
-          {
-            'type': 'http',
-            'scheme': 'bearer',
-            'name': 'bearerAuth',
-          },
-        ],
-        ...?extra,
-      },
-      validateStatus: validateStatus,
-    );
-
-    final _queryParameters = <String, dynamic>{
-      r'principal': principal,
-    };
-
-    final _response = await _dio.request<Object>(
-      _path,
-      options: _options,
-      queryParameters: _queryParameters,
-      cancelToken: cancelToken,
-      onSendProgress: onSendProgress,
-      onReceiveProgress: onReceiveProgress,
-    );
-
-    MailboxDetailResponse? _responseData;
-
-    try {
-final rawData = _response.data;
-_responseData = rawData == null ? null : deserialize<MailboxDetailResponse, MailboxDetailResponse>(rawData, 'MailboxDetailResponse', growable: true);
-
-    } catch (error, stackTrace) {
-      throw DioException(
-        requestOptions: _response.requestOptions,
-        response: _response,
-        type: DioExceptionType.unknown,
-        error: error,
-        stackTrace: stackTrace,
-      );
-    }
-
-    return Response<MailboxDetailResponse>(
-      data: _responseData,
-      headers: _response.headers,
-      isRedirect: _response.isRedirect,
-      requestOptions: _response.requestOptions,
-      redirects: _response.redirects,
-      statusCode: _response.statusCode,
-      statusMessage: _response.statusMessage,
-      extra: _response.extra,
-    );
-  }
-
-  /// list6
-  /// 
-  ///
-  /// Parameters:
-  /// * [principal] 
-  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
-  /// * [headers] - Can be used to add additional headers to the request
-  /// * [extras] - Can be used to add flags to the request
-  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
-  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
-  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
-  ///
   /// Returns a [Future] containing a [Response] with a [List<MailboxResponse>] as data
   /// Throws [DioException] if API call or serialization fails
   Future<Response<List<MailboxResponse>>> list6({ 
     required PrabhixPrincipal principal,
+    String? id,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -403,7 +322,7 @@ _responseData = rawData == null ? null : deserialize<MailboxDetailResponse, Mail
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/mail/mailboxes';
+    final _path = r'/api/v1/oneops/mail/mailboxes';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -424,6 +343,7 @@ _responseData = rawData == null ? null : deserialize<MailboxDetailResponse, Mail
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      if (id != null) r'id': id,
     };
 
     final _response = await _dio.request<Object>(
@@ -490,7 +410,7 @@ _responseData = rawData == null ? null : deserialize<List<MailboxResponse>, Mail
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/mail/mailboxes/{id}/members/{userId}'.replaceAll('{' r'id' '}', id.toString()).replaceAll('{' r'userId' '}', userId.toString());
+    final _path = r'/api/v1/oneops/mail/mailboxes/members'.replaceAll('{' r'userId' '}', userId.toString());
     final _options = Options(
       method: r'DELETE',
       headers: <String, dynamic>{
@@ -511,6 +431,7 @@ _responseData = rawData == null ? null : deserialize<List<MailboxResponse>, Mail
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     final _response = await _dio.request<Object>(
@@ -552,7 +473,7 @@ _responseData = rawData == null ? null : deserialize<List<MailboxResponse>, Mail
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/mail/mailboxes/{id}'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/mail/mailboxes';
     final _options = Options(
       method: r'PATCH',
       headers: <String, dynamic>{
@@ -574,6 +495,7 @@ _responseData = rawData == null ? null : deserialize<List<MailboxResponse>, Mail
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     dynamic _bodyData;

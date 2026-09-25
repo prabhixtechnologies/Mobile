@@ -50,7 +50,7 @@ class ChatPublicApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/chat/public/{orgSlug}/conversations/{id}/messages'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/chat/public/conversations/messages';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -71,6 +71,7 @@ class ChatPublicApi {
     );
 
     final _queryParameters = <String, dynamic>{
+      r'id': id,
       if (cursor != null) r'cursor': cursor,
       if (limit != null) r'limit': limit,
     };
@@ -141,7 +142,7 @@ _responseData = rawData == null ? null : deserialize<CursorPageMessageView, Curs
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/chat/public/{orgSlug}/conversations/{id}/messages'.replaceAll('{' r'orgSlug' '}', orgSlug.toString()).replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/chat/public/conversations/messages';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -162,6 +163,11 @@ _responseData = rawData == null ? null : deserialize<CursorPageMessageView, Curs
       validateStatus: validateStatus,
     );
 
+    final _queryParameters = <String, dynamic>{
+      r'orgSlug': orgSlug,
+      r'id': id,
+    };
+
     dynamic _bodyData;
 
     try {
@@ -172,6 +178,7 @@ _responseData = rawData == null ? null : deserialize<CursorPageMessageView, Curs
          requestOptions: _options.compose(
           _dio.options,
           _path,
+          queryParameters: _queryParameters,
         ),
         type: DioExceptionType.unknown,
         error: error,
@@ -183,6 +190,7 @@ _responseData = rawData == null ? null : deserialize<CursorPageMessageView, Curs
       _path,
       data: _bodyData,
       options: _options,
+      queryParameters: _queryParameters,
       cancelToken: cancelToken,
       onSendProgress: onSendProgress,
       onReceiveProgress: onReceiveProgress,
@@ -241,7 +249,7 @@ _responseData = rawData == null ? null : deserialize<MessageView, MessageView>(r
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/chat/public/{orgSlug}/conversations'.replaceAll('{' r'orgSlug' '}', orgSlug.toString());
+    final _path = r'/api/v1/oneops/chat/public/conversations';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -261,6 +269,10 @@ _responseData = rawData == null ? null : deserialize<MessageView, MessageView>(r
       validateStatus: validateStatus,
     );
 
+    final _queryParameters = <String, dynamic>{
+      r'orgSlug': orgSlug,
+    };
+
     dynamic _bodyData;
 
     try {
@@ -271,6 +283,7 @@ _responseData = rawData == null ? null : deserialize<MessageView, MessageView>(r
          requestOptions: _options.compose(
           _dio.options,
           _path,
+          queryParameters: _queryParameters,
         ),
         type: DioExceptionType.unknown,
         error: error,
@@ -282,6 +295,7 @@ _responseData = rawData == null ? null : deserialize<MessageView, MessageView>(r
       _path,
       data: _bodyData,
       options: _options,
+      queryParameters: _queryParameters,
       cancelToken: cancelToken,
       onSendProgress: onSendProgress,
       onReceiveProgress: onReceiveProgress,

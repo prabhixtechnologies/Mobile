@@ -17,7 +17,6 @@ import 'package:prabhix_oneops_api/src/model/commerce_verify_payment_response.da
 import 'package:prabhix_oneops_api/src/model/create_cart_response.dart';
 import 'package:prabhix_oneops_api/src/model/cursor_page_product_summary.dart';
 import 'package:prabhix_oneops_api/src/model/order_detail.dart';
-import 'package:prabhix_oneops_api/src/model/product_detail.dart';
 import 'package:prabhix_oneops_api/src/model/verify_payment_request.dart';
 
 class CommercePublicApi {
@@ -53,7 +52,7 @@ class CommercePublicApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/commerce/public/{orgSlug}/carts/{cartToken}/items'.replaceAll('{' r'orgSlug' '}', orgSlug.toString()).replaceAll('{' r'cartToken' '}', cartToken.toString());
+    final _path = r'/api/v1/oneops/commerce/public/carts/items';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -73,6 +72,11 @@ class CommercePublicApi {
       validateStatus: validateStatus,
     );
 
+    final _queryParameters = <String, dynamic>{
+      r'orgSlug': orgSlug,
+      r'cartToken': cartToken,
+    };
+
     dynamic _bodyData;
 
     try {
@@ -83,6 +87,7 @@ class CommercePublicApi {
          requestOptions: _options.compose(
           _dio.options,
           _path,
+          queryParameters: _queryParameters,
         ),
         type: DioExceptionType.unknown,
         error: error,
@@ -94,6 +99,7 @@ class CommercePublicApi {
       _path,
       data: _bodyData,
       options: _options,
+      queryParameters: _queryParameters,
       cancelToken: cancelToken,
       onSendProgress: onSendProgress,
       onReceiveProgress: onReceiveProgress,
@@ -154,7 +160,7 @@ _responseData = rawData == null ? null : deserialize<CartView, CartView>(rawData
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/commerce/public/{orgSlug}/carts/{cartToken}/checkout'.replaceAll('{' r'orgSlug' '}', orgSlug.toString()).replaceAll('{' r'cartToken' '}', cartToken.toString());
+    final _path = r'/api/v1/oneops/commerce/public/carts/checkout';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -174,6 +180,11 @@ _responseData = rawData == null ? null : deserialize<CartView, CartView>(rawData
       validateStatus: validateStatus,
     );
 
+    final _queryParameters = <String, dynamic>{
+      r'orgSlug': orgSlug,
+      r'cartToken': cartToken,
+    };
+
     dynamic _bodyData;
 
     try {
@@ -184,6 +195,7 @@ _responseData = rawData == null ? null : deserialize<CartView, CartView>(rawData
          requestOptions: _options.compose(
           _dio.options,
           _path,
+          queryParameters: _queryParameters,
         ),
         type: DioExceptionType.unknown,
         error: error,
@@ -195,6 +207,7 @@ _responseData = rawData == null ? null : deserialize<CartView, CartView>(rawData
       _path,
       data: _bodyData,
       options: _options,
+      queryParameters: _queryParameters,
       cancelToken: cancelToken,
       onSendProgress: onSendProgress,
       onReceiveProgress: onReceiveProgress,
@@ -253,7 +266,7 @@ _responseData = rawData == null ? null : deserialize<CheckoutResponse, CheckoutR
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/commerce/public/{orgSlug}/carts'.replaceAll('{' r'orgSlug' '}', orgSlug.toString());
+    final _path = r'/api/v1/oneops/commerce/public/carts';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -273,6 +286,7 @@ _responseData = rawData == null ? null : deserialize<CheckoutResponse, CheckoutR
     );
 
     final _queryParameters = <String, dynamic>{
+      r'orgSlug': orgSlug,
       if (visitorId != null) r'visitorId': visitorId,
     };
 
@@ -338,7 +352,7 @@ _responseData = rawData == null ? null : deserialize<CreateCartResponse, CreateC
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/commerce/public/{orgSlug}/carts/{cartToken}'.replaceAll('{' r'orgSlug' '}', orgSlug.toString()).replaceAll('{' r'cartToken' '}', cartToken.toString());
+    final _path = r'/api/v1/oneops/commerce/public/carts';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -357,9 +371,15 @@ _responseData = rawData == null ? null : deserialize<CreateCartResponse, CreateC
       validateStatus: validateStatus,
     );
 
+    final _queryParameters = <String, dynamic>{
+      r'orgSlug': orgSlug,
+      r'cartToken': cartToken,
+    };
+
     final _response = await _dio.request<Object>(
       _path,
       options: _options,
+      queryParameters: _queryParameters,
       cancelToken: cancelToken,
       onSendProgress: onSendProgress,
       onReceiveProgress: onReceiveProgress,
@@ -418,7 +438,7 @@ _responseData = rawData == null ? null : deserialize<CartView, CartView>(rawData
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/commerce/public/{orgSlug}/orders/{accessToken}'.replaceAll('{' r'orgSlug' '}', orgSlug.toString()).replaceAll('{' r'accessToken' '}', accessToken.toString());
+    final _path = r'/api/v1/oneops/commerce/public/orders';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -437,9 +457,15 @@ _responseData = rawData == null ? null : deserialize<CartView, CartView>(rawData
       validateStatus: validateStatus,
     );
 
+    final _queryParameters = <String, dynamic>{
+      r'orgSlug': orgSlug,
+      r'accessToken': accessToken,
+    };
+
     final _response = await _dio.request<Object>(
       _path,
       options: _options,
+      queryParameters: _queryParameters,
       cancelToken: cancelToken,
       onSendProgress: onSendProgress,
       onReceiveProgress: onReceiveProgress,
@@ -473,86 +499,6 @@ _responseData = rawData == null ? null : deserialize<OrderDetail, OrderDetail>(r
     );
   }
 
-  /// getPublicProduct
-  /// 
-  ///
-  /// Parameters:
-  /// * [orgSlug] 
-  /// * [slug] 
-  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
-  /// * [headers] - Can be used to add additional headers to the request
-  /// * [extras] - Can be used to add flags to the request
-  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
-  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
-  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
-  ///
-  /// Returns a [Future] containing a [Response] with a [ProductDetail] as data
-  /// Throws [DioException] if API call or serialization fails
-  Future<Response<ProductDetail>> getPublicProduct({ 
-    required String orgSlug,
-    required String slug,
-    CancelToken? cancelToken,
-    Map<String, dynamic>? headers,
-    Map<String, dynamic>? extra,
-    ValidateStatus? validateStatus,
-    ProgressCallback? onSendProgress,
-    ProgressCallback? onReceiveProgress,
-  }) async {
-    final _path = r'/api/v1/commerce/public/{orgSlug}/products/{slug}'.replaceAll('{' r'orgSlug' '}', orgSlug.toString()).replaceAll('{' r'slug' '}', slug.toString());
-    final _options = Options(
-      method: r'GET',
-      headers: <String, dynamic>{
-        ...?headers,
-      },
-      extra: <String, dynamic>{
-        'secure': <Map<String, String>>[
-          {
-            'type': 'http',
-            'scheme': 'bearer',
-            'name': 'bearerAuth',
-          },
-        ],
-        ...?extra,
-      },
-      validateStatus: validateStatus,
-    );
-
-    final _response = await _dio.request<Object>(
-      _path,
-      options: _options,
-      cancelToken: cancelToken,
-      onSendProgress: onSendProgress,
-      onReceiveProgress: onReceiveProgress,
-    );
-
-    ProductDetail? _responseData;
-
-    try {
-final rawData = _response.data;
-_responseData = rawData == null ? null : deserialize<ProductDetail, ProductDetail>(rawData, 'ProductDetail', growable: true);
-
-    } catch (error, stackTrace) {
-      throw DioException(
-        requestOptions: _response.requestOptions,
-        response: _response,
-        type: DioExceptionType.unknown,
-        error: error,
-        stackTrace: stackTrace,
-      );
-    }
-
-    return Response<ProductDetail>(
-      data: _responseData,
-      headers: _response.headers,
-      isRedirect: _response.isRedirect,
-      requestOptions: _response.requestOptions,
-      redirects: _response.redirects,
-      statusCode: _response.statusCode,
-      statusMessage: _response.statusMessage,
-      extra: _response.extra,
-    );
-  }
-
   /// listPublicProducts
   /// 
   ///
@@ -563,6 +509,7 @@ _responseData = rawData == null ? null : deserialize<ProductDetail, ProductDetai
   /// * [category] 
   /// * [cursor] 
   /// * [limit] 
+  /// * [slug] 
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -579,6 +526,7 @@ _responseData = rawData == null ? null : deserialize<ProductDetail, ProductDetai
     String? category,
     String? cursor,
     int? limit,
+    String? slug,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -586,7 +534,7 @@ _responseData = rawData == null ? null : deserialize<ProductDetail, ProductDetai
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/commerce/public/{orgSlug}/products'.replaceAll('{' r'orgSlug' '}', orgSlug.toString());
+    final _path = r'/api/v1/oneops/commerce/public/products';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -606,11 +554,13 @@ _responseData = rawData == null ? null : deserialize<ProductDetail, ProductDetai
     );
 
     final _queryParameters = <String, dynamic>{
+      r'orgSlug': orgSlug,
       if (search != null) r'search': search,
       if (type != null) r'type': type,
       if (category != null) r'category': category,
       if (cursor != null) r'cursor': cursor,
       if (limit != null) r'limit': limit,
+      if (slug != null) r'slug': slug,
     };
 
     final _response = await _dio.request<Object>(
@@ -675,7 +625,7 @@ _responseData = rawData == null ? null : deserialize<CursorPageProductSummary, C
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/commerce/public/{orgSlug}/payments/verify'.replaceAll('{' r'orgSlug' '}', orgSlug.toString());
+    final _path = r'/api/v1/oneops/commerce/public/payments/verify';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -695,6 +645,10 @@ _responseData = rawData == null ? null : deserialize<CursorPageProductSummary, C
       validateStatus: validateStatus,
     );
 
+    final _queryParameters = <String, dynamic>{
+      r'orgSlug': orgSlug,
+    };
+
     dynamic _bodyData;
 
     try {
@@ -705,6 +659,7 @@ _responseData = rawData == null ? null : deserialize<CursorPageProductSummary, C
          requestOptions: _options.compose(
           _dio.options,
           _path,
+          queryParameters: _queryParameters,
         ),
         type: DioExceptionType.unknown,
         error: error,
@@ -716,6 +671,7 @@ _responseData = rawData == null ? null : deserialize<CursorPageProductSummary, C
       _path,
       data: _bodyData,
       options: _options,
+      queryParameters: _queryParameters,
       cancelToken: cancelToken,
       onSendProgress: onSendProgress,
       onReceiveProgress: onReceiveProgress,

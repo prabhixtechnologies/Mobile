@@ -45,7 +45,7 @@ class PlatformAdminApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/admin/app-releases';
+    final _path = r'/api/v1/mobistack/admin/app-releases';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -121,7 +121,7 @@ _responseData = rawData == null ? null : deserialize<List<AdminAppRelease>, Admi
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/admin/billing/orders';
+    final _path = r'/api/v1/mobistack/admin/billing/orders';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -197,7 +197,7 @@ _responseData = rawData == null ? null : deserialize<List<AdminPayment>, AdminPa
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/admin/feature-flags';
+    final _path = r'/api/v1/mobistack/admin/feature-flags';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -273,7 +273,7 @@ _responseData = rawData == null ? null : deserialize<List<FlagCard>, FlagCard>(r
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/admin/live';
+    final _path = r'/api/v1/mobistack/admin/live';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -349,7 +349,7 @@ _responseData = rawData == null ? null : deserialize<List<AdminLiveUser>, AdminL
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/admin/plans';
+    final _path = r'/api/v1/mobistack/admin/plans';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -425,7 +425,7 @@ _responseData = rawData == null ? null : deserialize<List<PlanCard>, PlanCard>(r
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/admin/billing/revenue';
+    final _path = r'/api/v1/mobistack/admin/billing/revenue';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -501,7 +501,7 @@ _responseData = rawData == null ? null : deserialize<RevenueSnapshot, RevenueSna
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/admin/support';
+    final _path = r'/api/v1/mobistack/admin/support';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -577,7 +577,7 @@ _responseData = rawData == null ? null : deserialize<List<AdminSupportTicket>, A
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/admin/workspaces';
+    final _path = r'/api/v1/mobistack/admin/workspaces';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{

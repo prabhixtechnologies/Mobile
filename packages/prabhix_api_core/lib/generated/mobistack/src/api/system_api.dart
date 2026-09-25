@@ -37,7 +37,7 @@ class SystemApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/system/health';
+    final _path = r'/api/v1/mobistack/system/health';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{

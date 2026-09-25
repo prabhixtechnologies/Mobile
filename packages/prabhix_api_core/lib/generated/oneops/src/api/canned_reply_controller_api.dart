@@ -44,7 +44,7 @@ class CannedReplyControllerApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/mail/canned-replies';
+    final _path = r'/api/v1/oneops/mail/canned-replies';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -147,7 +147,7 @@ _responseData = rawData == null ? null : deserialize<CannedReplyResponse, Canned
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/mail/canned-replies';
+    final _path = r'/api/v1/oneops/mail/canned-replies';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{

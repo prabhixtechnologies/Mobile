@@ -46,7 +46,7 @@ class RoleControllerApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/roles';
+    final _path = r'/api/v1/oneops/roles';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -151,7 +151,7 @@ _responseData = rawData == null ? null : deserialize<RoleView, RoleView>(rawData
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/roles/{id}'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/roles';
     final _options = Options(
       method: r'DELETE',
       headers: <String, dynamic>{
@@ -172,6 +172,7 @@ _responseData = rawData == null ? null : deserialize<RoleView, RoleView>(rawData
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     final _response = await _dio.request<Object>(
@@ -209,7 +210,7 @@ _responseData = rawData == null ? null : deserialize<RoleView, RoleView>(rawData
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/roles';
+    final _path = r'/api/v1/oneops/roles';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -296,7 +297,7 @@ _responseData = rawData == null ? null : deserialize<PageResponseRoleView, PageR
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/roles/{id}'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/roles';
     final _options = Options(
       method: r'PATCH',
       headers: <String, dynamic>{
@@ -318,6 +319,7 @@ _responseData = rawData == null ? null : deserialize<PageResponseRoleView, PageR
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     dynamic _bodyData;

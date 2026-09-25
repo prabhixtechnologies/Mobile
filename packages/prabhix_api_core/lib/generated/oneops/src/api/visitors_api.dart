@@ -15,7 +15,6 @@ import 'package:prabhix_oneops_api/src/model/cursor_page_page_view_view.dart';
 import 'package:prabhix_oneops_api/src/model/cursor_page_visitor_summary.dart';
 import 'package:prabhix_oneops_api/src/model/live_visitor.dart';
 import 'package:prabhix_oneops_api/src/model/prabhix_principal.dart';
-import 'package:prabhix_oneops_api/src/model/visitor_detail.dart';
 
 class VisitorsApi {
 
@@ -48,7 +47,7 @@ class VisitorsApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/visitors/analytics/summary';
+    final _path = r'/api/v1/oneops/visitors/analytics/summary';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -134,7 +133,7 @@ _responseData = rawData == null ? null : deserialize<AnalyticsSummary, Analytics
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/visitors/{id}'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/visitors';
     final _options = Options(
       method: r'DELETE',
       headers: <String, dynamic>{
@@ -155,6 +154,7 @@ _responseData = rawData == null ? null : deserialize<AnalyticsSummary, Analytics
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     final _response = await _dio.request<Object>(
@@ -198,7 +198,7 @@ _responseData = rawData == null ? null : deserialize<AnalyticsSummary, Analytics
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/visitors/{id}/events'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/visitors/events';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -219,6 +219,7 @@ _responseData = rawData == null ? null : deserialize<AnalyticsSummary, Analytics
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
       if (cursor != null) r'cursor': cursor,
       if (limit != null) r'limit': limit,
     };
@@ -260,91 +261,6 @@ _responseData = rawData == null ? null : deserialize<CursorPageEventView, Cursor
     );
   }
 
-  /// get5
-  /// 
-  ///
-  /// Parameters:
-  /// * [principal] 
-  /// * [id] 
-  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
-  /// * [headers] - Can be used to add additional headers to the request
-  /// * [extras] - Can be used to add flags to the request
-  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
-  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
-  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
-  ///
-  /// Returns a [Future] containing a [Response] with a [VisitorDetail] as data
-  /// Throws [DioException] if API call or serialization fails
-  Future<Response<VisitorDetail>> get5({ 
-    required PrabhixPrincipal principal,
-    required String id,
-    CancelToken? cancelToken,
-    Map<String, dynamic>? headers,
-    Map<String, dynamic>? extra,
-    ValidateStatus? validateStatus,
-    ProgressCallback? onSendProgress,
-    ProgressCallback? onReceiveProgress,
-  }) async {
-    final _path = r'/api/v1/visitors/{id}'.replaceAll('{' r'id' '}', id.toString());
-    final _options = Options(
-      method: r'GET',
-      headers: <String, dynamic>{
-        ...?headers,
-      },
-      extra: <String, dynamic>{
-        'secure': <Map<String, String>>[
-          {
-            'type': 'http',
-            'scheme': 'bearer',
-            'name': 'bearerAuth',
-          },
-        ],
-        ...?extra,
-      },
-      validateStatus: validateStatus,
-    );
-
-    final _queryParameters = <String, dynamic>{
-      r'principal': principal,
-    };
-
-    final _response = await _dio.request<Object>(
-      _path,
-      options: _options,
-      queryParameters: _queryParameters,
-      cancelToken: cancelToken,
-      onSendProgress: onSendProgress,
-      onReceiveProgress: onReceiveProgress,
-    );
-
-    VisitorDetail? _responseData;
-
-    try {
-final rawData = _response.data;
-_responseData = rawData == null ? null : deserialize<VisitorDetail, VisitorDetail>(rawData, 'VisitorDetail', growable: true);
-
-    } catch (error, stackTrace) {
-      throw DioException(
-        requestOptions: _response.requestOptions,
-        response: _response,
-        type: DioExceptionType.unknown,
-        error: error,
-        stackTrace: stackTrace,
-      );
-    }
-
-    return Response<VisitorDetail>(
-      data: _responseData,
-      headers: _response.headers,
-      isRedirect: _response.isRedirect,
-      requestOptions: _response.requestOptions,
-      redirects: _response.redirects,
-      statusCode: _response.statusCode,
-      statusMessage: _response.statusMessage,
-      extra: _response.extra,
-    );
-  }
-
   /// list10
   /// 
   ///
@@ -352,6 +268,7 @@ _responseData = rawData == null ? null : deserialize<VisitorDetail, VisitorDetai
   /// * [principal] 
   /// * [cursor] 
   /// * [limit] 
+  /// * [id] 
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -365,6 +282,7 @@ _responseData = rawData == null ? null : deserialize<VisitorDetail, VisitorDetai
     required PrabhixPrincipal principal,
     String? cursor,
     int? limit,
+    String? id,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -372,7 +290,7 @@ _responseData = rawData == null ? null : deserialize<VisitorDetail, VisitorDetai
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/visitors';
+    final _path = r'/api/v1/oneops/visitors';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -395,6 +313,7 @@ _responseData = rawData == null ? null : deserialize<VisitorDetail, VisitorDetai
       r'principal': principal,
       if (cursor != null) r'cursor': cursor,
       if (limit != null) r'limit': limit,
+      if (id != null) r'id': id,
     };
 
     final _response = await _dio.request<Object>(
@@ -457,7 +376,7 @@ _responseData = rawData == null ? null : deserialize<CursorPageVisitorSummary, C
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/visitors/live';
+    final _path = r'/api/v1/oneops/visitors/live';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -546,7 +465,7 @@ _responseData = rawData == null ? null : deserialize<List<LiveVisitor>, LiveVisi
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/visitors/{id}/page-views'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/visitors/page-views';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -567,6 +486,7 @@ _responseData = rawData == null ? null : deserialize<List<LiveVisitor>, LiveVisi
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
       if (cursor != null) r'cursor': cursor,
       if (limit != null) r'limit': limit,
     };

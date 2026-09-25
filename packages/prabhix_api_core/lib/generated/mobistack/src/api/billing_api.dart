@@ -40,7 +40,7 @@ class BillingApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/billing';
+    final _path = r'/api/v1/mobistack/billing';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -116,7 +116,7 @@ _responseData = rawData == null ? null : deserialize<BillingOverview, BillingOve
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/billing/orders';
+    final _path = r'/api/v1/mobistack/billing/orders';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -194,7 +194,7 @@ _responseData = rawData == null ? null : deserialize<CheckoutOrderResponse, Chec
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/billing/verify';
+    final _path = r'/api/v1/mobistack/billing/verify';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{

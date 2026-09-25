@@ -56,7 +56,7 @@ class BillingControllerApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/billing/address';
+    final _path = r'/api/v1/oneops/billing/address';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -141,7 +141,7 @@ _responseData = rawData == null ? null : deserialize<BillingAddressView, Billing
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/billing/subscription/cancel';
+    final _path = r'/api/v1/oneops/billing/subscription/cancel';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -246,7 +246,7 @@ _responseData = rawData == null ? null : deserialize<SubscriptionView, Subscript
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/billing/subscription/change-plan';
+    final _path = r'/api/v1/oneops/billing/subscription/change-plan';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -351,7 +351,7 @@ _responseData = rawData == null ? null : deserialize<BillingChangeResponse, Bill
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/billing/subscription/seats';
+    final _path = r'/api/v1/oneops/billing/subscription/seats';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -456,7 +456,7 @@ _responseData = rawData == null ? null : deserialize<BillingChangeResponse, Bill
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/billing/orders/{id}/dev-complete'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/billing/orders/dev-complete';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -477,6 +477,7 @@ _responseData = rawData == null ? null : deserialize<BillingChangeResponse, Bill
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     final _response = await _dio.request<Object>(
@@ -541,7 +542,7 @@ _responseData = rawData == null ? null : deserialize<OrderView, OrderView>(rawDa
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/billing/orders';
+    final _path = r'/api/v1/oneops/billing/orders';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -646,7 +647,7 @@ _responseData = rawData == null ? null : deserialize<OrderView, OrderView>(rawDa
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/billing/invoices/{id}/download'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/billing/invoices/download';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -667,6 +668,7 @@ _responseData = rawData == null ? null : deserialize<OrderView, OrderView>(rawDa
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     final _response = await _dio.request<Object>(
@@ -729,7 +731,7 @@ _responseData = rawData == null ? null : deserialize<String, String>(rawData, 'S
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/billing/entitlements';
+    final _path = r'/api/v1/oneops/billing/entitlements';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -816,7 +818,7 @@ _responseData = rawData == null ? null : deserialize<Map<String, Object?>, Objec
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/billing/invoices';
+    final _path = r'/api/v1/oneops/billing/invoices';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -903,7 +905,7 @@ _responseData = rawData == null ? null : deserialize<CursorPageInvoiceSummary, C
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/billing/plans';
+    final _path = r'/api/v1/oneops/billing/plans';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -987,7 +989,7 @@ _responseData = rawData == null ? null : deserialize<PageResponsePlanView, PageR
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/billing/payment-methods';
+    final _path = r'/api/v1/oneops/billing/payment-methods';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -1070,7 +1072,7 @@ _responseData = rawData == null ? null : deserialize<List<PaymentMethodView>, Pa
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/billing/subscription/reactivate';
+    final _path = r'/api/v1/oneops/billing/subscription/reactivate';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -1155,7 +1157,7 @@ _responseData = rawData == null ? null : deserialize<SubscriptionView, Subscript
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/billing/refunds';
+    final _path = r'/api/v1/oneops/billing/refunds';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -1258,7 +1260,7 @@ _responseData = rawData == null ? null : deserialize<RefundView, RefundView>(raw
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/billing/subscription';
+    final _path = r'/api/v1/oneops/billing/subscription';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -1343,7 +1345,7 @@ _responseData = rawData == null ? null : deserialize<SubscriptionView, Subscript
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/billing/address';
+    final _path = r'/api/v1/oneops/billing/address';
     final _options = Options(
       method: r'PUT',
       headers: <String, dynamic>{
@@ -1448,7 +1450,7 @@ _responseData = rawData == null ? null : deserialize<BillingAddressView, Billing
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/billing/verify';
+    final _path = r'/api/v1/oneops/billing/verify';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{

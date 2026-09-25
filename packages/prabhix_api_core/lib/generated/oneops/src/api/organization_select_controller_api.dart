@@ -43,7 +43,7 @@ class OrganizationSelectControllerApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/organizations/{id}/select'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/organizations/select';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -64,6 +64,7 @@ class OrganizationSelectControllerApi {
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     final _response = await _dio.request<Object>(

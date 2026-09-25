@@ -44,7 +44,7 @@ class CommerceApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/commerce/products';
+    final _path = r'/api/v1/oneops/commerce/products';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -120,7 +120,7 @@ _responseData = rawData == null ? null : deserialize<ProductDetail, ProductDetai
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/commerce/dashboard';
+    final _path = r'/api/v1/oneops/commerce/dashboard';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -196,7 +196,7 @@ _responseData = rawData == null ? null : deserialize<CommerceDashboardView, Comm
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/commerce/settings';
+    final _path = r'/api/v1/oneops/commerce/settings';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -272,7 +272,7 @@ _responseData = rawData == null ? null : deserialize<CommerceSettingsView, Comme
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/commerce/customers';
+    final _path = r'/api/v1/oneops/commerce/customers';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -348,7 +348,7 @@ _responseData = rawData == null ? null : deserialize<CursorPageCustomerSummary, 
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/commerce/discounts';
+    final _path = r'/api/v1/oneops/commerce/discounts';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -424,7 +424,7 @@ _responseData = rawData == null ? null : deserialize<List<DiscountView>, Discoun
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/commerce/orders';
+    final _path = r'/api/v1/oneops/commerce/orders';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -500,7 +500,7 @@ _responseData = rawData == null ? null : deserialize<CursorPageOrderSummary, Cur
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/commerce/products';
+    final _path = r'/api/v1/oneops/commerce/products';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{

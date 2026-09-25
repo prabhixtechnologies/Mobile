@@ -52,7 +52,7 @@ class AuthControllerApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/auth/password/forgot';
+    final _path = r'/api/v1/oneops/auth/password/forgot';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -149,7 +149,7 @@ _responseData = rawData == null ? null : deserialize<AckResponse, AckResponse>(r
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/auth/sso/google';
+    final _path = r'/api/v1/oneops/auth/sso/google';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -246,7 +246,7 @@ _responseData = rawData == null ? null : deserialize<TokenResponse, TokenRespons
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/auth/login';
+    final _path = r'/api/v1/oneops/auth/login';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -345,7 +345,7 @@ _responseData = rawData == null ? null : deserialize<TokenResponse, TokenRespons
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/auth/logout';
+    final _path = r'/api/v1/oneops/auth/logout';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -423,7 +423,7 @@ _responseData = rawData == null ? null : deserialize<TokenResponse, TokenRespons
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/auth/me';
+    final _path = r'/api/v1/oneops/auth/me';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -506,7 +506,7 @@ _responseData = rawData == null ? null : deserialize<AuthMeResponse, AuthMeRespo
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/auth/refresh';
+    final _path = r'/api/v1/oneops/auth/refresh';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -603,7 +603,7 @@ _responseData = rawData == null ? null : deserialize<TokenResponse, TokenRespons
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/auth/register';
+    final _path = r'/api/v1/oneops/auth/register';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -700,7 +700,7 @@ _responseData = rawData == null ? null : deserialize<TokenResponse, TokenRespons
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/auth/magic-link/request';
+    final _path = r'/api/v1/oneops/auth/magic-link/request';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -797,7 +797,7 @@ _responseData = rawData == null ? null : deserialize<AckResponse, AckResponse>(r
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/auth/otp/request';
+    final _path = r'/api/v1/oneops/auth/otp/request';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -894,7 +894,7 @@ _responseData = rawData == null ? null : deserialize<AckResponse, AckResponse>(r
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/auth/password/reset';
+    final _path = r'/api/v1/oneops/auth/password/reset';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -991,7 +991,7 @@ _responseData = rawData == null ? null : deserialize<AckResponse, AckResponse>(r
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/auth/magic-link/verify';
+    final _path = r'/api/v1/oneops/auth/magic-link/verify';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -1088,7 +1088,7 @@ _responseData = rawData == null ? null : deserialize<TokenResponse, TokenRespons
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/auth/otp/verify';
+    final _path = r'/api/v1/oneops/auth/otp/verify';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{

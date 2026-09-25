@@ -45,7 +45,7 @@ class MailDomainControllerApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/mail/domains';
+    final _path = r'/api/v1/oneops/mail/domains';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -150,7 +150,7 @@ _responseData = rawData == null ? null : deserialize<DomainResponse, DomainRespo
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/mail/domains/{id}'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/mail/domains';
     final _options = Options(
       method: r'DELETE',
       headers: <String, dynamic>{
@@ -171,6 +171,7 @@ _responseData = rawData == null ? null : deserialize<DomainResponse, DomainRespo
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     final _response = await _dio.request<Object>(
@@ -210,7 +211,7 @@ _responseData = rawData == null ? null : deserialize<DomainResponse, DomainRespo
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/mail/domains/{id}/dns'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/mail/domains/dns';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -231,6 +232,7 @@ _responseData = rawData == null ? null : deserialize<DomainResponse, DomainRespo
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     final _response = await _dio.request<Object>(
@@ -293,7 +295,7 @@ _responseData = rawData == null ? null : deserialize<DnsReport, DnsReport>(rawDa
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/mail/domains';
+    final _path = r'/api/v1/oneops/mail/domains';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -378,7 +380,7 @@ _responseData = rawData == null ? null : deserialize<List<DomainResponse>, Domai
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/mail/domains/{id}/verify'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/mail/domains/verify';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -399,6 +401,7 @@ _responseData = rawData == null ? null : deserialize<List<DomainResponse>, Domai
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     final _response = await _dio.request<Object>(

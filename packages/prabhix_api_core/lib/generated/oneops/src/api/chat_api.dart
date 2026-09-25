@@ -12,7 +12,6 @@ import 'package:dio/dio.dart';
 import 'package:prabhix_oneops_api/src/model/assign_request.dart';
 import 'package:prabhix_oneops_api/src/model/canned_reply_request.dart';
 import 'package:prabhix_oneops_api/src/model/canned_reply_view.dart';
-import 'package:prabhix_oneops_api/src/model/conversation_detail.dart';
 import 'package:prabhix_oneops_api/src/model/conversation_summary.dart';
 import 'package:prabhix_oneops_api/src/model/cursor_page_conversation_summary.dart';
 import 'package:prabhix_oneops_api/src/model/cursor_page_message_view.dart';
@@ -57,7 +56,7 @@ class ChatApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/chat/conversations/{id}/assign'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/chat/conversations/assign';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -79,6 +78,7 @@ class ChatApi {
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     dynamic _bodyData;
@@ -160,7 +160,7 @@ _responseData = rawData == null ? null : deserialize<ConversationSummary, Conver
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/chat/canned-replies';
+    final _path = r'/api/v1/oneops/chat/canned-replies';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -243,7 +243,7 @@ _responseData = rawData == null ? null : deserialize<List<CannedReplyView>, Cann
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/chat/conversations/counts';
+    final _path = r'/api/v1/oneops/chat/conversations/counts';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -328,7 +328,7 @@ _responseData = rawData == null ? null : deserialize<InboxCounts, InboxCounts>(r
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/chat/canned-replies';
+    final _path = r'/api/v1/oneops/chat/canned-replies';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -433,7 +433,7 @@ _responseData = rawData == null ? null : deserialize<CannedReplyView, CannedRepl
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/chat/canned-replies/{id}'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/chat/canned-replies';
     final _options = Options(
       method: r'DELETE',
       headers: <String, dynamic>{
@@ -454,6 +454,7 @@ _responseData = rawData == null ? null : deserialize<CannedReplyView, CannedRepl
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     final _response = await _dio.request<Object>(
@@ -468,91 +469,6 @@ _responseData = rawData == null ? null : deserialize<CannedReplyView, CannedRepl
     return _response;
   }
 
-  /// get4
-  /// 
-  ///
-  /// Parameters:
-  /// * [principal] 
-  /// * [id] 
-  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
-  /// * [headers] - Can be used to add additional headers to the request
-  /// * [extras] - Can be used to add flags to the request
-  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
-  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
-  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
-  ///
-  /// Returns a [Future] containing a [Response] with a [ConversationDetail] as data
-  /// Throws [DioException] if API call or serialization fails
-  Future<Response<ConversationDetail>> get4({ 
-    required PrabhixPrincipal principal,
-    required String id,
-    CancelToken? cancelToken,
-    Map<String, dynamic>? headers,
-    Map<String, dynamic>? extra,
-    ValidateStatus? validateStatus,
-    ProgressCallback? onSendProgress,
-    ProgressCallback? onReceiveProgress,
-  }) async {
-    final _path = r'/api/v1/chat/conversations/{id}'.replaceAll('{' r'id' '}', id.toString());
-    final _options = Options(
-      method: r'GET',
-      headers: <String, dynamic>{
-        ...?headers,
-      },
-      extra: <String, dynamic>{
-        'secure': <Map<String, String>>[
-          {
-            'type': 'http',
-            'scheme': 'bearer',
-            'name': 'bearerAuth',
-          },
-        ],
-        ...?extra,
-      },
-      validateStatus: validateStatus,
-    );
-
-    final _queryParameters = <String, dynamic>{
-      r'principal': principal,
-    };
-
-    final _response = await _dio.request<Object>(
-      _path,
-      options: _options,
-      queryParameters: _queryParameters,
-      cancelToken: cancelToken,
-      onSendProgress: onSendProgress,
-      onReceiveProgress: onReceiveProgress,
-    );
-
-    ConversationDetail? _responseData;
-
-    try {
-final rawData = _response.data;
-_responseData = rawData == null ? null : deserialize<ConversationDetail, ConversationDetail>(rawData, 'ConversationDetail', growable: true);
-
-    } catch (error, stackTrace) {
-      throw DioException(
-        requestOptions: _response.requestOptions,
-        response: _response,
-        type: DioExceptionType.unknown,
-        error: error,
-        stackTrace: stackTrace,
-      );
-    }
-
-    return Response<ConversationDetail>(
-      data: _responseData,
-      headers: _response.headers,
-      isRedirect: _response.isRedirect,
-      requestOptions: _response.requestOptions,
-      redirects: _response.redirects,
-      statusCode: _response.statusCode,
-      statusMessage: _response.statusMessage,
-      extra: _response.extra,
-    );
-  }
-
   /// list15
   /// 
   ///
@@ -562,6 +478,7 @@ _responseData = rawData == null ? null : deserialize<ConversationDetail, Convers
   /// * [status] 
   /// * [cursor] 
   /// * [limit] 
+  /// * [id] 
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -577,6 +494,7 @@ _responseData = rawData == null ? null : deserialize<ConversationDetail, Convers
     String? status,
     String? cursor,
     int? limit,
+    String? id,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -584,7 +502,7 @@ _responseData = rawData == null ? null : deserialize<ConversationDetail, Convers
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/chat/conversations';
+    final _path = r'/api/v1/oneops/chat/conversations';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -609,6 +527,7 @@ _responseData = rawData == null ? null : deserialize<ConversationDetail, Convers
       if (status != null) r'status': status,
       if (cursor != null) r'cursor': cursor,
       if (limit != null) r'limit': limit,
+      if (id != null) r'id': id,
     };
 
     final _response = await _dio.request<Object>(
@@ -677,7 +596,7 @@ _responseData = rawData == null ? null : deserialize<CursorPageConversationSumma
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/chat/conversations/{id}/messages'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/chat/conversations/messages';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -698,6 +617,7 @@ _responseData = rawData == null ? null : deserialize<CursorPageConversationSumma
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
       if (cursor != null) r'cursor': cursor,
       if (limit != null) r'limit': limit,
     };
@@ -768,7 +688,7 @@ _responseData = rawData == null ? null : deserialize<CursorPageMessageView, Curs
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/chat/conversations/{id}/messages'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/chat/conversations/messages';
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -790,6 +710,7 @@ _responseData = rawData == null ? null : deserialize<CursorPageMessageView, Curs
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
       if (note != null) r'note': note,
     };
 
@@ -872,7 +793,7 @@ _responseData = rawData == null ? null : deserialize<MessageView, MessageView>(r
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/chat/settings';
+    final _path = r'/api/v1/oneops/chat/settings';
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -959,7 +880,7 @@ _responseData = rawData == null ? null : deserialize<SettingsView, SettingsView>
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/chat/conversations/{id}'.replaceAll('{' r'id' '}', id.toString());
+    final _path = r'/api/v1/oneops/chat/conversations';
     final _options = Options(
       method: r'PATCH',
       headers: <String, dynamic>{
@@ -981,6 +902,7 @@ _responseData = rawData == null ? null : deserialize<SettingsView, SettingsView>
 
     final _queryParameters = <String, dynamic>{
       r'principal': principal,
+      r'id': id,
     };
 
     dynamic _bodyData;
@@ -1064,7 +986,7 @@ _responseData = rawData == null ? null : deserialize<ConversationSummary, Conver
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/api/v1/chat/settings';
+    final _path = r'/api/v1/oneops/chat/settings';
     final _options = Options(
       method: r'PATCH',
       headers: <String, dynamic>{
