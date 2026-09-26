@@ -311,11 +311,17 @@ Future<List<String>> _phonesFor(BuildContext context, CachedVariant variant) asy
   final state = context.read<AppState>();
   if (!state.online) return const ['Connect to look up fitment'];
   try {
-    final variantRes = await state.api.dio.get<dynamic>('variants/${variant.id}');
+    final variantRes = await state.api.dio.get<dynamic>(
+      'variants',
+      queryParameters: {'id': variant.id},
+    );
     final data = variantRes.data;
     final componentId = data is Map ? '${data['catalogComponentId'] ?? ''}' : '';
     if (componentId.isEmpty) return const [];
-    final fits = await state.api.dio.get<dynamic>('commons/components/$componentId/devices');
+    final fits = await state.api.dio.get<dynamic>(
+      'commons/components/devices',
+      queryParameters: {'componentId': componentId},
+    );
     final rows = fits.data;
     if (rows is! List) return const [];
     return [
