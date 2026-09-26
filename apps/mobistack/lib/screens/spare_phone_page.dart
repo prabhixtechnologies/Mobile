@@ -44,6 +44,8 @@ class _SparePhonePageState extends State<SparePhonePage> {
   FitmentBook _book = const FitmentBook([]);
   List<_SharedPart> _shared = const [];
   bool _sharing = false;
+  bool _sharedLoading = true;
+  String? _sharedError;
 
   @override
   void initState() {
@@ -54,6 +56,12 @@ class _SparePhonePageState extends State<SparePhonePage> {
 
   Future<void> _loadShared() async {
     final phone = widget.phone;
+    if (mounted) {
+      setState(() {
+        _sharedLoading = true;
+        _sharedError = null;
+      });
+    }
     try {
       final api = context.read<AppState>().api;
       final search = await api.dio.get<dynamic>(
@@ -61,28 +69,46 @@ class _SparePhonePageState extends State<SparePhonePage> {
         queryParameters: {'q': phone.name, 'size': 30},
       );
       Map<String, dynamic>? match;
+      Map<String, dynamic>? nameOnly;
       for (final row in pageRows(search.data)) {
         final brand = '${row['brandName'] ?? ''}'.toLowerCase();
         final name = '${row['name'] ?? ''}'.toLowerCase();
-        if (brand == phone.brand.toLowerCase() && name == phone.name.toLowerCase()) {
+        if (name != phone.name.toLowerCase()) continue;
+        nameOnly ??= row;
+        if (brand == phone.brand.toLowerCase()) {
           match = row;
           break;
         }
       }
+      match ??= nameOnly;
       final id = match == null ? '' : '${match['id'] ?? ''}';
-      if (id.isEmpty || !mounted) return;
-      final fitsRes = await api.dio.get<dynamic>('commons/devices/$id/fits');
+      if (!mounted) return;
+      if (id.isEmpty) {
+        setState(() {
+          _shared = const [];
+          _sharedLoading = false;
+        });
+        return;
+      }
+      final fitsRes = await api.dio.get<dynamic>(
+        'commons/devices/fits',
+        queryParameters: {'deviceId': id},
+      );
       final shared = <_SharedPart>[];
       for (final fit in pageRows(fitsRes.data)) {
         final code = '${fit['categoryCode'] ?? ''}';
         if (code.isNotEmpty && code != widget.category.code) continue;
         final componentId = '${fit['componentId'] ?? ''}';
         if (componentId.isEmpty) continue;
-        final devicesRes = await api.dio.get<dynamic>('commons/components/$componentId/devices');
-        final self = '${phone.brand} ${phone.name}'.toLowerCase();
+        final devicesRes = await api.dio.get<dynamic>(
+          'commons/components/devices',
+          queryParameters: {'componentId': componentId},
+        );
+        final self = phone.name.toLowerCase();
         final others = pageRows(devicesRes.data)
+            .where((row) => '${row['name'] ?? ''}'.toLowerCase() != self)
             .map((row) => '${row['brandName'] ?? ''} ${row['name'] ?? ''}'.trim())
-            .where((label) => label.isNotEmpty && label.toLowerCase() != self)
+            .where((label) => label.isNotEmpty)
             .toList();
         shared.add(_SharedPart(
           fitmentId: '${fit['fitmentId'] ?? ''}',
@@ -92,8 +118,18 @@ class _SparePhonePageState extends State<SparePhonePage> {
         ));
       }
       if (!mounted) return;
-      setState(() => _shared = shared);
-    } catch (_) {}
+      setState(() {
+        _shared = shared;
+        _sharedLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _shared = const [];
+        _sharedLoading = false;
+        _sharedError = 'Could not load shared fitment';
+      });
+    }
   }
 
   Future<void> _reload() async {
@@ -137,17 +173,26 @@ class _SparePhonePageState extends State<SparePhonePage> {
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
                   children: [
                     _SpecCard(phone: phone, spec: spec),
-                    if (_shared.isNotEmpty) ...[
-                      const SizedBox(height: 18),
-                      Text(
-                        'Shared catalog',
-                        style: GoogleFonts.fraunces(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w600,
-                          color: Px.ink,
-                        ),
+                    const SizedBox(height: 18),
+                    Text(
+                      'Shared catalog',
+                      style: GoogleFonts.fraunces(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                        color: Px.ink,
                       ),
-                      const SizedBox(height: 8),
+                    ),
+                    const SizedBox(height: 8),
+                    if (_sharedLoading)
+                      const LinearProgressIndicator(minHeight: 2)
+                    else if (_sharedError != null)
+                      Text(_sharedError!, style: Theme.of(context).textTheme.bodyMedium)
+                    else if (_shared.isEmpty)
+                      Text(
+                        'Nothing shared for this phone in this union yet.',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      )
+                    else
                       for (final part in _shared) ...[
                         Text(part.name, style: Theme.of(context).textTheme.titleMedium),
                         Text(part.fit, style: Theme.of(context).textTheme.bodySmall),
@@ -169,7 +214,6 @@ class _SparePhonePageState extends State<SparePhonePage> {
                           ),
                         const SizedBox(height: 8),
                       ],
-                    ],
                     const SizedBox(height: 18),
                     Text(
                       'Same spare',

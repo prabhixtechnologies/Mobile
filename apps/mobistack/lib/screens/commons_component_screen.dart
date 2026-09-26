@@ -61,8 +61,14 @@ class _CommonsComponentScreenState extends State<CommonsComponentScreen> {
     });
     try {
       final results = await Future.wait([
-        state.api.dio.get<dynamic>('commons/components/${widget.componentId}'),
-        state.api.dio.get<dynamic>('commons/components/${widget.componentId}/devices'),
+        state.api.dio.get<dynamic>(
+          'commons/components',
+          queryParameters: {'componentId': widget.componentId},
+        ),
+        state.api.dio.get<dynamic>(
+          'commons/components/devices',
+          queryParameters: {'componentId': widget.componentId},
+        ),
       ]);
       final component = results[0].data is Map
           ? Map<String, dynamic>.from(results[0].data as Map)

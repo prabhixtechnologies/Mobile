@@ -248,7 +248,8 @@ class ApiClient {
     String? internalNotes,
   }) async {
     final res = await _dio.patch<Map<String, dynamic>>(
-      'admin/site/leads/$id',
+      'admin/site/leads',
+      queryParameters: {'id': id},
       data: {
         'status': status,
         if (internalNotes != null) 'internalNotes': internalNotes,
@@ -263,7 +264,8 @@ class ApiClient {
     String? internalNotes,
   }) async {
     final res = await _dio.patch<Map<String, dynamic>>(
-      'admin/site/applications/$id',
+      'admin/site/applications',
+      queryParameters: {'id': id},
       data: {
         'status': status,
         if (internalNotes != null) 'internalNotes': internalNotes,
@@ -305,7 +307,8 @@ class ApiClient {
   }) async {
     try {
       await _dio.post<void>(
-        'admin/platform/staff/break-glass/users/$userId/revoke-tokens',
+        'admin/platform/staff/break-glass/users/revoke-tokens',
+        queryParameters: {'userId': userId},
         data: {'reason': reason},
       );
     } on DioException catch (e) {
@@ -354,7 +357,8 @@ class ApiClient {
   }) async {
     try {
       await _dio.post<void>(
-        'admin/platform/identity/users/$userId/$action',
+        'admin/platform/identity/users/$action',
+        queryParameters: {'id': userId},
         data: {if (reason != null && reason.isNotEmpty) 'reason': reason},
       );
     } on DioException catch (e) {
@@ -383,7 +387,8 @@ class ApiClient {
   }) async {
     try {
       await _dio.post<void>(
-        'admin/platform/commons/$id/$decision',
+        'admin/platform/commons/$decision',
+        queryParameters: {'id': id},
         data: {
           if (note != null && note.isNotEmpty) 'note': note,
           if (note != null && note.isNotEmpty) 'reason': note,
@@ -401,7 +406,8 @@ class ApiClient {
   }) async {
     try {
       await _dio.post<void>(
-        'admin/platform/mobistack/live/$userId/kick',
+        'admin/platform/mobistack/live/kick',
+        queryParameters: {'userId': userId},
         data: {
           if (deviceId != null && deviceId.isNotEmpty) 'deviceId': deviceId,
           if (reason != null && reason.isNotEmpty) 'reason': reason,
@@ -437,7 +443,8 @@ class ApiClient {
   }) async {
     try {
       await _dio.post<void>(
-        'admin/platform/mobistack/workspaces/$id/${active ? 'activate' : 'suspend'}',
+        'admin/platform/mobistack/workspaces/${active ? 'activate' : 'suspend'}',
+        queryParameters: {'id': id},
       );
     } on DioException catch (e) {
       throw _map(e);
@@ -450,7 +457,8 @@ class ApiClient {
   }) async {
     try {
       await _dio.post<void>(
-        'admin/platform/mobistack/workspaces/$id/screens',
+        'admin/platform/mobistack/workspaces/screens',
+        queryParameters: {'id': id},
         data: {'extraScreens': extraScreens},
       );
     } on DioException catch (e) {
@@ -489,7 +497,10 @@ class ApiClient {
 
   Future<void> resolveSupportTicket(String id) async {
     try {
-      await _dio.post<void>('admin/platform/mobistack/support/$id/resolve');
+      await _dio.post<void>(
+        'admin/platform/mobistack/support/resolve',
+        queryParameters: {'id': id},
+      );
     } on DioException catch (e) {
       throw _map(e);
     }
@@ -501,7 +512,8 @@ class ApiClient {
   }) async {
     try {
       await _dio.post<void>(
-        'admin/platform/mobistack/support/$id/messages',
+        'admin/platform/mobistack/support/messages',
+        queryParameters: {'id': id},
         data: {'body': body, 'message': body},
       );
     } on DioException catch (e) {
@@ -597,7 +609,10 @@ class ApiClient {
 
   Future<void> confirmBillingOrder(String orderId) async {
     try {
-      await _dio.post<void>('billing/orders/$orderId/confirm');
+      await _dio.post<void>(
+        'billing/orders/confirm',
+        queryParameters: {'id': orderId},
+      );
     } on DioException catch (e) {
       throw _map(e);
     }
@@ -651,7 +666,10 @@ class ApiClient {
 
   Future<void> cancelShopJoin(String workspaceId) async {
     try {
-      await _dio.post<void>('workspaces/$workspaceId/join/cancel');
+      await _dio.post<void>(
+        'workspaces/join/cancel',
+        queryParameters: {'id': workspaceId},
+      );
     } on DioException catch (e) {
       throw _map(e);
     }

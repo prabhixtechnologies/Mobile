@@ -64,14 +64,19 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
       if (_device == null) _loading = true;
     });
     try {
-      final deviceFuture =
-          state.api.dio.get<dynamic>('commons/devices/${widget.deviceId}');
-      final fitsFuture =
-          state.api.dio.get<dynamic>('commons/devices/${widget.deviceId}/fits');
+      final deviceFuture = state.api.dio.get<dynamic>(
+        'commons/devices',
+        queryParameters: {'deviceId': widget.deviceId},
+      );
+      final fitsFuture = state.api.dio.get<dynamic>(
+        'commons/devices/fits',
+        queryParameters: {'deviceId': widget.deviceId},
+      );
       final stockFuture = () async {
         try {
           return await state.api.dio.get<dynamic>(
-            'inventory/catalog-links/devices/${widget.deviceId}/stock',
+            'inventory/catalog-links/devices/stock',
+            queryParameters: {'catalogDeviceId': widget.deviceId},
           );
         } catch (_) {
           return null;

@@ -185,15 +185,17 @@ void main() {
     final mobistack = ProductConfig.mobistack(
       apiBaseUrl: 'https://mobistack.prabhixtechnologies.com/api/v1',
     );
+    expect(mobistack.apiBaseUrl, 'https://mobistack.prabhixtechnologies.com/api/v1/mobistack');
     expect(
       mobistack.selectPath('ff7cce39-e964-4973-9e98-8e219e44d708'),
-      'workspaces/ff7cce39-e964-4973-9e98-8e219e44d708/select',
+      'workspaces/select?id=ff7cce39-e964-4973-9e98-8e219e44d708',
     );
     final platform = ProductConfig.platform(
       apiBaseUrl: 'https://api.prabhixtechnologies.com/api/v1',
       deviceHeader: 'oneops',
     );
-    expect(platform.selectPath('org-1'), 'organizations/org-1/select');
+    expect(platform.apiBaseUrl, 'https://api.prabhixtechnologies.com/api/v1/oneops');
+    expect(platform.selectPath('org-1'), 'organizations/select?id=org-1');
   });
 
   test('open bill stacks the same part and pays cash', () {
