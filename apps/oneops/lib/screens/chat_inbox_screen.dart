@@ -16,8 +16,16 @@ class ChatInboxScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Chat'),
         actions: [
-          IconButton(onPressed: () => state.flushOutbound(), icon: const Icon(Icons.cloud_upload_outlined)),
-          IconButton(onPressed: () => state.refreshChat(), icon: const Icon(Icons.refresh)),
+          IconButton(
+            tooltip: 'Send queued messages',
+            onPressed: () => state.flushOutbound(),
+            icon: const Icon(Icons.cloud_upload_outlined),
+          ),
+          IconButton(
+            tooltip: 'Refresh conversations',
+            onPressed: () => state.refreshChat(),
+            icon: const Icon(Icons.refresh),
+          ),
         ],
       ),
       body: Column(

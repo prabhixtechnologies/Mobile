@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:prabhix_ui/prabhix_ui.dart';
 import 'package:provider/provider.dart';
 
@@ -29,6 +30,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
     });
   }
 
+  static const _fulfilWarning =
+      'This releases the order and notifies the customer. It cannot be reversed here.';
+
   /// Fulfils an order once the user has confirmed.
   ///
   /// Fulfilment releases the goods and notifies the customer, so it is not something to
@@ -37,11 +41,23 @@ class _OrdersScreenState extends State<OrdersScreen> {
     final ok = await confirmDestructive(
       context,
       title: 'Fulfil ${order.label}?',
-      message: 'This releases the order and notifies the customer. It cannot be reversed here.',
+      message: _fulfilWarning,
       confirmLabel: 'Fulfil',
       icon: Icons.local_shipping_outlined,
     );
     if (!ok || !context.mounted) return;
+    await _fulfilConfirmed(context, state, order);
+  }
+
+  /// The half of [_fulfil] after the user has said yes.
+  ///
+  /// Split out because [invokePxAction] runs the confirmation itself for a
+  /// [PxRisk.confirm] action, and asking twice for one tap reads as a bug.
+  Future<void> _fulfilConfirmed(
+    BuildContext context,
+    AppState state,
+    OrderRow order,
+  ) async {
     await state.fulfillOrder(order.id);
     if (!context.mounted) return;
     showOutcome(context, success: '${order.label} fulfilled');
@@ -73,12 +89,36 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 ...state.orders.map(
                   (o) => Padding(
                     padding: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      title: Text(o.label),
-                      subtitle: Text([o.status, o.total].whereType<String>().join(' · ')),
-                      trailing: TextButton(
-                        onPressed: () => _fulfil(context, state, o),
-                        child: const Text('Fulfil'),
+                    child: PxActionable(
+                      title: o.label,
+                      subtitle: [o.status, o.total].whereType<String>().join(' · '),
+                      actions: [
+                        PxAction(
+                          label: 'Fulfil',
+                          icon: Icons.local_shipping_outlined,
+                          risk: PxRisk.confirm,
+                          confirmTitle: 'Fulfil ${o.label}?',
+                          confirmMessage: _fulfilWarning,
+                          onInvoke: () => _fulfilConfirmed(context, state, o),
+                        ),
+                        PxAction(
+                          label: 'Copy order reference',
+                          icon: Icons.copy_rounded,
+                          risk: PxRisk.safe,
+                          onInvoke: () {
+                            Clipboard.setData(ClipboardData(text: o.label));
+                            showOutcome(context, success: 'Reference copied');
+                          },
+                        ),
+                      ],
+                      child: ListTile(
+                        title: Text(o.label),
+                        subtitle:
+                            Text([o.status, o.total].whereType<String>().join(' · ')),
+                        trailing: TextButton(
+                          onPressed: () => _fulfil(context, state, o),
+                          child: const Text('Fulfil'),
+                        ),
                       ),
                     ),
                   ),

@@ -92,10 +92,11 @@ class _PaySheetState extends State<PaySheet> {
         backgroundColor: Px.ink,
         foregroundColor: Px.accentInk,
         title: Text('Pay ${formatPaise(widget.order.amount)}'),
-        leading: IconButton(
-          icon: const Icon(Icons.close_rounded),
-          onPressed: _cancelOnce,
-        ),
+          leading: IconButton(
+            tooltip: 'Cancel payment',
+            icon: const Icon(Icons.close_rounded),
+            onPressed: _cancelOnce,
+          ),
       ),
       body: WebViewWidget(controller: _controller),
     );

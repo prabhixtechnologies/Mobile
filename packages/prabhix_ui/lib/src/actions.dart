@@ -160,6 +160,8 @@ class PxActionable extends StatelessWidget {
     required this.actions,
     this.subtitle,
     this.onTap,
+    this.onLongPress,
+    this.longPressOpens = true,
   });
 
   final Widget child;
@@ -167,6 +169,15 @@ class PxActionable extends StatelessWidget {
   final String? subtitle;
   final List<PxAction> actions;
   final VoidCallback? onTap;
+
+  /// Only consulted when [longPressOpens] is false.
+  final VoidCallback? onLongPress;
+
+  /// Set false where long-press already means something else — entering multi-select in a
+  /// mail list is the usual case. Right-click and the screen-reader rotor still reach the
+  /// same actions, which is the part that matters: the guarantee is that no action is
+  /// reachable *only* by a gesture, not that long-press specifically is the way in.
+  final bool longPressOpens;
 
   @override
   Widget build(BuildContext context) {
@@ -186,7 +197,7 @@ class PxActionable extends StatelessWidget {
       },
       child: GestureDetector(
         onTap: onTap,
-        onLongPress: open,
+        onLongPress: longPressOpens ? open : onLongPress,
         onSecondaryTap: open,
         child: child,
       ),

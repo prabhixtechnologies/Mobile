@@ -20,10 +20,11 @@ class OrgSelectScreen extends StatelessWidget {
               Row(
                 children: [
                   const Expanded(child: BrandMark(compact: true)),
-                  IconButton(
-                    onPressed: () => state.signOut(),
-                    icon: const Icon(Icons.logout_rounded),
-                  ),
+                    IconButton(
+                      tooltip: 'Sign out',
+                      onPressed: () => state.signOut(),
+                      icon: const Icon(Icons.logout_rounded),
+                    ),
                 ],
               ),
               const SizedBox(height: 28),

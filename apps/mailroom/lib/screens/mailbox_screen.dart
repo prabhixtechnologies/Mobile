@@ -1,9 +1,12 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:prabhix_ui/prabhix_ui.dart';
 import 'package:provider/provider.dart';
 
 import '../models/mail_models.dart';
@@ -48,6 +51,10 @@ class _MailboxScreenState extends State<MailboxScreen> {
   void _applyScope() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      // Widget tests drive the store directly and have no sqflite platform channel, so
+      // the mailbox load this kicks off would fail inside the offline cache. Same guard
+      // the other screens' initial loads use.
+      if (Platform.environment.containsKey('FLUTTER_TEST')) return;
       context.read<AppState>().setCompanyMail(widget.company);
     });
   }
@@ -222,6 +229,8 @@ class _MailboxScreenState extends State<MailboxScreen> {
                               state.enterSelection(t.id);
                             },
                             onStar: (t) => state.toggleStar(t),
+                            onToggleRead: (t) =>
+                                state.markRead(t, read: t.unread),
                             onArchive: (t) => _withUndo(
                               () => state.moveWithUndo(
                                 threadIds: [t.id],
@@ -338,6 +347,7 @@ class _SearchAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     return AppBar(
       leading: IconButton(
+        tooltip: 'Back',
         onPressed: onClose,
         icon: const Icon(Icons.arrow_back_rounded),
       ),
@@ -354,6 +364,7 @@ class _SearchAppBar extends StatelessWidget implements PreferredSizeWidget {
       actions: [
         if (controller.text.isNotEmpty)
           IconButton(
+            tooltip: 'Clear search',
             onPressed: () {
               controller.clear();
               onChanged('');
@@ -651,6 +662,7 @@ class _GroupedThreadList extends StatelessWidget {
     required this.onStar,
     required this.onArchive,
     required this.onTrash,
+    required this.onToggleRead,
   });
 
   final List<MailThreadSummary> threads;
@@ -661,6 +673,7 @@ class _GroupedThreadList extends StatelessWidget {
   final ValueChanged<MailThreadSummary> onStar;
   final ValueChanged<MailThreadSummary> onArchive;
   final ValueChanged<MailThreadSummary> onTrash;
+  final ValueChanged<MailThreadSummary> onToggleRead;
 
   @override
   Widget build(BuildContext context) {
@@ -702,6 +715,7 @@ class _GroupedThreadList extends StatelessWidget {
               onStar: () => onStar(t),
               onArchive: () => onArchive(t),
               onTrash: () => onTrash(t),
+              onToggleRead: () => onToggleRead(t),
             ),
           ),
         );
@@ -726,6 +740,7 @@ class _SwipeThreadRow extends StatelessWidget {
     required this.onStar,
     required this.onArchive,
     required this.onTrash,
+    required this.onToggleRead,
   });
 
   final MailThreadSummary thread;
@@ -736,6 +751,7 @@ class _SwipeThreadRow extends StatelessWidget {
   final VoidCallback onStar;
   final VoidCallback onArchive;
   final VoidCallback onTrash;
+  final VoidCallback onToggleRead;
 
   @override
   Widget build(BuildContext context) {
@@ -860,6 +876,10 @@ class _SwipeThreadRow extends StatelessWidget {
                         ),
                         if (!selecting)
                           IconButton(
+                            // A toggle's name has to describe what the press will do, not
+                            // what the icon currently shows, or a screen reader announces
+                            // "star" on a thread that is already starred.
+                            tooltip: thread.starred ? 'Remove star' : 'Star this thread',
                             visualDensity: VisualDensity.compact,
                             onPressed: onStar,
                             icon: Icon(
@@ -882,6 +902,45 @@ class _SwipeThreadRow extends StatelessWidget {
     );
 
     if (selecting) return row;
+
+    // Archive and Delete used to be swipe-only, which meant they did not exist for anyone
+    // on TalkBack or VoiceOver (both swallow the swipe) or with a mouse. Long-press stays
+    // multi-select, the idiom every mail app uses, so the action list hangs off
+    // right-click and the screen reader's rotor instead.
+    final actionable = PxActionable(
+      title: thread.correspondent,
+      subtitle: thread.subject,
+      // The InkWell inside `row` already owns long-press; a second recognizer for it out
+      // here would just make the gesture arena decide which one wins.
+      longPressOpens: false,
+      actions: [
+        PxAction(
+          label: thread.starred ? 'Remove star' : 'Star',
+          icon: thread.starred ? Icons.star_rounded : Icons.star_border_rounded,
+          risk: PxRisk.safe,
+          onInvoke: onStar,
+        ),
+        PxAction(
+          label: thread.unread ? 'Mark as read' : 'Mark as unread',
+          icon: thread.unread
+              ? Icons.mark_email_read_outlined
+              : Icons.mark_email_unread_outlined,
+          risk: PxRisk.safe,
+          onInvoke: onToggleRead,
+        ),
+        PxAction(
+          label: 'Archive',
+          icon: Icons.archive_outlined,
+          onInvoke: onArchive,
+        ),
+        PxAction(
+          label: 'Delete',
+          icon: Icons.delete_outline_rounded,
+          onInvoke: onTrash,
+        ),
+      ],
+      child: row,
+    );
 
     return Slidable(
       key: ValueKey(thread.id),
@@ -939,7 +998,7 @@ class _SwipeThreadRow extends StatelessWidget {
           ),
         ],
       ),
-      child: row,
+      child: actionable,
     );
   }
 }

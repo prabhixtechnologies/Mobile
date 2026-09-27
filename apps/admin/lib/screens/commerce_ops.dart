@@ -1049,6 +1049,10 @@ class _StaffGrantFormState extends State<_StaffGrantForm> {
         const SizedBox(height: 8),
         TextField(
           controller: _userId,
+          // An opaque id, so keyboard help is only ever interference.
+          autocorrect: false,
+          enableSuggestions: false,
+          textCapitalization: TextCapitalization.none,
           decoration: const InputDecoration(
             labelText: 'User id',
             border: OutlineInputBorder(),
@@ -1056,7 +1060,7 @@ class _StaffGrantFormState extends State<_StaffGrantForm> {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: _role,
+            initialValue: _role,
           decoration: const InputDecoration(
             labelText: 'Role',
             border: OutlineInputBorder(),
@@ -1104,6 +1108,9 @@ class _BreakGlassFormState extends State<_BreakGlassForm> {
       children: [
         TextField(
           controller: _userId,
+          autocorrect: false,
+          enableSuggestions: false,
+          textCapitalization: TextCapitalization.none,
           decoration: const InputDecoration(
             labelText: 'User id',
             border: OutlineInputBorder(),
@@ -1158,7 +1165,7 @@ class _PromoteFormState extends State<_PromoteForm> {
         Text('Promote', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: _service,
+            initialValue: _service,
           decoration: const InputDecoration(
             labelText: 'Service',
             border: OutlineInputBorder(),

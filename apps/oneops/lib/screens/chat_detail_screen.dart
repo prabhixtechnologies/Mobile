@@ -125,7 +125,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       appBar: AppBar(
         title: Text(title),
         actions: [
-          IconButton(onPressed: _assignToMe, icon: const Icon(Icons.person_add_alt_1)),
+          IconButton(
+            tooltip: 'Assign this conversation to me',
+            onPressed: _assignToMe,
+            icon: const Icon(Icons.person_add_alt_1),
+          ),
           PopupMenuButton<String>(
             onSelected: (v) {
               if (v == 'suggest') {
