@@ -4,23 +4,9 @@ import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart
 import '../models/mail_models.dart';
 import '../theme/prabhix_theme.dart';
 
-Color avatarColor(String seed) {
-  const palette = [
-    Color(0xFF0E7490),
-    Color(0xFF1D4ED8),
-    Color(0xFF7C3AED),
-    Color(0xFFBE185D),
-    Color(0xFFB45309),
-    Color(0xFF047857),
-    Color(0xFF0F766E),
-    Color(0xFF4338CA),
-  ];
-  var hash = 0;
-  for (final c in seed.codeUnits) {
-    hash = (hash + c) & 0x7fffffff;
-  }
-  return palette[hash % palette.length];
-}
+/// The same swatch the web picks for this sender, so a person keeps one colour
+/// whether the mail is read in a browser or in the app.
+PxTag avatarSwatch(String seed) => pxTagFor(seed, dark: Px.isDark);
 
 class PersonAvatar extends StatelessWidget {
   const PersonAvatar({
@@ -40,7 +26,7 @@ class PersonAvatar extends StatelessWidget {
       return Container(
         width: size,
         height: size,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: Px.accent,
           shape: BoxShape.circle,
         ),
@@ -48,16 +34,20 @@ class PersonAvatar extends StatelessWidget {
       );
     }
     final letter = label.trim().isEmpty ? '?' : label.trim()[0].toUpperCase();
-    final color = avatarColor(label);
+    final swatch = avatarSwatch(label);
     return Container(
       width: size,
       height: size,
       alignment: Alignment.center,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      decoration: BoxDecoration(
+        color: swatch.bg,
+        shape: BoxShape.circle,
+        border: Border.all(color: swatch.border),
+      ),
       child: Text(
         letter,
         style: TextStyle(
-          color: Colors.white,
+          color: swatch.ink,
           fontWeight: FontWeight.w700,
           fontSize: size * 0.42,
         ),

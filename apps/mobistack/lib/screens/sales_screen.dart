@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:prabhix_ui/prabhix_ui.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../models/shop_models.dart';
@@ -82,6 +83,16 @@ class _SalesScreenState extends State<SalesScreen> {
     amount.dispose();
     reason.dispose();
     return value;
+  }
+
+  /// Voids a sale after [PxActionable] has already confirmed it.
+  ///
+  /// The old code reported error ?? 'Sale voided' through a plain snackbar, so a failed
+  /// void looked identical to a successful one apart from the wording.
+  Future<void> _voidSale(BuildContext context, AppState state, CachedSale sale) async {
+    final error = await state.voidSale(sale.id);
+    if (!context.mounted) return;
+    showOutcome(context, error: error, success: ' voided');
   }
 
   Future<void> _openSale(AppState state, CachedSale sale) async {
@@ -336,19 +347,37 @@ class _SalesScreenState extends State<SalesScreen> {
                       )
                     else
                       for (final sale in state.sales)
-                        ShopListTile(
-                          title: sale.invoiceNumber,
-                          subtitle: sale.status ?? 'Sale',
-                          trailing: Text(sale.total.toStringAsFixed(2)),
-                          onTap: () => _openSale(state, sale),
-                          onLongPress: () async {
-                            final error = await state.voidSale(sale.id);
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(error ?? 'Sale voided')),
-                            );
-                          },
-                        ),
+                           PxActionable(
+                            title: sale.invoiceNumber,
+                            subtitle: sale.status ?? 'Sale',
+                            onTap: () => _openSale(state, sale),
+                            actions: [
+                              PxAction(
+                                label: 'Open',
+                                icon: Icons.receipt_long_outlined,
+                                onInvoke: () => _openSale(state, sale),
+                              ),
+                              // Voiding writes off a financial record and the shop's
+                              // books have to match. It used to happen on a bare
+                              // long-press, so a thumb resting on the list destroyed a
+                              // sale with no prompt and nothing to undo.
+                              PxAction(
+                                label: 'Void sale',
+                                icon: Icons.block_rounded,
+                                risk: PxRisk.confirm,
+                                confirmTitle: 'Void ${sale.invoiceNumber}?',
+                                confirmMessage:
+                                    'This writes off ${sale.total.toStringAsFixed(2)} and cannot be undone. '
+                                    'The invoice stays on record as voided.',
+                                onInvoke: () => _voidSale(context, state, sale),
+                              ),
+                            ],
+                            child: ShopListTile(
+                              title: sale.invoiceNumber,
+                              subtitle: sale.status ?? 'Sale',
+                              trailing: Text(sale.total.toStringAsFixed(2)),
+                            ),
+                          ),
                   ],
                 ),
               ),

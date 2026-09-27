@@ -226,7 +226,7 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
           if (error != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(error!, style: const TextStyle(color: Px.danger)),
+              child: Text(error!, style: TextStyle(color: Px.danger)),
             ),
           Expanded(
             child: loading
@@ -407,12 +407,12 @@ class _ComposerBar extends StatelessWidget {
       top: false,
       child: Container(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: Px.surface,
           border: Border(top: BorderSide(color: Px.line)),
           boxShadow: [
             BoxShadow(
-              color: Color(0x14000000),
+              color: Px.scrim.withValues(alpha: 0.08),
               blurRadius: 12,
               offset: Offset(0, -2),
             ),

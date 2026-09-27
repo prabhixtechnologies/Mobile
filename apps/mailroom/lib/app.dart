@@ -66,6 +66,17 @@ class _MailroomAppState extends State<MailroomApp> {
               path: '/mail',
               pageBuilder: (_, __) =>
                   const NoTransitionPage(child: MailboxScreen()),
+              routes: [
+                // Company mail is a second destination, not a hidden boolean. Both nav
+                // tabs used to call `context.go('/mail')` and flip a flag, so the two
+                // tabs were the same route: the back button could not return to the other
+                // scope, and a restored session always came back as personal mail.
+                GoRoute(
+                  path: 'company',
+                  pageBuilder: (_, __) =>
+                      const NoTransitionPage(child: MailboxScreen(company: true)),
+                ),
+              ],
             ),
             GoRoute(
               path: '/queue',
@@ -96,11 +107,20 @@ class _MailroomAppState extends State<MailroomApp> {
       controller: context.read<AppState>().recovery,
       busy: context.watch<AppState>().busy,
       onSecuritySignIn: () => context.read<AppState>().signIn(),
-      child: MaterialApp.router(
-        title: 'Prabhix Mailroom',
-        theme: buildPrabhixAdminTheme(),
-        routerConfig: _router,
-      ),
+        child: MaterialApp.router(
+          title: 'Prabhix Mailroom',
+          theme: mailroomTheme(Brightness.light),
+          darkTheme: mailroomTheme(Brightness.dark),
+          themeMode: ThemeMode.system,
+          // Px is a mutable global, so it has to be re-pointed at whichever theme actually
+          // resolved. This is the first place the brightness is known under
+          // ThemeMode.system, and it runs before any descendant reads Px.
+          builder: (context, child) {
+            syncPx(Theme.of(context).brightness);
+            return child!;
+          },
+          routerConfig: _router,
+        ),
     );
   }
 }

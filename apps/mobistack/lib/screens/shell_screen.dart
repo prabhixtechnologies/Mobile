@@ -5,6 +5,38 @@ import 'package:provider/provider.dart';
 import '../state/app_state.dart';
 import '../theme/prabhix_theme.dart';
 
+/// Which tab owns a route that is not itself a tab.
+///
+/// The shell hosts more screens than it has tabs. `indexWhere` alone returns `-1` for those
+/// and the old code clamped `-1` to `0`, so standing on `/inventory`, `/sales` or `/repairs`
+/// lit up **Home** — the nav said the user was somewhere they were not.
+///
+/// Declaring the ownership makes the answer deliberate, and anything absent from both this
+/// map and the tab list highlights nothing, which is the honest result for a screen that
+/// does not belong to a tab.
+const Map<String, String> _tabOwner = {
+  '/inventory': '/home',
+  '/sales': '/home',
+  '/repairs': '/home',
+  '/invoice': '/home',
+  '/devices': '/home',
+  '/scan': '/home',
+};
+
+int _selectedTab(List<String> tabs, String location) {
+  final direct = tabs.indexWhere((t) => location.startsWith(t));
+  if (direct >= 0) return direct;
+  for (final entry in _tabOwner.entries) {
+    if (location.startsWith(entry.key)) {
+      final owner = tabs.indexOf(entry.value);
+      if (owner >= 0) return owner;
+    }
+  }
+  // No tab claims this route. -1 leaves every tab unselected, which is what a
+  // NavigationBar renders for "you are not in any of these".
+  return -1;
+}
+
 /// Primary shop chrome. Unpaid shops see Catalog + Billing; paid shops get Home + Catalog + More.
 class ShellScreen extends StatelessWidget {
   const ShellScreen({super.key, required this.child});
@@ -29,8 +61,7 @@ class ShellScreen extends StatelessWidget {
         : const [Icons.home_rounded, Icons.public_rounded, Icons.more_horiz_rounded];
 
     final loc = GoRouterState.of(context).uri.toString();
-    var selected = routes.indexWhere((r) => loc.startsWith(r));
-    if (selected < 0) selected = 0;
+    final selected = _selectedTab(routes, loc);
     final bottom = MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
@@ -46,7 +77,7 @@ class ShellScreen extends StatelessWidget {
             boxShadow: Px.isDark
                 ? [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.45),
+                      color: Px.scrim.withValues(alpha: 0.45),
                       blurRadius: 28,
                       offset: const Offset(0, 12),
                     ),
@@ -97,7 +128,13 @@ class _DockItem extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 2),
         child: Material(
           color: Colors.transparent,
-          child: InkWell(
+          child: Semantics(
+            // The filled pill is the only thing that says "you are here", and a screen
+            // reader cannot see a filled pill.
+            selected: selected,
+            button: true,
+            label: label,
+            child: InkWell(
             borderRadius: BorderRadius.circular(22),
             onTap: onTap,
             child: AnimatedContainer(
@@ -123,6 +160,7 @@ class _DockItem extends StatelessWidget {
                 ],
               ),
             ),
+          ),
           ),
         ),
       ),

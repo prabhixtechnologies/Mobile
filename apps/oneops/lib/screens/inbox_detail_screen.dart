@@ -108,7 +108,7 @@ class _InboxDetailScreenState extends State<InboxDetailScreen> {
                 if (error != null)
                   Padding(
                     padding: const EdgeInsets.all(12),
-                    child: Text(error!, style: const TextStyle(color: Px.danger)),
+                    child: Text(error!, style: TextStyle(color: Px.danger)),
                   ),
                 if (ticket != null)
                   Padding(

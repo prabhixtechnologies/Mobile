@@ -83,7 +83,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
                 children: [
                   if (_error != null)
-                    Text(_error!, style: const TextStyle(color: Px.danger)),
+                    Text(_error!, style: TextStyle(color: Px.danger)),
                   if (box == null)
                     const Text('No mailbox yet.')
                   else ...[

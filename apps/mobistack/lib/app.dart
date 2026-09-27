@@ -23,6 +23,7 @@ import 'screens/purchases_screen.dart';
 import 'screens/repairs_screen.dart';
 import 'screens/reports_screen.dart';
 import 'screens/sales_screen.dart';
+import 'screens/search_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/shop_journey.dart';
 import 'screens/shop_ops_screens.dart';
@@ -187,8 +188,12 @@ class _MobiStackAppState extends State<MobiStackApp> {
             ),
           ],
         ),
-        GoRoute(path: '/workspaces', builder: (_, __) => const WorkspacesScreen()),
-        GoRoute(path: '/compatibility', builder: (_, __) => const PrivateNotesScreen()),
+          GoRoute(path: '/workspaces', builder: (_, __) => const WorkspacesScreen()),
+          GoRoute(path: '/notes', builder: (_, __) => const PrivateNotesScreen()),
+          // `/compatibility` reads like the shared fitment catalog, which is `/commons`;
+          // it actually opened this shop's private notes. Renamed, with the old path kept
+          // as a redirect so deep links and push payloads already in the wild still land.
+          GoRoute(path: '/compatibility', redirect: (_, __) => '/notes'),
         GoRoute(path: '/customers', builder: (_, __) => const CustomersScreen()),
         GoRoute(path: '/suppliers', builder: (_, __) => const SuppliersScreen()),
         GoRoute(path: '/purchases', builder: (_, __) => const PurchasesScreen()),
@@ -208,6 +213,10 @@ class _MobiStackAppState extends State<MobiStackApp> {
         GoRoute(path: '/import', builder: (_, __) => const ImportScreen()),
         GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
         GoRoute(path: '/scan', builder: (_, __) => const BarcodeScannerScreen()),
+        GoRoute(
+          path: '/search',
+          builder: (_, state) => SearchScreen(initialQuery: state.uri.queryParameters['q']),
+        ),
         GoRoute(
           path: '/invoice/:id',
           builder: (_, state) => InvoiceScreen(saleId: state.pathParameters['id']!),
@@ -234,16 +243,23 @@ class _MobiStackAppState extends State<MobiStackApp> {
   @override
   Widget build(BuildContext context) {
     final mode = context.watch<AppState>().themeMode;
-    Px.active = mode == ThemeMode.light ? PxPalette.lightMode : PxPalette.darkMode;
     return ClientRecoveryOverlay(
       controller: context.read<AppState>().recovery,
       busy: context.watch<AppState>().busy,
       onSecuritySignIn: () => context.read<AppState>().signIn(),
       child: MaterialApp.router(
         title: 'MobiStack',
-        theme: buildMobiStackTheme(PxPalette.lightMode),
-        darkTheme: buildMobiStackTheme(PxPalette.darkMode),
+        theme: mobiStackTheme(Brightness.light),
+        darkTheme: mobiStackTheme(Brightness.dark),
         themeMode: mode,
+        // Px is a mutable global, so it has to be re-pointed at whichever theme actually
+        // resolved. Done here rather than from `mode` above because ThemeMode.system used
+        // to fall through to the dark palette, so a light device painted the light theme
+        // with dark colours.
+        builder: (context, child) {
+          syncPx(Theme.of(context).brightness);
+          return child!;
+        },
         routerConfig: _router,
       ),
     );

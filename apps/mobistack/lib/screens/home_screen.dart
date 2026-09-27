@@ -335,7 +335,7 @@ class _ModuleRow extends StatelessWidget {
       child: Material(
         color: accent ? Px.bgAccent : Px.surface,
         elevation: Px.isDark ? 0 : 1,
-        shadowColor: const Color(0x33087A6E),
+        shadowColor: Px.accent.withValues(alpha: 0.20),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
           side: BorderSide(color: Px.line),

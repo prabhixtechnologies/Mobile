@@ -75,7 +75,7 @@ class _VisitorDetailScreenState extends State<VisitorDetailScreen> {
                 padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
                 children: [
                   if (error != null)
-                    Text(error!, style: const TextStyle(color: Px.danger)),
+                    Text(error!, style: TextStyle(color: Px.danger)),
                   if (d != null) ...[
                     Text(d.label, style: Theme.of(context).textTheme.headlineSmall),
                     const SizedBox(height: 8),
@@ -101,7 +101,7 @@ class _VisitorDetailScreenState extends State<VisitorDetailScreen> {
                             color: Px.surface.withValues(alpha: 0.88),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
-                              side: const BorderSide(color: Px.line),
+                              side: BorderSide(color: Px.line),
                             ),
                             child: ListTile(
                               title: Text(s.title),

@@ -23,7 +23,7 @@ class Atmosphere extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        const ColoredBox(color: Px.bg),
+        ColoredBox(color: Px.bg),
         Positioned(
           top: -120,
           right: -80,
@@ -142,10 +142,10 @@ class BrandMark extends StatelessWidget {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(compact ? 10 : 14),
-            gradient: const LinearGradient(
+            gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Px.accent, Px.accentStrong],
+              colors: [Px.accent, Px.accent2],
             ),
             boxShadow: [
               BoxShadow(
@@ -217,7 +217,7 @@ class PxPrimaryButton extends StatelessWidget {
           gradient: LinearGradient(
             colors: onPressed == null
                 ? [Px.faint, Px.muted]
-                : const [Px.accent, Px.accentStrong],
+                : [Px.accent, Px.accentStrong],
           ),
           boxShadow: onPressed == null
               ? null
@@ -236,7 +236,7 @@ class PxPrimaryButton extends StatelessWidget {
             onTap: busy ? null : onPressed,
             child: Center(
               child: busy
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 22,
                       height: 22,
                       child: CircularProgressIndicator(

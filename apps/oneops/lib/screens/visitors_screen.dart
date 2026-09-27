@@ -47,7 +47,7 @@ class VisitorsScreen extends StatelessWidget {
               ),
               if (state.error != null) ...[
                 const SizedBox(height: 12),
-                Text(state.error!, style: const TextStyle(color: Px.danger)),
+                Text(state.error!, style: TextStyle(color: Px.danger)),
               ],
               const SizedBox(height: 20),
               if (state.visitors.isEmpty)
@@ -63,7 +63,7 @@ class VisitorsScreen extends StatelessWidget {
                       color: Px.surface.withValues(alpha: 0.88),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
-                        side: const BorderSide(color: Px.line),
+                        side: BorderSide(color: Px.line),
                       ),
                       clipBehavior: Clip.antiAlias,
                       child: ListTile(

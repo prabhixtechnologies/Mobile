@@ -17,7 +17,7 @@ class MoreScreen extends StatelessWidget {
 
     final catalog = <_Item>[
       _Item('Browse catalog', Icons.public_outlined, '/commons'),
-      _Item('Private fitment notes', Icons.lock_outline_rounded, '/compatibility'),
+      _Item('Private fitment notes', Icons.lock_outline_rounded, '/notes'),
       _Item('Standing', Icons.military_tech_outlined, '/standing'),
       _Item('Catalog import', Icons.upload_file_rounded, '/import'),
     ];
@@ -68,32 +68,22 @@ class MoreScreen extends StatelessWidget {
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-                child: TextField(
-                  decoration: const InputDecoration(hintText: 'Search the shop'),
-                  onSubmitted: (value) async {
-                    final term = value.trim();
-                    if (term.length < 2 || !context.mounted) return;
-                    try {
-                      final res = await context.read<AppState>().api.dio.get<dynamic>(
-                        'search',
-                        queryParameters: {'q': term},
-                      );
-                      final data = res.data;
-                      final parts = data is Map && data['parts'] is List ? data['parts'] as List : const [];
-                      if (!context.mounted) return;
-                      final names = [
-                        for (final row in parts)
-                          if (row is Map) '${row['name'] ?? row['variantName'] ?? row['sku'] ?? ''}',
-                      ].where((name) => name.isNotEmpty).take(8).join('\n');
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(names.isEmpty ? 'Nothing matched' : names)),
-                      );
-                    } catch (e) {
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-                    }
-                  },
-                ),
+                  // The query runs on /search, which renders the hits as a list that can
+                  // be scrolled and tapped. This field used to run the query here and
+                  // show the names in a snackbar: eight results, four seconds, no way to
+                  // open any of them.
+                  child: TextField(
+                    textInputAction: TextInputAction.search,
+                    decoration: const InputDecoration(
+                      hintText: 'Search the shop',
+                      prefixIcon: Icon(Icons.search_rounded),
+                    ),
+                    onSubmitted: (value) {
+                      final term = value.trim();
+                      if (term.length < 2) return;
+                      context.push('/search?q=${Uri.encodeQueryComponent(term)}');
+                    },
+                  ),
               ),
               Expanded(
                 child: ListView(

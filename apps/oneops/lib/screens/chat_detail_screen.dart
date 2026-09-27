@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../models/chat_models.dart';
 import '../state/app_state.dart';
+import '../theme/prabhix_theme.dart';
 
 class ChatDetailScreen extends StatefulWidget {
   const ChatDetailScreen({super.key, required this.conversationId});
@@ -182,6 +183,20 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     itemBuilder: (context, i) {
                       final m = messages[i];
                       final align = m.isAgent || m.isNote ? Alignment.centerRight : Alignment.centerLeft;
+                      // Three kinds of bubble, each with the ink asserted against its own
+                      // fill. The note also carries a dashed-looking hairline and its own
+                      // label, because an internal note reaching a customer is the
+                      // expensive mistake here and colour alone is not enough to prevent it.
+                      final fill = m.isNote
+                          ? Px.warningSubtle
+                          : m.isAgent
+                              ? Px.accentSubtle
+                              : Px.surfaceSunken;
+                      final ink = m.isNote
+                          ? Px.warningSubtleInk
+                          : m.isAgent
+                              ? Px.accentSubtleInk
+                              : Px.ink;
                       return Align(
                         alignment: align,
                         child: Container(
@@ -189,14 +204,41 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                           padding: const EdgeInsets.all(10),
                           constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.8),
                           decoration: BoxDecoration(
-                            color: m.isNote
-                                ? Colors.amber.shade100
-                                : m.isAgent
-                                    ? Theme.of(context).colorScheme.primaryContainer
-                                    : Theme.of(context).colorScheme.surfaceContainerHighest,
+                            color: fill,
                             borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: m.isNote
+                                  ? Px.warningSubtleBorder
+                                  : m.isAgent
+                                      ? Px.accentSubtleBorder
+                                      : Px.line,
+                            ),
                           ),
-                          child: Text(m.body),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (m.isNote)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.lock_outline_rounded, size: 13, color: ink),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Internal note',
+                                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                              color: ink,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              Text(m.body, style: TextStyle(color: ink)),
+                            ],
+                          ),
                         ),
                       );
                     },
