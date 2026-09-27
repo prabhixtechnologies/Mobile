@@ -7,7 +7,7 @@ class InsecureIdentityIssuerException implements Exception {
   final String issuer;
 
   @override
-  String toString =>
+  String toString() =>
       'Release builds require HTTPS Identity (got $issuer). Use --dart-define=IDENTITY_ISSUER only for local debug.';
 }
 
