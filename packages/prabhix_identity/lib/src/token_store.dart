@@ -139,6 +139,25 @@ class TokenStore {
     await _storage.write(key: _kBiometric, value: enabled ? '1' : '0');
   }
 
+  /// Drops OIDC and profile mirror keys; keeps [deviceId] and biometric preference.
+  Future<void> clearAuthSecrets() async {
+    _memory = null;
+    for (final key in [
+      _kAccess,
+      _kRefresh,
+      _kIdToken,
+      _kExpires,
+      _kOrg,
+      _kPermissions,
+      _kUserId,
+      _kEmail,
+      _kDisplay,
+      _kPlatformAdmin,
+    ]) {
+      await _storage.delete(key: key);
+    }
+  }
+
   Future<void> clear() async {
     final device = _deviceMemory ?? await _storage.read(key: _kDeviceId);
     _memory = null;

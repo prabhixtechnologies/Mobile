@@ -4,6 +4,7 @@ import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'identity_config.dart';
+import 'issuer_policy.dart';
 import 'session_state.dart';
 import 'token_store.dart';
 
@@ -52,7 +53,7 @@ class IdentityClient {
         ),
         scopes: config.scopes,
         promptValues: _promptList(promptOverride ?? config.prompt),
-        allowInsecureConnections: config.issuer.startsWith('http://'),
+        allowInsecureConnections: identityAllowsInsecureConnections(config.issuer),
       ),
     );
     final access = result.accessToken;
@@ -102,12 +103,12 @@ class IdentityClient {
             tokenEndpoint: config.tokenEndpoint,
             endSessionEndpoint: config.endSessionEndpoint,
           ),
-          allowInsecureConnections: config.issuer.startsWith('http://'),
+          allowInsecureConnections: identityAllowsInsecureConnections(config.issuer),
         ),
       );
       final access = result.accessToken;
       if (access == null) {
-        await tokenStore.clear();
+        await tokenStore.clearAuthSecrets();
         completer.complete(null);
         return null;
       }
@@ -130,7 +131,7 @@ class IdentityClient {
 
   Future<void> signOut() async {
     final idToken = await tokenStore.idToken();
-    await tokenStore.clear();
+    await tokenStore.clearAuthSecrets();
     if (idToken == null) return;
     try {
       await _appAuth.endSession(
@@ -142,7 +143,7 @@ class IdentityClient {
             tokenEndpoint: config.tokenEndpoint,
             endSessionEndpoint: config.endSessionEndpoint,
           ),
-          allowInsecureConnections: config.issuer.startsWith('http://'),
+          allowInsecureConnections: identityAllowsInsecureConnections(config.issuer),
         ),
       );
     } catch (_) {

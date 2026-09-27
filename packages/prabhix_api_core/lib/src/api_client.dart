@@ -8,6 +8,8 @@ import 'models.dart';
 import 'product_config.dart';
 
 /// Authenticated product API client. Refresh runs against Identity via [IdentityClient].
+typedef ApiRecoveryHandler = Future<void> Function(ApiException error);
+
 class ApiClient {
   ApiClient({
     required this.config,
@@ -64,6 +66,17 @@ class ApiClient {
           }
         },
         onError: (error, handler) async {
+          final mappedEarly = _tryMap(error);
+          if (mappedEarly != null) {
+            final earlyCode = mappedEarly.code?.toUpperCase();
+            if (earlyCode == 'SESSION_REPLACED' || earlyCode == 'TOKEN_REVOKED') {
+              final handlerFn = recoveryHandler;
+              if (handlerFn != null) {
+                await handlerFn(mappedEarly);
+              }
+              return handler.next(error);
+            }
+          }
           if (error.response?.statusCode == 401 &&
               error.requestOptions.extra['retried401'] != true) {
             try {
@@ -78,7 +91,7 @@ class ApiClient {
               }
             } catch (e, st) {
               debugPrint('ApiClient 401 refresh failed: $e\n$st');
-              await identity.tokenStore.clear();
+              await identity.tokenStore.clearAuthSecrets();
             }
           }
           handler.next(error);
@@ -90,6 +103,8 @@ class ApiClient {
   final ProductConfig config;
   final IdentityClient identity;
   final Dio _dio;
+
+  ApiRecoveryHandler? recoveryHandler;
 
   /// Selected fitment group. Sent on every request so catalog reads stay in that group.
   String? fitmentGroupId;
@@ -811,7 +826,7 @@ class ApiClient {
         .toList();
   }
 
-  ApiException _map(DioException e) {
+  ApiException? _tryMap(DioException e) {
     final data = e.response?.data;
     if (data is Map && data['message'] != null) {
       return ApiException(
@@ -820,9 +835,14 @@ class ApiClient {
         code: data['code']?.toString(),
       );
     }
-    return ApiException(
-      e.message ?? 'Request failed',
-      statusCode: e.response?.statusCode,
-    );
+    return null;
+  }
+
+  ApiException _map(DioException e) {
+    return _tryMap(e) ??
+        ApiException(
+          e.message ?? 'Request failed',
+          statusCode: e.response?.statusCode,
+        );
   }
 }

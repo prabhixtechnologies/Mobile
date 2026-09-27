@@ -40,27 +40,47 @@ class _SalesScreenState extends State<SalesScreen> {
     _sku.clear();
   }
 
-  Future<double?> _askAmount(BuildContext context, String title, double current) async {
-    final field = TextEditingController(text: current.toStringAsFixed(2));
-    final value = await showDialog<double>(
+  Future<(double, String)?> _askPriceOverride(
+    BuildContext context,
+    double current,
+  ) async {
+    final amount = TextEditingController(text: current.toStringAsFixed(2));
+    final reason = TextEditingController();
+    final value = await showDialog<(double, String)>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: field,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Amount'),
+        title: const Text('Override unit price'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: amount,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(labelText: 'Amount'),
+            ),
+            TextField(
+              controller: reason,
+              decoration: const InputDecoration(labelText: 'Reason'),
+              maxLength: 160,
+            ),
+          ],
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           FilledButton(
-            onPressed: () => Navigator.pop(context, double.tryParse(field.text) ?? current),
-            child: const Text('Save'),
+            onPressed: () {
+              final parsed = double.tryParse(amount.text);
+              final why = reason.text.trim();
+              if (parsed == null || parsed < 0 || why.isEmpty) return;
+              Navigator.pop(context, (parsed, why));
+            },
+            child: const Text('Apply override'),
           ),
         ],
       ),
     );
-    field.dispose();
+    amount.dispose();
+    reason.dispose();
     return value;
   }
 
@@ -243,8 +263,14 @@ class _SalesScreenState extends State<SalesScreen> {
                             ],
                           ),
                           onTap: () async {
-                            final next = await _askAmount(context, 'Unit price', state.bill.lines[i].unitPrice);
-                            if (next != null) state.setBillPrice(i, next);
+                            if (state.me?.hasPermission('SALES_PRICE_OVERRIDE') != true) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('You do not have permission to override prices')),
+                              );
+                              return;
+                            }
+                            final next = await _askPriceOverride(context, state.bill.lines[i].unitPrice);
+                            if (next != null) state.setBillPrice(i, next.$1, next.$2);
                           },
                         ),
                       Padding(

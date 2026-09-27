@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:prabhix_client/prabhix_client.dart';
 import 'package:provider/provider.dart';
 
 import 'screens/account_screen.dart';
@@ -91,10 +92,15 @@ class _MailroomAppState extends State<MailroomApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'Prabhix Mailroom',
-      theme: buildPrabhixAdminTheme(),
-      routerConfig: _router,
+    return ClientRecoveryOverlay(
+      controller: context.read<AppState>().recovery,
+      busy: context.watch<AppState>().busy,
+      onSecuritySignIn: () => context.read<AppState>().signIn(),
+      child: MaterialApp.router(
+        title: 'Prabhix Mailroom',
+        theme: buildPrabhixAdminTheme(),
+        routerConfig: _router,
+      ),
     );
   }
 }

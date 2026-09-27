@@ -1,20 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
+import '../state/app_state.dart';
 import '../theme/prabhix_theme.dart';
 
-/// Primary shop chrome: Home · Catalog · More.
+/// Primary shop chrome. Unpaid shops see Catalog + Billing; paid shops get Home + Catalog + More.
 class ShellScreen extends StatelessWidget {
   const ShellScreen({super.key, required this.child});
 
   final Widget child;
 
-  static const _routes = ['/commons', '/billing'];
-
   @override
   Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
+    final catalogOnly = state.catalogOnlyMode;
+    final routes = catalogOnly
+        ? const ['/commons', '/billing']
+        : const ['/home', '/commons', '/more'];
+    final labels = catalogOnly
+        ? const ['Catalog', 'Billing']
+        : const ['Home', 'Catalog', 'More'];
+    final icons = catalogOnly
+        ? const [Icons.public_outlined, Icons.credit_card_outlined]
+        : const [Icons.home_outlined, Icons.public_outlined, Icons.more_horiz_outlined];
+    final activeIcons = catalogOnly
+        ? const [Icons.public_rounded, Icons.credit_card_rounded]
+        : const [Icons.home_rounded, Icons.public_rounded, Icons.more_horiz_rounded];
+
     final loc = GoRouterState.of(context).uri.toString();
-    var selected = _routes.indexWhere((r) => loc.startsWith(r));
+    var selected = routes.indexWhere((r) => loc.startsWith(r));
     if (selected < 0) selected = 0;
     final bottom = MediaQuery.paddingOf(context).bottom;
 
@@ -42,20 +57,14 @@ class ShellScreen extends StatelessWidget {
             padding: const EdgeInsets.all(6),
             child: Row(
               children: [
-                _DockItem(
-                  selected: selected == 0,
-                  icon: Icons.public_outlined,
-                  activeIcon: Icons.public_rounded,
-                  label: 'Catalog',
-                  onTap: () => context.go(_routes[0]),
-                ),
-                _DockItem(
-                  selected: selected == 1,
-                  icon: Icons.credit_card_outlined,
-                  activeIcon: Icons.credit_card_rounded,
-                  label: 'Billing',
-                  onTap: () => context.go(_routes[1]),
-                ),
+                for (var i = 0; i < routes.length; i++)
+                  _DockItem(
+                    selected: selected == i,
+                    icon: icons[i],
+                    activeIcon: activeIcons[i],
+                    label: labels[i],
+                    onTap: () => context.go(routes[i]),
+                  ),
               ],
             ),
           ),

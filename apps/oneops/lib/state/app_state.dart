@@ -4,11 +4,13 @@ import 'dart:convert';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/widgets.dart';
 import 'package:prabhix_api_core/prabhix_api_core.dart';
+import 'package:prabhix_client/prabhix_client.dart';
 import 'package:prabhix_identity/prabhix_identity.dart';
 import 'package:prabhix_offline/prabhix_offline.dart';
 
 import '../api/chat_api.dart';
 import '../api/inbox_api.dart';
+import '../chat_deep_link.dart';
 import '../config.dart';
 import '../models/chat_models.dart';
 import '../models/inbox_models.dart';
@@ -19,16 +21,23 @@ import '../services/sse_client.dart';
 enum AuthPhase { loading, signedOut, needsOrg, ready }
 
 class AppState extends ChangeNotifier with WidgetsBindingObserver {
-  AppState({required this.config})
-      : identity = IdentityClient(config: config.identity) {
+  AppState({required this.config}) {
+    identity = IdentityClient(config: config.identity);
+    recovery = ClientRecoveryController(
+      identity: identity,
+      appReleasePublicBase: config.product.apiBaseUrl,
+      appReleaseAppId: 'oneops',
+    );
     api = ApiClient(config: config.product, identity: identity);
+    attachRecoveryToApi(api, recovery);
     chat = ChatApi(api);
     inbox = InboxApi(api);
     WidgetsBinding.instance.addObserver(this);
   }
 
   final AppConfig config;
-  final IdentityClient identity;
+  late final IdentityClient identity;
+  late final ClientRecoveryController recovery;
   late final ApiClient api;
   late final ChatApi chat;
   late final InboxApi inbox;
@@ -64,6 +73,11 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> bootstrap() async {
     phase = AuthPhase.loading;
     notifyListeners();
+    if (!await recovery.passReleaseGateOnStartup()) {
+      phase = AuthPhase.signedOut;
+      notifyListeners();
+      return;
+    }
     await connectivity.start();
     await syncNotifier.init(channelName: 'OneOps sync');
     connectivity.addListener(_onNet);
@@ -105,6 +119,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> signIn() async {
     busy = true;
     error = null;
+    recovery.dismissSecuritySignIn();
     notifyListeners();
     try {
       await identity.signIn();
@@ -429,14 +444,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void _handleUri(Uri uri) {
-    if (uri.scheme != kDeepLinkScheme) return;
-    if (uri.host == 'chat' && uri.pathSegments.isNotEmpty) {
-      pendingDeepLinkChatId = uri.pathSegments.first;
-      notifyListeners();
-    } else if (uri.pathSegments.length >= 2 && uri.pathSegments[0] == 'chat') {
-      pendingDeepLinkChatId = uri.pathSegments[1];
-      notifyListeners();
-    }
+    final id = parseOneOpsChatDeepLink(uri);
+    if (id == null) return;
+    pendingDeepLinkChatId = id;
+    notifyListeners();
   }
 
   Future<void> _loadMeAndRoute() async {

@@ -1,7 +1,7 @@
 name: mobistack
 description: MobiStack — shop inventory, sales, and repairs.
 publish_to: none
-version: 1.2.3+7
+version: 1.2.4+8
 
 environment:
   sdk: ^3.5.0
@@ -28,6 +28,8 @@ dependencies:
     path: ../../packages/prabhix_api_core
   prabhix_offline:
     path: ../../packages/prabhix_offline
+  prabhix_client:
+    path: ../../packages/prabhix_client
 
 dev_dependencies:
   flutter_launcher_icons: ^0.14.3

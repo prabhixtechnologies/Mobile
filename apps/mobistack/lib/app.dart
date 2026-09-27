@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:prabhix_client/prabhix_client.dart';
 import 'package:provider/provider.dart';
 
 import 'screens/barcode_scanner_screen.dart';
@@ -71,18 +72,30 @@ class _MobiStackAppState extends State<MobiStackApp> {
                 return loc == '/union/waiting' ? null : '/union/waiting';
               case ShopGate.outside:
                 return loc == '/shop/outside' ? null : '/shop/outside';
+              case ShopGate.journeyError:
+                return loc == '/journey/retry' ? null : '/journey/retry';
               case ShopGate.catalog:
+                if (app.catalogOnlyMode) {
+                  if (loc == '/login' ||
+                      loc == '/splash' ||
+                      loc == '/home' ||
+                      loc == '/more' ||
+                      loc == '/start' ||
+                      loc.startsWith('/shop') ||
+                      loc.startsWith('/union')) {
+                    return '/commons';
+                  }
+                  final open = loc == '/billing' || loc.startsWith('/commons');
+                  return open ? null : '/commons';
+                }
                 if (loc == '/login' ||
                     loc == '/splash' ||
-                    loc == '/home' ||
-                    loc == '/more' ||
                     loc == '/start' ||
                     loc.startsWith('/shop') ||
                     loc.startsWith('/union')) {
-                  return '/commons';
+                  return '/home';
                 }
-                final open = loc == '/billing' || loc.startsWith('/commons');
-                return open ? null : '/commons';
+                return null;
             }
         }
       },
@@ -122,6 +135,18 @@ class _MobiStackAppState extends State<MobiStackApp> {
         GoRoute(path: '/shop/outside', builder: (_, __) => const OutsideUnionScreen()),
         GoRoute(path: '/union/join', builder: (_, __) => const JoinUnionScreen()),
         GoRoute(path: '/union/waiting', builder: (_, __) => const WaitingScreen(union: true)),
+        GoRoute(
+          path: '/journey/retry',
+          builder: (_, __) {
+            final state = context.read<AppState>();
+            return JourneyRetryScreen(
+              message: state.recovery.journeyError ??
+                  'We could not load your shop journey.',
+              busy: state.busy,
+              onRetry: () => state.retryJourney(),
+            );
+          },
+        ),
         ShellRoute(
           builder: (context, state, child) => ShellScreen(child: child),
           routes: [
@@ -210,12 +235,17 @@ class _MobiStackAppState extends State<MobiStackApp> {
   Widget build(BuildContext context) {
     final mode = context.watch<AppState>().themeMode;
     Px.active = mode == ThemeMode.light ? PxPalette.lightMode : PxPalette.darkMode;
-    return MaterialApp.router(
-      title: 'MobiStack',
-      theme: buildMobiStackTheme(PxPalette.lightMode),
-      darkTheme: buildMobiStackTheme(PxPalette.darkMode),
-      themeMode: mode,
-      routerConfig: _router,
+    return ClientRecoveryOverlay(
+      controller: context.read<AppState>().recovery,
+      busy: context.watch<AppState>().busy,
+      onSecuritySignIn: () => context.read<AppState>().signIn(),
+      child: MaterialApp.router(
+        title: 'MobiStack',
+        theme: buildMobiStackTheme(PxPalette.lightMode),
+        darkTheme: buildMobiStackTheme(PxPalette.darkMode),
+        themeMode: mode,
+        routerConfig: _router,
+      ),
     );
   }
 }
