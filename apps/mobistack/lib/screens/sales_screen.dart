@@ -195,6 +195,7 @@ class _SalesScreenState extends State<SalesScreen> {
                     : 'Works offline · queues until sync',
                 actions: [
                   IconButton(
+                    tooltip: 'Scan a barcode',
                     onPressed: () => context.push('/scan'),
                     icon: const Icon(Icons.qr_code_scanner_rounded),
                   ),
@@ -212,15 +213,21 @@ class _SalesScreenState extends State<SalesScreen> {
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: Px.line),
                         ),
-                        child: TextField(
-                          controller: _sku,
-                          decoration: const InputDecoration(
-                            hintText: 'SKU or barcode',
-                            border: InputBorder.none,
-                            isDense: true,
+                          child: TextField(
+                            controller: _sku,
+                            // A barcode is not a word. Autocorrect and the suggestion
+                            // strip will happily "fix" one into something that scans as a
+                            // different product, or silently capitalise it.
+                            autocorrect: false,
+                            enableSuggestions: false,
+                            textCapitalization: TextCapitalization.characters,
+                            decoration: const InputDecoration(
+                              hintText: 'SKU or barcode',
+                              border: InputBorder.none,
+                              isDense: true,
+                            ),
+                            onSubmitted: (_) => _addSku(),
                           ),
-                          onSubmitted: (_) => _addSku(),
-                        ),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -263,11 +270,13 @@ class _SalesScreenState extends State<SalesScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(
+                                tooltip: 'Reduce quantity',
                                 onPressed: () => state.setBillQuantity(i, state.bill.lines[i].quantity - 1),
                                 icon: const Icon(Icons.remove_rounded),
                               ),
                               Text('${state.bill.lines[i].quantity}'),
                               IconButton(
+                                tooltip: 'Increase quantity',
                                 onPressed: () => state.setBillQuantity(i, state.bill.lines[i].quantity + 1),
                                 icon: const Icon(Icons.add_rounded),
                               ),

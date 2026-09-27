@@ -34,10 +34,11 @@ class VisitorsScreen extends StatelessWidget {
                       style: Theme.of(context).textTheme.displayMedium?.copyWith(fontSize: 32),
                     ),
                   ),
-                  IconButton(
-                    onPressed: () => state.refreshVisitors(),
-                    icon: const Icon(Icons.refresh_rounded),
-                  ),
+                    IconButton(
+                      tooltip: 'Refresh visitors',
+                      onPressed: () => state.refreshVisitors(),
+                      icon: const Icon(Icons.refresh_rounded),
+                    ),
                 ],
               ),
               const SizedBox(height: 6),

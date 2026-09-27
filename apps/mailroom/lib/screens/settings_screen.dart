@@ -106,13 +106,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                     const SizedBox(height: 8),
-                    TextField(
-                      controller: _alias,
-                      decoration: const InputDecoration(
-                        labelText: 'New alias address',
-                        border: OutlineInputBorder(),
+                      TextField(
+                        controller: _alias,
+                        keyboardType: TextInputType.emailAddress,
+                        autocorrect: false,
+                        textCapitalization: TextCapitalization.none,
+                        decoration: const InputDecoration(
+                          labelText: 'New alias address',
+                          border: OutlineInputBorder(),
+                        ),
                       ),
-                    ),
                     const SizedBox(height: 8),
                     Align(
                       alignment: Alignment.centerLeft,

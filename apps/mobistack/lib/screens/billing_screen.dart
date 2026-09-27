@@ -145,6 +145,7 @@ class _BillingScreenState extends State<BillingScreen> {
         backgroundColor: Colors.transparent,
         appBar: AppBar(
           leading: IconButton(
+            tooltip: 'Back',
             icon: const Icon(Icons.arrow_back_rounded),
             onPressed: () => context.pop(),
           ),
@@ -154,6 +155,7 @@ class _BillingScreenState extends State<BillingScreen> {
           ),
           actions: [
             IconButton(
+              tooltip: 'Refresh billing',
               onPressed: _loading ? null : _load,
               icon: const Icon(Icons.refresh_rounded),
             ),

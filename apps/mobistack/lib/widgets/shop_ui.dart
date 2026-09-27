@@ -234,10 +234,11 @@ class ShopPage extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(4, 4, 8, 0),
                 child: Row(
                   children: [
-                    IconButton(
-                      onPressed: () => Navigator.maybePop(context),
-                      icon: const Icon(Icons.arrow_back_rounded),
-                    ),
+                      IconButton(
+                        tooltip: 'Back',
+                        onPressed: () => Navigator.maybePop(context),
+                        icon: const Icon(Icons.arrow_back_rounded),
+                      ),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

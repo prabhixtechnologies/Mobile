@@ -94,10 +94,11 @@ class _ComposeScreenState extends State<ComposeScreen> {
                 padding: const EdgeInsets.fromLTRB(4, 4, 8, 0),
                 child: Row(
                   children: [
-                    IconButton(
-                      onPressed: () => Navigator.of(context).maybePop(),
-                      icon: const Icon(Icons.close_rounded),
-                    ),
+                      IconButton(
+                        tooltip: 'Discard and close',
+                        onPressed: () => Navigator.of(context).maybePop(),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
                     Expanded(
                       child: Text(
                         'Compose',
@@ -129,7 +130,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
                     ),
                   if (boxes.isNotEmpty)
                     DropdownButtonFormField<String>(
-                      value: mailboxId,
+                        initialValue: mailboxId,
                       decoration: const InputDecoration(
                         labelText: 'From mailbox',
                         border: OutlineInputBorder(),
@@ -145,22 +146,31 @@ class _ComposeScreenState extends State<ComposeScreen> {
                       onChanged: (v) => setState(() => mailboxId = v),
                     ),
                   const SizedBox(height: 12),
-                  TextField(
-                    controller: _to,
-                    decoration: const InputDecoration(
-                      labelText: 'To',
-                      border: OutlineInputBorder(),
+                    TextField(
+                      controller: _to,
+                      decoration: const InputDecoration(
+                        labelText: 'To',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                      autofillHints: const [AutofillHints.email],
+                      autocorrect: false,
+                      textCapitalization: TextCapitalization.none,
+                      textInputAction: TextInputAction.next,
                     ),
-                    keyboardType: TextInputType.emailAddress,
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _cc,
-                    decoration: const InputDecoration(
-                      labelText: 'Cc (optional)',
-                      border: OutlineInputBorder(),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _cc,
+                      decoration: const InputDecoration(
+                        labelText: 'Cc (optional)',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                      autofillHints: const [AutofillHints.email],
+                      autocorrect: false,
+                      textCapitalization: TextCapitalization.none,
+                      textInputAction: TextInputAction.next,
                     ),
-                  ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: _subject,

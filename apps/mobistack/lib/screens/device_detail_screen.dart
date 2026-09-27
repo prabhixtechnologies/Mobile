@@ -134,6 +134,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
         backgroundColor: Colors.transparent,
         appBar: AppBar(
           leading: IconButton(
+            tooltip: 'Back',
             icon: const Icon(Icons.arrow_back_rounded),
             onPressed: () => context.pop(),
           ),
@@ -214,6 +215,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                           subtitle:
                               '${fit['fit'] ?? ''} · ${fit['confirmations'] ?? 0} confirm · ${fit['disputes'] ?? 0} dispute',
                           trailing: IconButton(
+                            tooltip: 'Confirm this part fits',
                             icon: const Icon(Icons.check_rounded),
                             onPressed: id.isEmpty ? null : () => _confirm(id),
                           ),

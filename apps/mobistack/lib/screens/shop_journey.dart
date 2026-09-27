@@ -82,17 +82,21 @@ class _CreateShopScreenState extends State<CreateShopScreen> {
       title: 'Create shop',
       body: 'This does not ask for payment. You join the union on the next screen.',
       children: [
-        TextField(
-          controller: _name,
-          textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(labelText: 'Shop name'),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _city,
-          textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(labelText: 'City'),
-        ),
+          TextField(
+            controller: _name,
+            textCapitalization: TextCapitalization.words,
+            autofillHints: const [AutofillHints.organizationName],
+            textInputAction: TextInputAction.next,
+            decoration: const InputDecoration(labelText: 'Shop name'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _city,
+            textCapitalization: TextCapitalization.words,
+            autofillHints: const [AutofillHints.addressCity],
+            textInputAction: TextInputAction.done,
+            decoration: const InputDecoration(labelText: 'City'),
+          ),
         if (_error != null) ...[
           const SizedBox(height: 12),
           Text(_error!, style: TextStyle(color: Px.danger)),
@@ -172,11 +176,18 @@ class _InviteShopScreenState extends State<InviteShopScreen> {
       title: 'Invite',
       body: 'An owner invite is free. Paste the token from the email.',
       children: [
-        TextField(
-          controller: _token,
-          onChanged: (_) => setState(() {}),
-          decoration: const InputDecoration(labelText: 'Invite token'),
-        ),
+          TextField(
+            controller: _token,
+            // A token pasted from an email must arrive byte-for-byte.
+            autocorrect: false,
+            enableSuggestions: false,
+            onChanged: (_) => setState(() {}),
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) {
+              if (_token.text.trim().isNotEmpty && !_busy) _submit();
+            },
+            decoration: const InputDecoration(labelText: 'Invite token'),
+          ),
         if (_error != null) ...[
           const SizedBox(height: 12),
           Text(_error!, style: TextStyle(color: Px.danger)),
@@ -349,12 +360,18 @@ class _CodeJoinState extends State<_CodeJoin> {
           title: widget.title,
           body: widget.body,
           children: [
-            TextField(
-              controller: _code,
-              textCapitalization: TextCapitalization.characters,
-              onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(labelText: 'Code'),
-            ),
+              TextField(
+                controller: _code,
+                textCapitalization: TextCapitalization.characters,
+                autocorrect: false,
+                enableSuggestions: false,
+                onChanged: (_) => setState(() {}),
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) {
+                  if (ready) _submit();
+                },
+                decoration: const InputDecoration(labelText: 'Code'),
+              ),
             if (_error != null) ...[
               const SizedBox(height: 12),
               Text(_error!, style: TextStyle(color: Px.danger)),

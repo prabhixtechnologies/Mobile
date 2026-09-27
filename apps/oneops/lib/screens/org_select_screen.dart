@@ -14,7 +14,11 @@ class OrgSelectScreen extends StatelessWidget {
         appBar: AppBar(
           title: const Text('Organization'),
           actions: [
-            IconButton(onPressed: () => state.signOut(), icon: const Icon(Icons.logout)),
+            IconButton(
+              tooltip: 'Sign out',
+              onPressed: () => state.signOut(),
+              icon: const Icon(Icons.logout),
+            ),
           ],
         ),
         body: Padding(
@@ -54,7 +58,11 @@ class OrgSelectScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Select organization'),
         actions: [
-          IconButton(onPressed: () => state.signOut(), icon: const Icon(Icons.logout)),
+          IconButton(
+              tooltip: 'Sign out',
+              onPressed: () => state.signOut(),
+              icon: const Icon(Icons.logout),
+            ),
         ],
       ),
       body: ListView.separated(

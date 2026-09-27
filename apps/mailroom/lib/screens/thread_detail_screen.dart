@@ -165,7 +165,9 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
                 threadIds: [widget.threadId],
                 targetKind: 'ARCHIVE',
               );
-              if (!mounted) return;
+              // The `context` here is build()'s parameter, which shadows
+              // State.context, so `mounted` does not vouch for it.
+              if (!context.mounted) return;
               if (undo != null) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -188,7 +190,7 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
                 threadIds: [widget.threadId],
                 targetKind: 'TRASH',
               );
-              if (!mounted) return;
+              if (!context.mounted) return;
               if (undo != null) Navigator.of(context).maybePop();
             },
             icon: const Icon(Icons.delete_outline_rounded),

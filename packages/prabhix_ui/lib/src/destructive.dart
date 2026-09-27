@@ -4,20 +4,30 @@ import 'package:prabhix_theme/prabhix_theme.dart';
 
 /// How much ceremony an action that destroys something deserves.
 ///
-/// The two choices are not interchangeable and picking the wrong one is the usual cause of
+/// The choices are not interchangeable and picking the wrong one is the usual cause of
 /// both kinds of complaint — "it deleted my work without asking" and "why does it ask me
 /// four times a minute".
 ///
 /// The rule the apps follow:
 ///
+///  * **Safe** when the action is its own inverse and costs nothing to get wrong. Starring,
+///    toggling read. Offering to undo a toggle is noise, because pressing it again *is*
+///    the undo.
 ///  * **Undo** when the action is reversible and frequent. Archiving mail, hiding a row,
-///    marking something read. The action happens immediately; a snackbar offers to put it
-///    back. Interrupting a hundred-times-a-day action with a dialog is the worse design.
+///    moving something to another folder. The action happens immediately; a snackbar offers
+///    to put it back. Interrupting a hundred-times-a-day action with a dialog is the worse
+///    design.
 ///  * **Confirm** when the action is irreversible, financial, or visible to someone else.
 ///    Voiding a sale, deleting a customer, fulfilling an order. These are rare enough that
 ///    the interruption costs nothing and frequent enough in *aggregate* that one accident
 ///    is expensive.
+///
+/// Mirrors `ActionRisk` in `@prabhix/ui`, so a row's action list reads the same on mobile
+/// and on the web.
 enum PxRisk {
+  /// Self-inverse. Do it now, say nothing.
+  safe,
+
   /// Reversible. Do it now, offer [showUndo].
   undoable,
 
