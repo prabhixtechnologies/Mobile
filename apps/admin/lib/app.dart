@@ -62,12 +62,21 @@ class _AdminAppState extends State<AdminApp> {
       controller: context.read<AppState>().recovery,
       busy: context.watch<AppState>().busy,
       onSecuritySignIn: () => context.read<AppState>().signIn(),
-      child: MaterialApp.router(
-        title: 'Prabhix Admin',
-        debugShowCheckedModeBanner: false,
-        theme: buildPrabhixAdminTheme(),
-        routerConfig: _router,
-      ),
+        child: MaterialApp.router(
+          title: 'Prabhix Admin',
+          debugShowCheckedModeBanner: false,
+          theme: adminTheme(Brightness.light),
+          darkTheme: adminTheme(Brightness.dark),
+          themeMode: ThemeMode.system,
+          // Px is a mutable global, so it has to be re-pointed at whichever theme actually
+          // resolved. This is the first place the brightness is known under
+          // ThemeMode.system, and it runs before any descendant reads Px.
+          builder: (context, child) {
+            syncPx(Theme.of(context).brightness);
+            return child!;
+          },
+          routerConfig: _router,
+        ),
     );
   }
 }

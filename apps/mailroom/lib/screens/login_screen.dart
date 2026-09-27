@@ -57,7 +57,7 @@ class LoginScreen extends StatelessWidget {
                 if (state.error != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 14),
-                    child: Text(state.error!, style: const TextStyle(color: Px.danger)),
+                    child: Text(state.error!, style: TextStyle(color: Px.danger)),
                   ),
                 FadeSlide(
                   delay: 240.ms,

@@ -108,7 +108,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
                       onPressed: sending ? null : _send,
                       child: Text(
                         sending ? 'Sending…' : 'Send',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Px.accent,
                           fontWeight: FontWeight.w700,
                         ),
@@ -125,7 +125,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
                   if (error != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
-                      child: Text(error!, style: const TextStyle(color: Px.danger)),
+                      child: Text(error!, style: TextStyle(color: Px.danger)),
                     ),
                   if (boxes.isNotEmpty)
                     DropdownButtonFormField<String>(

@@ -59,7 +59,7 @@ class DashboardScreen extends StatelessWidget {
               ),
               if (state.error != null) ...[
                 const SizedBox(height: 12),
-                Text(state.error!, style: const TextStyle(color: Px.danger)),
+                Text(state.error!, style: TextStyle(color: Px.danger)),
               ],
               const SizedBox(height: 24),
               Wrap(

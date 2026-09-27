@@ -1,0 +1,21 @@
+name: prabhix_ui
+description: Shared Prabhix interaction primitives for the Flutter apps — confirmation, undo, gestures, and state views.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+  flutter: ">=3.24.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  prabhix_theme:
+    path: ../prabhix_theme
+
+dev_dependencies:
+  flutter_lints: ^5.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:

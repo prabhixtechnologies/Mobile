@@ -1,107 +1,101 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:prabhix_theme/prabhix_theme.dart';
 
-/// Prabhix Admin tokens — mirrors web (teal/cyan · Fraunces · Source Sans 3).
+export 'package:prabhix_theme/prabhix_theme.dart';
+
+/// The Admin console's theme, from the one source the web consoles use.
+///
+/// This file used to carry eleven hand-typed `Color` constants and a light-only
+/// [ThemeData], identical to the OneOps copy — which is exactly why the two consoles were
+/// indistinguishable. Both are now generated from `web-kit/packages/brand/tokens.json`.
+///
+/// Admin is violet with cyan as its partner accent, and `compact` density: internal tooling
+/// earns its own identity rather than borrowing a customer product's.
+const String kBrand = 'admin';
+
+/// The legacy accessor the screens are written against.
+///
+/// Prefer `context.px` in new code: it reads the [PxPalette] theme extension, so a widget
+/// rebuilds when the theme changes and a screen can be previewed in both modes. [Px] is a
+/// mutable global and can do neither; it is kept because roughly a hundred call sites use
+/// it, and [syncPx] keeps it in step with the theme that is actually on screen.
+///
+/// These are colours that change with the theme, so they are getters rather than constants:
+/// `const TextStyle(color: Px.danger)` will not compile, and should not.
 abstract final class Px {
-  static const ink = Color(0xFF0C1524);
-  static const muted = Color(0xFF5B6B7C);
-  static const faint = Color(0xFF8A9AAB);
-  static const bg = Color(0xFFF3F6FB);
-  static const bgAccent = Color(0xFFDCE9F7);
-  static const surface = Color(0xFFFFFFFF);
-  static const line = Color(0xFFD5DEE8);
-  static const accent = Color(0xFF0E7490);
-  static const accentStrong = Color(0xFF0F766E);
-  static const accentInk = Color(0xFFF0FDFA);
-  static const focus = Color(0xFF0891B2);
-  static const danger = Color(0xFFB42318);
-  static const success = Color(0xFF067647);
-  static const warning = Color(0xFFB45309);
+  static PxColors active = pxAdminLight;
+  static bool isDark = false;
 
-  static const motion = Duration(milliseconds: 420);
+  static Color get ink => active.ink;
+  static Color get muted => active.inkMuted;
+  static Color get faint => active.inkFaint;
+  static Color get bg => active.bg;
+  static Color get bgAccent => active.bgAccent;
+  static Color get surface => active.surface;
+  static Color get surfaceHigh => active.surfaceRaised;
+  static Color get line => active.border;
+
+  /// Anything that identifies a control rather than separating two rows needs this: it is
+  /// asserted at 3:1 against the surface, which [line] deliberately is not.
+  static Color get lineStrong => active.borderStrong;
+
+  static Color get accent => active.accent;
+  static Color get accentStrong => active.accentHover;
+  static Color get accentInk => active.accentInk;
+
+  /// The partner accent. Use it for the second series in a chart, a secondary call to
+  /// action, or the far end of a gradient — not for a third meaning.
+  static Color get accent2 => active.accent2;
+  static Color get accent2Ink => active.accent2Ink;
+
+  /// The shadow/overlay colour. Near-black in light mode, but a deepened brand hue in
+  /// dark mode, so a shadow written against it does not turn grey in the dark theme.
+  static Color get scrim => active.scrim;
+
+  static Color get focus => active.focus;
+  static Color get surfaceSunken => active.surfaceSunken;
+
+  /// The tinted status pairs. Each ink is asserted at 4.5:1 on its own subtle fill, which
+  /// is why a tinted chip must take both from the same family rather than mixing a tint
+  /// with the solid ink.
+  static Color get accentSubtle => active.accentSubtle;
+  static Color get accentSubtleInk => active.accentSubtleInk;
+  static Color get accentSubtleBorder => active.accentSubtleBorder;
+  static Color get warningSubtle => active.warningSubtle;
+  static Color get warningSubtleInk => active.warningSubtleInk;
+  static Color get warningSubtleBorder => active.warningSubtleBorder;
+  static Color get dangerSubtle => active.dangerSubtle;
+  static Color get dangerSubtleInk => active.dangerSubtleInk;
+  static Color get successSubtle => active.successSubtle;
+  static Color get successSubtleInk => active.successSubtleInk;
+  static Color get dangerInk => active.dangerInk;
+
+  static Color get danger => active.danger;
+  static Color get success => active.success;
+  static Color get warning => active.warning;
+
+  static const motion = PxDuration.slow;
   static const curve = Curves.easeOutCubic;
+
+  static List<BoxShadow> get lift => isDark
+      ? const []
+      : [
+          BoxShadow(color: active.scrim.withValues(alpha: 0.08), blurRadius: 18, offset: const Offset(0, 8)),
+          BoxShadow(color: active.scrim.withValues(alpha: 0.04), blurRadius: 2, offset: const Offset(0, 1)),
+        ];
 }
 
-ThemeData buildPrabhixAdminTheme() {
-  final display = GoogleFonts.frauncesTextTheme();
-  final body = GoogleFonts.sourceSans3TextTheme();
+ThemeData adminTheme(Brightness brightness) =>
+    prabhixTheme(brand: kBrand, brightness: brightness, density: PxDensity.compact);
 
-  final textTheme = body.copyWith(
-    displayLarge: display.displayLarge?.copyWith(
-      fontWeight: FontWeight.w600,
-      color: Px.ink,
-      letterSpacing: -1.2,
-      height: 1.05,
-    ),
-    displayMedium: display.displayMedium?.copyWith(
-      fontWeight: FontWeight.w600,
-      color: Px.ink,
-      letterSpacing: -0.8,
-      height: 1.08,
-    ),
-    headlineLarge: display.headlineLarge?.copyWith(
-      fontWeight: FontWeight.w600,
-      color: Px.ink,
-      letterSpacing: -0.6,
-      height: 1.1,
-    ),
-    headlineMedium: display.headlineMedium?.copyWith(
-      fontWeight: FontWeight.w600,
-      color: Px.ink,
-      letterSpacing: -0.4,
-      height: 1.15,
-    ),
-    headlineSmall: display.headlineSmall?.copyWith(
-      fontWeight: FontWeight.w600,
-      color: Px.ink,
-      letterSpacing: -0.2,
-    ),
-    titleLarge: body.titleLarge?.copyWith(
-      fontWeight: FontWeight.w600,
-      color: Px.ink,
-      letterSpacing: -0.2,
-    ),
-    titleMedium: body.titleMedium?.copyWith(
-      fontWeight: FontWeight.w600,
-      color: Px.ink,
-    ),
-    bodyLarge: body.bodyLarge?.copyWith(color: Px.ink, height: 1.45),
-    bodyMedium: body.bodyMedium?.copyWith(color: Px.muted, height: 1.45),
-    bodySmall: body.bodySmall?.copyWith(color: Px.faint, height: 1.4),
-    labelLarge: body.labelLarge?.copyWith(
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0.2,
-      color: Px.ink,
-    ),
-  );
-
-  return ThemeData(
-    useMaterial3: true,
-    brightness: Brightness.light,
-    scaffoldBackgroundColor: Px.bg,
-    colorScheme: const ColorScheme.light(
-      primary: Px.accent,
-      onPrimary: Px.accentInk,
-      secondary: Px.focus,
-      onSecondary: Px.accentInk,
-      surface: Px.surface,
-      onSurface: Px.ink,
-      error: Px.danger,
-      outline: Px.line,
-    ),
-    textTheme: textTheme,
-    appBarTheme: AppBarTheme(
-      elevation: 0,
-      scrolledUnderElevation: 0,
-      backgroundColor: Colors.transparent,
-      foregroundColor: Px.ink,
-      titleTextStyle: display.titleLarge?.copyWith(
-        fontWeight: FontWeight.w600,
-        color: Px.ink,
-        fontSize: 22,
-      ),
-    ),
-    dividerTheme: const DividerThemeData(color: Px.line, thickness: 1, space: 1),
-    splashFactory: InkSparkle.splashFactory,
-  );
+/// Points [Px] at the palette of the theme that is actually on screen.
+///
+/// Call this from `MaterialApp.builder`, not where the themes are constructed: under
+/// [ThemeMode.system] the brightness is not known until the app has an inherited theme, and
+/// pointing [Px] at the light palette while the dark theme paints is how the old apps ended
+/// up with light-mode text on dark cards.
+void syncPx(Brightness brightness) {
+  final dark = brightness == Brightness.dark;
+  Px.active = dark ? pxAdminDark : pxAdminLight;
+  Px.isDark = dark;
 }

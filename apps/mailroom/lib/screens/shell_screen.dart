@@ -16,7 +16,10 @@ class ShellScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final company = state.canReadCompany;
-    final index = state.companyMail && company ? 1 : 0;
+    // Read the scope off the URL rather than the store, so the highlighted tab is always
+    // the page that is actually rendered.
+    final location = GoRouterState.of(context).uri.path;
+    final index = location.startsWith('/mail/company') ? 1 : 0;
     return Scaffold(
       body: child,
       bottomNavigationBar: company
@@ -26,14 +29,7 @@ class ShellScreen extends StatelessWidget {
               backgroundColor: Px.surface.withValues(alpha: 0.94),
               indicatorColor: Px.bgAccent,
               labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-              onDestinationSelected: (i) {
-                context.go('/mail');
-                if (i == 0) {
-                  unawaited(state.setCompanyMail(false));
-                } else {
-                  unawaited(state.setCompanyMail(true));
-                }
-              },
+              onDestinationSelected: (i) => context.go(i == 0 ? '/mail' : '/mail/company'),
               destinations: [
                 NavigationDestination(
                   icon: const Icon(Icons.mail_outline_rounded),

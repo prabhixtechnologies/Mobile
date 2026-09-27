@@ -13,7 +13,13 @@ import '../widgets/chrome.dart';
 import '../widgets/mail_ui.dart';
 
 class MailboxScreen extends StatefulWidget {
-  const MailboxScreen({super.key});
+  const MailboxScreen({super.key, this.company = false});
+
+  /// Whether this is the shared company mailbox rather than the user's own.
+  ///
+  /// The scope comes from the route now, so a deep link, a restored session and the back
+  /// button all land in the mailbox the URL names.
+  final bool company;
 
   @override
   State<MailboxScreen> createState() => _MailboxScreenState();
@@ -22,6 +28,29 @@ class MailboxScreen extends StatefulWidget {
 class _MailboxScreenState extends State<MailboxScreen> {
   final _search = TextEditingController();
   bool _searchOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _applyScope();
+  }
+
+  @override
+  void didUpdateWidget(MailboxScreen old) {
+    super.didUpdateWidget(old);
+    if (old.company != widget.company) _applyScope();
+  }
+
+  /// Brings the store in line with the route.
+  ///
+  /// `setCompanyMail` returns early when the scope already matches, so navigating within
+  /// one mailbox does not reload it.
+  void _applyScope() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<AppState>().setCompanyMail(widget.company);
+    });
+  }
 
   @override
   void dispose() {
@@ -443,7 +472,7 @@ class _MailNav extends StatelessWidget {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.schedule_send_rounded,
+                        Icon(Icons.schedule_send_rounded,
                             color: Px.warning, size: 20),
                         const SizedBox(width: 10),
                         Expanded(
@@ -510,14 +539,20 @@ class _MailNav extends StatelessWidget {
               ],
               const SizedBox(height: 12),
               if (state.canReadCompany)
-                _NavTile(
-                  icon: Icons.corporate_fare_rounded,
-                  label: state.companyMail ? 'My mail' : 'Company mail',
-                  onTap: () {
-                    Navigator.pop(context);
-                    state.setCompanyMail(!state.companyMail);
-                  },
-                ),
+                Builder(builder: (context) {
+                  // The scope lives in the URL, so the drawer reads it from the router
+                  // rather than from the store — same source the nav bar uses.
+                  final onCompany =
+                      GoRouterState.of(context).uri.path.startsWith('/mail/company');
+                  return _NavTile(
+                    icon: Icons.corporate_fare_rounded,
+                    label: onCompany ? 'My mail' : 'Company mail',
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.go(onCompany ? '/mail' : '/mail/company');
+                    },
+                  );
+                }),
               _NavTile(
                 icon: Icons.alternate_email_rounded,
                 label: 'Aliases and signature',
@@ -534,14 +569,10 @@ class _MailNav extends StatelessWidget {
                   context.push('/account');
                 },
               ),
-              _NavTile(
-                icon: Icons.support_agent_rounded,
-                label: 'Helpdesk is in OneOps',
-                onTap: () {
-                  Navigator.pop(context);
-                  context.go('/queue');
-                },
-              ),
+              // The "Helpdesk is in OneOps" tile used to sit here and navigate to /queue,
+              // a page whose entire content is the same sentence as the tile's label. The
+              // route stays registered so old bookmarks still explain themselves; offering
+              // it as a permanent menu item was offering every user a dead end.
             ],
           ),
         ),
@@ -747,7 +778,7 @@ class _SwipeThreadRow extends StatelessWidget {
                                   clipBehavior: Clip.none,
                                   children: [
                                     PersonAvatar(label: thread.correspondent),
-                                    const Positioned(
+                                    Positioned(
                                       right: -2,
                                       bottom: -2,
                                       child: Icon(Icons.star_rounded,
@@ -821,7 +852,7 @@ class _SwipeThreadRow extends StatelessWidget {
                               ],
                               if (thread.hasAttachments) ...[
                                 const SizedBox(height: 6),
-                                const Icon(Icons.attach_file_rounded,
+                                Icon(Icons.attach_file_rounded,
                                     size: 15, color: Px.faint),
                               ],
                             ],
@@ -868,13 +899,13 @@ class _SwipeThreadRow extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
               ),
               alignment: Alignment.center,
-              child: const Column(
+              child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.archive_rounded, color: Colors.white),
-                  SizedBox(height: 4),
+                  Icon(Icons.archive_rounded, color: Px.accentInk),
+                  const SizedBox(height: 4),
                   Text('Archive',
-                      style: TextStyle(color: Colors.white, fontSize: 12)),
+                      style: TextStyle(color: Px.accentInk, fontSize: 12)),
                 ],
               ),
             ),
@@ -895,13 +926,13 @@ class _SwipeThreadRow extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
               ),
               alignment: Alignment.center,
-              child: const Column(
+              child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.delete_rounded, color: Colors.white),
-                  SizedBox(height: 4),
+                  Icon(Icons.delete_rounded, color: Px.dangerInk),
+                  const SizedBox(height: 4),
                   Text('Delete',
-                      style: TextStyle(color: Colors.white, fontSize: 12)),
+                      style: TextStyle(color: Px.dangerInk, fontSize: 12)),
                 ],
               ),
             ),

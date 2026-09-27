@@ -152,7 +152,7 @@ class _OverviewTab extends StatelessWidget {
           if (state.error != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
-              child: Text(state.error!, style: const TextStyle(color: Px.danger)),
+              child: Text(state.error!, style: TextStyle(color: Px.danger)),
             ),
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
@@ -175,7 +175,7 @@ class _OverviewTab extends StatelessWidget {
           if (state.commerceAuthError != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
-              child: Text(state.commerceAuthError!, style: const TextStyle(color: Px.danger)),
+              child: Text(state.commerceAuthError!, style: TextStyle(color: Px.danger)),
             ),
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
@@ -576,7 +576,7 @@ class _MetricRow extends StatelessWidget {
         child: Row(
           children: [
             for (var i = 0; i < values.length; i++) ...[
-              if (i > 0) const VerticalDivider(width: 1, color: Px.line),
+              if (i > 0) VerticalDivider(width: 1, color: Px.line),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16),

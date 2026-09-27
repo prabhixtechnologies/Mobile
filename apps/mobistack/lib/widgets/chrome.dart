@@ -26,11 +26,14 @@ class Atmosphere extends StatelessWidget {
       children: [
         DecoratedBox(
           decoration: BoxDecoration(
+            // The web app's `--px-gradient-brand-fade`: the accent wash at the top of the
+            // page settling into the plain surface. It used to be two mint literals, which
+            // is why the app read teal while the shop's ochre branding sat on top of it.
             gradient: light
-                ? const LinearGradient(
+                ? LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [Color(0xFFDDF6F0), Color(0xFFF7FBFA)],
+                    colors: [Px.bgAccent, Px.surface],
                   )
                 : null,
             color: light ? null : Px.bg,
@@ -44,15 +47,16 @@ class Atmosphere extends StatelessWidget {
             color: Px.accent.withValues(alpha: light ? 0.18 : (intense ? 0.28 : 0.16)),
           ),
         ),
-        if (!light)
-          Positioned(
-            bottom: -180,
-            left: -120,
-            child: _Glow(
-              size: intense ? 460 : 340,
-              color: Px.focus.withValues(alpha: intense ? 0.16 : 0.08),
-            ),
+        // The partner accent in the opposite corner, so the wash has two hues in it rather
+        // than one hue at two opacities. Light mode gets it too; it used to be dark-only.
+        Positioned(
+          bottom: light ? -150 : -180,
+          left: light ? -110 : -120,
+          child: _Glow(
+            size: intense ? 460 : 340,
+            color: Px.accent2.withValues(alpha: light ? 0.12 : (intense ? 0.16 : 0.08)),
           ),
+        ),
         if (!light) const CustomPaint(painter: _HorizonPainter(), child: SizedBox.expand()),
         child,
       ],

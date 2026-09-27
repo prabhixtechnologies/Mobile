@@ -44,7 +44,7 @@ class _CommercePaneState extends State<CommercePane> {
           if (state.error != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
-              child: Text(state.error!, style: const TextStyle(color: Px.danger, fontSize: 13)),
+              child: Text(state.error!, style: TextStyle(color: Px.danger, fontSize: 13)),
             ),
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
@@ -625,7 +625,7 @@ class _InfraBody extends StatelessWidget {
               if (state.infraError != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(state.infraError!, style: const TextStyle(color: Px.danger, fontSize: 13)),
+                  child: Text(state.infraError!, style: TextStyle(color: Px.danger, fontSize: 13)),
                 ),
               Text('P&L strip', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
@@ -820,7 +820,7 @@ class _MetricRow extends StatelessWidget {
         child: Row(
           children: [
             for (var i = 0; i < values.length; i++) ...[
-              if (i > 0) const VerticalDivider(width: 1, color: Px.line),
+              if (i > 0) VerticalDivider(width: 1, color: Px.line),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16),

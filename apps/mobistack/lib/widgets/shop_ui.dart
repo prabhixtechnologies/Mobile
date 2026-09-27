@@ -391,7 +391,7 @@ class ShopListTile extends StatelessWidget {
       child: Material(
         color: Px.surface,
         elevation: Px.isDark ? 0 : 1,
-        shadowColor: const Color(0x22087A6E),
+        shadowColor: Px.accent.withValues(alpha: 0.13),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
           side: BorderSide(color: Px.line),
