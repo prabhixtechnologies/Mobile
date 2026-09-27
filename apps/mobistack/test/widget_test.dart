@@ -228,7 +228,7 @@ void main() {
     final items = body['items'] as List;
     expect(items.single['variantId'], 'v1');
     expect(items.single['quantity'], 1);
-    expect(items.single['unitPrice'], 499);
+    expect(items.single.containsKey('unitPrice'), isFalse);
     final payments = body['payments'] as List;
     expect(payments.single['method'], 'CASH');
     expect(payments.single['amount'], 499);
