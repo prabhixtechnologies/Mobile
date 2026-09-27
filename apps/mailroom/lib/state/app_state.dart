@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:prabhix_api_core/prabhix_api_core.dart';
+import 'package:prabhix_client/prabhix_client.dart';
 import 'package:prabhix_identity/prabhix_identity.dart';
 import 'package:prabhix_offline/prabhix_offline.dart';
 
@@ -12,10 +13,15 @@ import '../models/mail_models.dart';
 enum AuthPhase { loading, signedOut, needsOrg, ready }
 
 class AppState extends ChangeNotifier {
-  AppState({required AppConfig config})
-      : config = config,
-        identity = IdentityClient(config: config.identity) {
+  AppState({required AppConfig config}) : config = config {
+    identity = IdentityClient(config: config.identity);
+    recovery = ClientRecoveryController(
+      identity: identity,
+      appReleasePublicBase: config.product.apiBaseUrl,
+      appReleaseAppId: 'mailroom',
+    );
     api = ApiClient(config: config.product, identity: identity);
+    attachRecoveryToApi(api, recovery);
     mail = MailApi(api);
     offline = OfflineRuntime(
       appId: 'mailroom',
@@ -25,7 +31,8 @@ class AppState extends ChangeNotifier {
   }
 
   final AppConfig config;
-  final IdentityClient identity;
+  late final IdentityClient identity;
+  late final ClientRecoveryController recovery;
   late final ApiClient api;
   late final MailApi mail;
   late final OfflineRuntime offline;
@@ -85,6 +92,11 @@ class AppState extends ChangeNotifier {
     phase = AuthPhase.loading;
     notifyListeners();
     try {
+      if (!await recovery.passReleaseGateOnStartup()) {
+        phase = AuthPhase.signedOut;
+        notifyListeners();
+        return;
+      }
       await offline.start();
       offline.connectivity.addListener(_onConnectivityChanged);
       offline.sync.addListener(_onSyncChanged);
@@ -125,6 +137,7 @@ class AppState extends ChangeNotifier {
   Future<void> signIn() async {
     busy = true;
     error = null;
+    recovery.dismissSecuritySignIn();
     notifyListeners();
     try {
       await identity.signIn();

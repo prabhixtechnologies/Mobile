@@ -45,7 +45,8 @@ class AppConfig {
   }
 }
 
-/// Deep-link scheme for chat handoff: `prabhix://chat/{id}`.
+/// Deep-link scheme for chat handoff: `prabhix://chat/{id}` (unchanged for OAuth/deep links).
+/// Verified HTTPS App Links: `https://oneops.prabhixtechnologies.com/chat/{id}` (`chat_deep_link.dart`).
 const kDeepLinkScheme = 'prabhix';
 
 bool get isDebugBuild => kDebugMode;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
@@ -96,9 +97,7 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    if (state.me?.paymentRequired == true) {
-      return const SizedBox.shrink();
-    }
+    final needsBilling = state.me?.paymentRequired == true;
     final library = _library;
     final category = _category;
     final title = _brand ?? category?.label ?? 'Parts';
@@ -144,6 +143,34 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
                     ),
                 ],
               ),
+              if (needsBilling)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Material(
+                    color: Px.warning.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(16),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () => context.push('/billing'),
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Row(
+                          children: [
+                            Icon(Icons.payments_rounded, color: Px.warning),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Activate billing to unlock inventory, sales, and repairs.',
+                                style: TextStyle(color: Px.ink),
+                              ),
+                            ),
+                            Icon(Icons.chevron_right_rounded, color: Px.warning),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               if (category == null && state.fitmentGroups.length > 1)
                 SizedBox(
                   height: 44,

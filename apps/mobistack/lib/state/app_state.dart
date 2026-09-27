@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:prabhix_api_core/prabhix_api_core.dart';
+import 'package:prabhix_client/prabhix_client.dart';
 import 'package:prabhix_identity/prabhix_identity.dart';
 import 'package:prabhix_offline/prabhix_offline.dart';
 
@@ -15,19 +16,35 @@ import '../services/sync_store.dart';
 enum AuthPhase { loading, signedOut, ready }
 
 /// Where a signed-in person is in the shop and union journey.
-enum ShopGate { catalog, start, joinUnion, waitingShop, waitingUnion, outside }
+enum ShopGate {
+  catalog,
+  start,
+  joinUnion,
+  waitingShop,
+  waitingUnion,
+  outside,
+  journeyError,
+}
 
 class AppState extends ChangeNotifier with WidgetsBindingObserver {
-  AppState({required this.config})
-      : identity = IdentityClient(config: config.identity) {
+  AppState({required this.config}) {
+    identity = IdentityClient(config: config.identity);
+    recovery = ClientRecoveryController(
+      identity: identity,
+      appReleasePublicBase: config.product.apiBaseUrl,
+      appReleaseAppId: 'mobistack',
+      includeAppReleaseAppId: false,
+    );
     api = ApiClient(config: config.product, identity: identity);
+    attachRecoveryToApi(api, recovery);
     sync = SyncStore(api);
     api.traceRequests((message) => debugPrint('mobistack $message'));
     WidgetsBinding.instance.addObserver(this);
   }
 
   final AppConfig config;
-  final IdentityClient identity;
+  late final IdentityClient identity;
+  late final ClientRecoveryController recovery;
   late final ApiClient api;
   late final SyncStore sync;
   final ConnectivityMonitor connectivity = ConnectivityMonitor();
@@ -76,6 +93,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   bool get canManageBilling =>
       me == null ? false : me!.hasPermission('WORKSPACE_BILLING') || me!.systemAdmin || me!.platformAdmin;
 
+  bool get catalogOnlyMode =>
+      me?.paymentRequired == true || me?.catalogOnly == true;
+
   Future<void> refreshMe() async {
     me = await api.authMe();
     debugPrint(
@@ -94,6 +114,11 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     phase = AuthPhase.loading;
     notifyListeners();
     try {
+      if (!await recovery.passReleaseGateOnStartup()) {
+        phase = AuthPhase.signedOut;
+        notifyListeners();
+        return;
+      }
       await connectivity.start();
       await syncNotifier.init(channelName: 'MobiStack sync');
       connectivity.addListener(_onNet);
@@ -135,6 +160,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> signIn({bool create = false}) async {
     busy = true;
     error = null;
+    recovery.dismissSecuritySignIn();
     notifyListeners();
     try {
       await identity.signIn(promptOverride: create ? 'create' : null);
@@ -149,10 +175,54 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> refreshAll() async {
-    // Shop sync, sales, and stock are closed. Catalog and billing load themselves.
-    busy = false;
+    busy = true;
     error = null;
     notifyListeners();
+    final failures = <String>[];
+    final beforePending = await sync.pendingCount();
+    if (online) {
+      try {
+        await sync.flush();
+      } catch (e, st) {
+        debugPrint('sync flush failed: $e\n$st');
+        failures.add('flush');
+      }
+      try {
+        await sync.pullSnapshot();
+      } catch (e, st) {
+        debugPrint('sync pull failed: $e\n$st');
+        failures.add('pull');
+      }
+    } else {
+      failures.add('offline');
+    }
+    try {
+      await _hydrateFromDisk();
+      servingFromCache = !online || failures.contains('pull');
+      debugPrint(
+        'mobistack loaded variants=${variants.length} sales=${sales.length} '
+        'repairs=${repairs.length} customers=${customers.length} pending=$pendingOps',
+      );
+    } catch (e, st) {
+      debugPrint('sync read failed: $e\n$st');
+      failures.add('cache');
+    }
+    if (pendingOps > 0 && !online) {
+      await syncNotifier.showPendingOutbox(pendingOps);
+    } else if (beforePending > pendingOps && pendingOps == 0) {
+      await syncNotifier.showSynced(flushed: beforePending);
+    }
+    if (failures.isNotEmpty) {
+      error = online
+          ? 'Some sync steps failed: ${failures.join(', ')}'
+          : 'Offline · showing cached shop data'
+              '${pendingOps > 0 ? ' · $pendingOps queued' : ''}';
+    }
+    busy = false;
+    notifyListeners();
+    if (online) {
+      unawaited(sync.pullOfflineLists());
+    }
   }
 
   /// Queues a sync operation. Returns a failure message, or null when the
@@ -364,9 +434,11 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  void setBillPrice(int index, double price) {
+  void setBillPrice(int index, double price, String reason) {
     if (index < 0 || index >= bill.lines.length) return;
     bill.lines[index].unitPrice = price < 0 ? 0 : price;
+    bill.lines[index].priceEdited = true;
+    bill.lines[index].priceOverrideReason = reason.trim();
     notifyListeners();
   }
 
@@ -473,6 +545,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     } catch (e, st) {
       debugPrint('live session failed: $e\n$st');
       if (e is ApiException && e.statusCode == 401) {
+        await recovery.handleApiException(e);
         error = e.message;
         phase = AuthPhase.signedOut;
         notifyListeners();
@@ -590,9 +663,26 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       }
     } catch (e, st) {
       debugPrint('journey: $e\n$st');
-      gate = me?.organizations.isEmpty ?? true ? ShopGate.start : ShopGate.catalog;
+      gate = ShopGate.journeyError;
+      recovery.noteJourneyFailure(
+        online
+            ? 'We could not load your shop journey. Check the connection and try again.'
+            : 'You are offline. Connect to load your shop journey.',
+      );
     }
     notifyListeners();
+  }
+
+  Future<void> retryJourney() async {
+    busy = true;
+    recovery.clearJourneyFailure();
+    notifyListeners();
+    try {
+      await refreshJourney();
+    } finally {
+      busy = false;
+      notifyListeners();
+    }
   }
 
   Future<String?> createShop({required String name, String? city}) async {

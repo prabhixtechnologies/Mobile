@@ -1,3 +1,5 @@
+import 'issuer_policy.dart';
+
 /// Build-time Identity OIDC configuration for one Prabhix mobile app.
 class IdentityConfig {
   const IdentityConfig({
@@ -50,7 +52,7 @@ class IdentityConfig {
   }) {
     final redirect = '$applicationId:/oauth2redirect';
     return IdentityConfig(
-      issuer: issuer.replaceAll(RegExp(r'/+$'), ''),
+      issuer: requireSecureIdentityIssuer(issuer),
       clientId: clientId,
       redirectUri: redirect,
       postLogoutRedirectUri: redirect,
@@ -65,7 +67,7 @@ class IdentityConfig {
   }) {
     const redirect = 'mobistack://oauth2redirect';
     return IdentityConfig(
-      issuer: issuer.replaceAll(RegExp(r'/+$'), ''),
+      issuer: requireSecureIdentityIssuer(issuer),
       clientId: clientId,
       redirectUri: redirect,
       postLogoutRedirectUri: redirect,

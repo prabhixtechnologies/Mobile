@@ -7,6 +7,8 @@ class BillLine {
   final CachedVariant variant;
   int quantity;
   double unitPrice;
+  bool priceEdited = false;
+  String? priceOverrideReason;
 
   double get lineTotal => unitPrice * quantity;
 }
@@ -59,7 +61,8 @@ class OpenBill {
           {
             'variantId': line.variant.id,
             'quantity': line.quantity,
-            'unitPrice': line.unitPrice,
+            if (line.priceEdited) 'unitPrice': line.unitPrice,
+            if (line.priceEdited) 'priceOverrideReason': line.priceOverrideReason,
           },
       ],
       if (total > 0)

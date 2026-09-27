@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:prabhix_api_core/prabhix_api_core.dart';
+import 'package:prabhix_client/prabhix_client.dart';
 import 'package:prabhix_identity/prabhix_identity.dart';
 import 'package:prabhix_offline/prabhix_offline.dart';
 
@@ -10,14 +11,20 @@ import '../config.dart';
 enum AuthPhase { loading, signedOut, needsOrg, ready }
 
 class AppState extends ChangeNotifier {
-  AppState({required AppConfig config})
-      : config = config,
-        identity = IdentityClient(config: config.identity) {
+  AppState({required AppConfig config}) : config = config {
+    identity = IdentityClient(config: config.identity);
+    recovery = ClientRecoveryController(
+      identity: identity,
+      appReleasePublicBase: config.product.apiBaseUrl,
+      appReleaseAppId: 'admin',
+    );
     api = ApiClient(config: config.product, identity: identity);
+    attachRecoveryToApi(api, recovery);
   }
 
   final AppConfig config;
-  final IdentityClient identity;
+  late final IdentityClient identity;
+  late final ClientRecoveryController recovery;
   late final ApiClient api;
   final ConnectivityMonitor connectivity = ConnectivityMonitor();
   final SyncNotifier syncNotifier = SyncNotifier();
@@ -80,6 +87,11 @@ class AppState extends ChangeNotifier {
     phase = AuthPhase.loading;
     notifyListeners();
     try {
+      if (!await recovery.passReleaseGateOnStartup()) {
+        phase = AuthPhase.signedOut;
+        notifyListeners();
+        return;
+      }
       await connectivity.start();
       await syncNotifier.init(channelName: 'Admin sync');
       connectivity.addListener(_onNet);
@@ -109,6 +121,7 @@ class AppState extends ChangeNotifier {
   Future<void> signIn() async {
     busy = true;
     error = null;
+    recovery.dismissSecuritySignIn();
     notifyListeners();
     try {
       await identity.signIn();

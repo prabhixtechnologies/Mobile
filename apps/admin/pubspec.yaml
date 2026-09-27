@@ -1,7 +1,7 @@
 name: admin
 description: Prabhix Admin — platform overview (Identity OIDC).
 publish_to: none
-version: 1.0.1+2
+version: 1.0.2+3
 
 environment:
   sdk: ^3.5.0
@@ -21,6 +21,8 @@ dependencies:
     path: ../../packages/prabhix_api_core
   prabhix_offline:
     path: ../../packages/prabhix_offline
+  prabhix_client:
+    path: ../../packages/prabhix_client
 
 dev_dependencies:
   flutter_launcher_icons: ^0.14.3

@@ -26,7 +26,6 @@ Map<String, dynamic> salePayload(CachedVariant variant) {
       {
         'variantId': variant.id,
         'quantity': 1,
-        'unitPrice': price,
       },
     ],
     if (price > 0)
