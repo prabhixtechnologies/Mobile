@@ -863,8 +863,8 @@ const Map<String, ({PxColors light, PxColors dark})> pxThemes = {
 };
 
 /// Categorical series colours for charts and generated avatars.
-const List<Color> pxCategoricalLight = [Color(0xFF4338CA), Color(0xFF0891B2), Color(0xFFB45309), Color(0xFF039855), Color(0xFF9333EA), Color(0xFF8C3B2A), Color(0xFF0D9488), Color(0xFFCA8A04), Color(0xFF2563EB), Color(0xFFDB2777)];
-const List<Color> pxCategoricalDark = [Color(0xFFA5B4FC), Color(0xFF22D3EE), Color(0xFFFBBF24), Color(0xFF32D583), Color(0xFFC084FC), Color(0xFFDDA894), Color(0xFF2DD4BF), Color(0xFFFACC15), Color(0xFF60A5FA), Color(0xFFF472B6)];
+const List<Color> pxCategoricalLight = [Color(0xFF4338CA), Color(0xFF0891B2), Color(0xFFB45309), Color(0xFF039855), Color(0xFF9333EA), Color(0xFF8C3B2A), Color(0xFF0D9488), Color(0xFF4D7C0F), Color(0xFF2563EB), Color(0xFFDB2777)];
+const List<Color> pxCategoricalDark = [Color(0xFFA5B4FC), Color(0xFF22D3EE), Color(0xFFFBBF24), Color(0xFF32D583), Color(0xFFC084FC), Color(0xFFDDA894), Color(0xFF2DD4BF), Color(0xFFA3E635), Color(0xFF60A5FA), Color(0xFFF472B6)];
 
 /// One tinted label swatch: a fill, ink that clears 4.5:1 on that fill, and a hairline.
 class PxTag {
