@@ -53,7 +53,16 @@ jobs:
         run: flutter pub get
       - run: flutter pub get
       - run: flutter analyze --no-fatal-infos
-      - run: flutter test
+      - name: Test
+        run: |
+          set -euo pipefail
+          flutter test --reporter expanded 2>&1 | tee test.log
+      - name: Publish test failures
+        if: failure()
+        run: |
+          grep -E 'Expected:|Actual:|Which:|Test failed|Failure|Exception' test.log |
+            head -n 30 |
+            while IFS= read -r line; do echo "::error::$line"; done
 
   # Opt-in: needs a reachable seeded stack (Identity + product APIs).
   # Default CI skips these tests inside `flutter test` unless INTEGRATION=1.
