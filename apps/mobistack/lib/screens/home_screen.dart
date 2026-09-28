@@ -62,7 +62,7 @@ class HomeScreen extends StatelessWidget {
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                           child: Material(
-                            color: Px.warning.withValues(alpha: 0.14),
+                            color: Px.warningSubtle,
                             borderRadius: BorderRadius.circular(18),
                             child: InkWell(
                               borderRadius: BorderRadius.circular(18),
@@ -71,8 +71,8 @@ class HomeScreen extends StatelessWidget {
                                 padding: const EdgeInsets.all(16),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.payments_rounded,
-                                        color: Px.warning),
+                                      Icon(Icons.payments_rounded,
+                                          color: Px.warningSubtleInk),
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Column(
@@ -351,15 +351,18 @@ class _ModuleRow extends StatelessWidget {
                   width: 46,
                   height: 46,
                   alignment: Alignment.center,
+                  // Two pairs, each of which the tokens vouch for: solid accent with its ink,
+                  // or the info tint with its own. The quiet half used to be the focus ring
+                  // colour at 12% with the focus ring colour drawn on it, which is both an
+                  // unasserted pairing and a borrowed meaning - focus says "the keyboard is
+                  // here", and this tile is not focused.
                   decoration: BoxDecoration(
-                    color: accent
-                        ? Px.accent
-                        : Px.focus.withValues(alpha: 0.12),
+                    color: accent ? Px.accent : Px.infoSubtle,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(
                     icon,
-                    color: accent ? Px.accentInk : Px.focus,
+                    color: accent ? Px.accentInk : Px.infoSubtleInk,
                   ),
                 ),
                 const SizedBox(width: 14),

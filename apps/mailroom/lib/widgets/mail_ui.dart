@@ -188,12 +188,17 @@ class StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Both halves out of the same family. Each of these fills used to be the solid status
+    // colour at 12-14% with the solid colour on top of it, which is the one combination the
+    // token set does not stand behind: the inks are asserted at 4.5:1 against their own
+    // subtle fill, and against nothing else. On a washed danger tint the solid danger red was
+    // reading at about 2:1 in light mode.
     final colors = switch (tone) {
-      ChipTone.danger => (Px.danger.withValues(alpha: 0.12), Px.danger),
-      ChipTone.warning => (Px.warning.withValues(alpha: 0.14), Px.warning),
-      ChipTone.success => (Px.success.withValues(alpha: 0.12), Px.success),
-      ChipTone.accent => (Px.bgAccent, Px.accent),
-      ChipTone.neutral => (Px.line.withValues(alpha: 0.45), Px.muted),
+      ChipTone.danger => (Px.dangerSubtle, Px.dangerSubtleInk),
+      ChipTone.warning => (Px.warningSubtle, Px.warningSubtleInk),
+      ChipTone.success => (Px.successSubtle, Px.successSubtleInk),
+      ChipTone.accent => (Px.accentSubtle, Px.accentSubtleInk),
+      ChipTone.neutral => (Px.surfaceSunken, Px.muted),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),

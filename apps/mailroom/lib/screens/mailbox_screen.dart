@@ -267,10 +267,13 @@ class SyncStatusBar extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
+    // Fill and ink from the same family; see the same strip in MobiStack's shop_ui.dart. The
+    // previous pairing - solid status colour at 10-14%, solid colour on top - is the one the
+    // tokens make no promise about.
     final (bg, fg, icon, label) = offline
         ? (
-            Px.warning.withValues(alpha: 0.14),
-            Px.warning,
+            Px.warningSubtle,
+            Px.warningSubtleInk,
             Icons.cloud_off_rounded,
             pending > 0
                 ? 'Offline · $pending change${pending == 1 ? '' : 's'} queued'
@@ -280,14 +283,14 @@ class SyncStatusBar extends StatelessWidget {
           )
         : pending > 0
             ? (
-                Px.focus.withValues(alpha: 0.12),
-                Px.focus,
+                Px.infoSubtle,
+                Px.infoSubtleInk,
                 Icons.upload_rounded,
                 'Syncing $pending queued change${pending == 1 ? '' : 's'}…',
               )
             : (
-                Px.accent.withValues(alpha: 0.1),
-                Px.accent,
+                Px.accentSubtle,
+                Px.accentSubtleInk,
                 Icons.history_rounded,
                 'Cached view · pull to refresh',
               );
@@ -474,17 +477,18 @@ class _MailNav extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   child: Container(
                     padding: const EdgeInsets.all(12),
+                    // Outbox waiting is information, not a warning: nothing is wrong, the
+                    // messages go out when there is a connection. Amber said otherwise every
+                    // time someone composed on a train.
                     decoration: BoxDecoration(
-                      color: Px.warning.withValues(alpha: 0.12),
+                      color: Px.infoSubtle,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: Px.warning.withValues(alpha: 0.28),
-                      ),
+                      border: Border.all(color: Px.infoSubtleBorder),
                     ),
                     child: Row(
                       children: [
                         Icon(Icons.schedule_send_rounded,
-                            color: Px.warning, size: 20),
+                            color: Px.infoSubtleInk, size: 20),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
@@ -492,7 +496,7 @@ class _MailNav extends StatelessWidget {
                             style: Theme.of(context)
                                 .textTheme
                                 .labelLarge
-                                ?.copyWith(color: Px.warning),
+                                ?.copyWith(color: Px.infoSubtleInk),
                           ),
                         ),
                       ],
@@ -614,7 +618,10 @@ class _NavTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       child: Material(
-        color: selected ? Px.accent.withValues(alpha: 0.12) : Colors.transparent,
+        // The selected-row tint, as a token rather than a twelfth of the accent. There is a
+        // `surfaceSelected` for exactly this, and unlike a hand-mixed alpha it is a different
+        // strength in dark mode, where 12% of a bright accent is a glare rather than a hint.
+        color: selected ? Px.surfaceSelected : Colors.transparent,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           borderRadius: BorderRadius.circular(14),

@@ -147,7 +147,7 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                   child: Material(
-                    color: Px.warning.withValues(alpha: 0.14),
+                    color: Px.warningSubtle,
                     borderRadius: BorderRadius.circular(16),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(16),
@@ -156,15 +156,15 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
                         padding: const EdgeInsets.all(14),
                         child: Row(
                           children: [
-                            Icon(Icons.payments_rounded, color: Px.warning),
+                            Icon(Icons.payments_rounded, color: Px.warningSubtleInk),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
                                 'Activate billing to unlock inventory, sales, and repairs.',
-                                style: TextStyle(color: Px.ink),
+                                style: TextStyle(color: Px.warningSubtleInk),
                               ),
                             ),
-                            Icon(Icons.chevron_right_rounded, color: Px.warning),
+                            Icon(Icons.chevron_right_rounded, color: Px.warningSubtleInk),
                           ],
                         ),
                       ),
