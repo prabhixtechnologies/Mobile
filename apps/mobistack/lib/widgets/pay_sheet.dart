@@ -103,6 +103,13 @@ class _PaySheetState extends State<PaySheet> {
   }
 }
 
+/// The page loaded into the Razorpay WebView.
+///
+/// px-allow-literal: this is a standalone HTML document inside a WebView. It has no access to
+/// the app's theme — there is no Flutter widget tree in there and no stylesheet to inherit — so
+/// every colour has to be written out. They are MobiStack's dark surface and ochre accent;
+/// before, they were the house cyan and its navy, so the payment sheet was the one screen in the
+/// app still wearing the old brand at the moment a customer is handing over money.
 String _checkoutHtml(CheckoutOrder order, String description) {
   String safe(String? value) =>
       (value ?? '').replaceAll(RegExp(r'''[<>\\'"]'''), '');
@@ -113,7 +120,8 @@ String _checkoutHtml(CheckoutOrder order, String description) {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   </head>
-  <body style="background:#0C1524;color:#F0FDFA;font-family:sans-serif;padding:24px">
+  <!-- px-allow-literal: --px-bg and --px-ink, mobistack dark. See the note on _checkoutHtml. -->
+  <body style="background:#12100e;color:#faf8f4;font-family:sans-serif;padding:24px">
     <p>Opening Razorpay…</p>
     <script>
       var options = {
@@ -123,7 +131,8 @@ String _checkoutHtml(CheckoutOrder order, String description) {
         name: "MobiStack",
         description: "${safe(description)}",
         order_id: "${safe(order.orderId)}",
-        theme: { color: "#0E7490" },
+        // px-allow-literal: --px-accent, mobistack. Razorpay takes a hex string.
+        theme: { color: "#b45309" },
         handler: function (response) {
           PrabhixPay.postMessage(JSON.stringify({
             ok: true,
