@@ -21,10 +21,16 @@ class ShopSyncBar extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
+    // Fill and ink from the same family. These were the solid status colour at 10-14% with
+    // the solid colour written over it, which is the pairing the tokens do not assert - each
+    // ink clears 4.5:1 on its own subtle fill and on nothing else.
+    //
+    // Syncing is info rather than focus: a queued upload going out is the system working, and
+    // amber said something had gone wrong with it.
     final (bg, fg, icon, label) = offline
         ? (
-            Px.warning.withValues(alpha: 0.14),
-            Px.warning,
+            Px.warningSubtle,
+            Px.warningSubtleInk,
             Icons.cloud_off_rounded,
             pending > 0
                 ? 'Offline · $pending sale${pending == 1 ? '' : 's'} queued'
@@ -34,14 +40,14 @@ class ShopSyncBar extends StatelessWidget {
           )
         : pending > 0
             ? (
-                Px.focus.withValues(alpha: 0.12),
-                Px.focus,
+                Px.infoSubtle,
+                Px.infoSubtleInk,
                 Icons.upload_rounded,
                 'Syncing $pending queued change${pending == 1 ? '' : 's'}…',
               )
             : (
-                Px.accent.withValues(alpha: 0.1),
-                Px.accent,
+                Px.accentSubtle,
+                Px.accentSubtleInk,
                 Icons.history_rounded,
                 'Cached shop data · pull to refresh',
               );
@@ -454,7 +460,7 @@ class QuickActionChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Px.accent.withValues(alpha: 0.1),
+      color: Px.accentSubtle,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -464,12 +470,12 @@ class QuickActionChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 20, color: Px.accent),
+              Icon(icon, size: 20, color: Px.accentSubtleInk),
               const SizedBox(width: 8),
               Text(
                 label,
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: Px.accent,
+                      color: Px.accentSubtleInk,
                     ),
               ),
             ],

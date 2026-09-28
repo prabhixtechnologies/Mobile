@@ -54,6 +54,11 @@ abstract final class Px {
   static Color get focus => active.focus;
   static Color get surfaceSunken => active.surfaceSunken;
 
+  /// The row-under-the-cursor and row-you-picked fills. Both are tokens rather than a
+  /// percentage of the accent, so they stay a hint in dark mode instead of a glare.
+  static Color get surfaceHover => active.surfaceHover;
+  static Color get surfaceSelected => active.surfaceSelected;
+
   /// The tinted status pairs. Each ink is asserted at 4.5:1 on its own subtle fill, which
   /// is why a tinted chip must take both from the same family rather than mixing a tint
   /// with the solid ink.
@@ -67,6 +72,15 @@ abstract final class Px {
   static Color get dangerSubtleInk => active.dangerSubtleInk;
   static Color get successSubtle => active.successSubtle;
   static Color get successSubtleInk => active.successSubtleInk;
+  static Color get dangerSubtleBorder => active.dangerSubtleBorder;
+  static Color get successSubtleBorder => active.successSubtleBorder;
+
+  /// Informational rather than a warning: a sync in flight, a cached view, a hint. These had
+  /// no accessor, so every such strip reached for `focus` or `warning` and said the wrong
+  /// thing - amber for "working normally, just busy".
+  static Color get infoSubtle => active.infoSubtle;
+  static Color get infoSubtleInk => active.infoSubtleInk;
+  static Color get infoSubtleBorder => active.infoSubtleBorder;
   static Color get dangerInk => active.dangerInk;
 
   static Color get danger => active.danger;
