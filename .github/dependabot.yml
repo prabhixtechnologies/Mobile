@@ -1,0 +1,73 @@
+version: 2
+
+# This repository had no Dependabot configuration at all: four Flutter apps, seven internal
+# packages, four Android Gradle trees and two workflows, none of them watched. The failure mode is
+# silence rather than an error, so an advisory in a transitive package would have sat here
+# indefinitely -- the same reasoning as the comment at the top of oneOps/.github/dependabot.yml,
+# which is where the gap was found. A gradle entry for /mobile/android was sitting in *that*
+# repository, pointing at a directory that does not exist there, which is how it came to look like
+# Android was covered.
+#
+# Grouping is deliberate. Ungrouped, four near-identical Flutter apps raise four copies of every
+# bump, which is noise that gets muted, and a muted updater is worse than none because it looks
+# like it is working.
+updates:
+  # Dart and Flutter. `pub` raises version updates only where the constraint allows it, so the
+  # internal prabhix_* packages -- which are path dependencies -- are not what this watches; it is
+  # the third-party packages underneath them.
+  - package-ecosystem: pub
+    directories:
+      - /apps/admin
+      - /apps/mailroom
+      - /apps/mobistack
+      - /apps/oneops
+      - /packages/prabhix_api_core
+      - /packages/prabhix_client
+      - /packages/prabhix_identity
+      - /packages/prabhix_offline
+      - /packages/prabhix_theme
+      - /packages/prabhix_ui
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      dart-minor-and-patch:
+        applies-to: version-updates
+        update-types: [minor, patch]
+      dart-security:
+        applies-to: security-updates
+        patterns: ["*"]
+    labels: [dependencies, flutter]
+
+  # The Android side of each app: the Gradle plugin, Kotlin, and the AndroidX libraries the
+  # platform channels use. These are invisible to `pub` above.
+  - package-ecosystem: gradle
+    directories:
+      - /apps/admin/android
+      - /apps/mailroom/android
+      - /apps/mobistack/android
+      - /apps/oneops/android
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    groups:
+      android-minor-and-patch:
+        applies-to: version-updates
+        update-types: [minor, patch]
+      android-security:
+        applies-to: security-updates
+        patterns: ["*"]
+    labels: [dependencies, android]
+
+  # play-upload.yml holds the signing and release path. An action deprecated out from under it
+  # fails at the point of shipping a build, which is the worst moment to find out.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+    labels: [dependencies, ci]
