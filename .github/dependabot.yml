@@ -35,6 +35,14 @@ updates:
       dart-minor-and-patch:
         applies-to: version-updates
         update-types: [minor, patch]
+      # Majors are grouped too, which is a departure from the other repositories. There, majors
+      # are left ungrouped so each one can be read on its own. That reasoning does not survive
+      # ten directories: the first run raised `flutter_lints 5 to 6` as ten separate pull
+      # requests, one per pubspec, for a single dependency bump. Since a group spans the
+      # `directories` above, this collapses that to one -- still a major to read, but once.
+      dart-major:
+        applies-to: version-updates
+        update-types: [major]
       dart-security:
         applies-to: security-updates
         patterns: ["*"]
@@ -56,6 +64,11 @@ updates:
       android-minor-and-patch:
         applies-to: version-updates
         update-types: [minor, patch]
+      # Grouped for the same reason as the Dart majors: four identical Android trees would
+      # otherwise raise four copies of every Gradle plugin bump.
+      android-major:
+        applies-to: version-updates
+        update-types: [major]
       android-security:
         applies-to: security-updates
         patterns: ["*"]
