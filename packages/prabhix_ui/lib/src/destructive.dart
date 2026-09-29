@@ -22,7 +22,7 @@ import 'package:prabhix_theme/prabhix_theme.dart';
 ///    the interruption costs nothing and frequent enough in *aggregate* that one accident
 ///    is expensive.
 ///
-/// Mirrors `ActionRisk` in `@prabhix/ui`, so a row's action list reads the same on mobile
+/// Mirrors `ActionRisk` in `@prabhixtechnologies/ui`, so a row's action list reads the same on mobile
 /// and on the web.
 enum PxRisk {
   /// Self-inverse. Do it now, say nothing.
