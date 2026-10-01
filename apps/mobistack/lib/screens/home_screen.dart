@@ -137,20 +137,24 @@ class HomeScreen extends StatelessWidget {
                           children: [
                             _FloorStat(
                               label: 'Sales',
-                              value: d.todaySales.toStringAsFixed(0),
+                              value: '₹${d.todaySales.toStringAsFixed(0)}',
                               tone: KpiTone.accent,
+                              onTap: () => context.push('/reports'),
                             ),
                             _FloorStat(
-                              label: 'Tickets',
+                              label: 'Bills',
                               value: '${d.todayTransactions}',
+                              onTap: () => context.go('/sales'),
                             ),
                             _FloorStat(
                               label: 'Repairs',
                               value: '${d.pendingRepairs}',
                               tone: KpiTone.warning,
+                              onTap: () => context.go('/repairs'),
                             ),
                             _FloorStat(
-                              label: 'Low',
+                              label: 'Low stock',
+                              onTap: () => context.go('/inventory'),
                               value: '${d.lowStockCount}',
                               tone: d.lowStockCount > 0
                                   ? KpiTone.danger
@@ -241,11 +245,13 @@ class _FloorStat extends StatelessWidget {
     required this.label,
     required this.value,
     this.tone = KpiTone.neutral,
+    this.onTap,
   });
 
   final String label;
   final String value;
   final KpiTone tone;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -259,7 +265,10 @@ class _FloorStat extends StatelessWidget {
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: DecoratedBox(
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: DecoratedBox(
           decoration: BoxDecoration(
             color: Px.surface,
             borderRadius: BorderRadius.circular(16),
@@ -307,6 +316,7 @@ class _FloorStat extends StatelessWidget {
               ],
             ),
           ),
+        ),
         ),
       ),
     );

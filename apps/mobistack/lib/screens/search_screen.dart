@@ -1,3 +1,4 @@
+import 'package:prabhix_api_core/prabhix_api_core.dart' show describeError;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:prabhix_ui/prabhix_ui.dart';
@@ -85,7 +86,7 @@ class _SearchScreenState extends State<SearchScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = '$e';
+        _error = describeError(e);
         _state = PxViewState.error;
       });
     }

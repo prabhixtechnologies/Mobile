@@ -48,16 +48,12 @@ class SettingsScreen extends StatelessWidget {
             trailing: Icon(Icons.open_in_new_rounded, color: Px.faint),
             onTap: () => state.openAccount(),
           ),
-          ShopListTile(
-            leading: Icon(Icons.dns_rounded, color: Px.focus),
-            title: 'API base',
-            subtitle: state.config.product.apiBaseUrl,
-          ),
-          ShopListTile(
-            leading: Icon(Icons.verified_user_outlined, color: Px.focus),
-            title: 'Identity issuer',
-            subtitle: state.config.identity.issuer,
-          ),
+          if (state.me?.systemAdmin == true)
+            ShopListTile(
+              leading: Icon(Icons.dns_rounded, color: Px.focus),
+              title: 'Servers',
+              subtitle: '${state.config.product.apiBaseUrl}\n${state.config.identity.issuer}',
+            ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             child: Material(
@@ -67,7 +63,7 @@ class SettingsScreen extends StatelessWidget {
                 side: BorderSide(color: Px.line),
               ),
               child: SwitchListTile(
-                title: const Text('Allow create-account prompt'),
+                title: const Text('Offer to create an account at sign-in'),
                 value: state.allowCreateAccount,
                 onChanged: (v) => state.setAllowCreateAccount(v),
               ),
@@ -75,8 +71,10 @@ class SettingsScreen extends StatelessWidget {
           ),
           ShopListTile(
             leading: Icon(Icons.outbox_rounded, color: Px.warning),
-            title: 'Flush outbox',
-            trailing: Text('${state.pendingOps}'),
+            title: 'Send queued changes now',
+            subtitle: state.pendingOps == 0
+                ? 'Nothing waiting on this phone'
+                : '${state.pendingOps} saved on this phone, not on the server yet',
             onTap: () => state.refreshAll(),
           ),
         ],

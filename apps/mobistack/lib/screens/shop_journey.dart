@@ -316,10 +316,10 @@ class _CodeJoinState extends State<_CodeJoin> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = '$e';
+        _error = describeError(e);
         _busy = false;
       });
-      if ('$e'.contains('already')) {
+      if (describeError(e).contains('already')) {
         await context.read<AppState>().refreshJourney();
       }
     }
@@ -345,7 +345,7 @@ class _CodeJoinState extends State<_CodeJoin> {
       await state.refreshJourney();
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = '$e');
+      setState(() => _error = describeError(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

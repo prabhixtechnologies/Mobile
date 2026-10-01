@@ -1,3 +1,4 @@
+import 'package:prabhix_api_core/prabhix_api_core.dart' show describeError;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -88,7 +89,7 @@ class _CommonsComponentScreenState extends State<CommonsComponentScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = _component == null ? '$e' : null;
+        _error = _component == null ? describeError(e) : null;
         _loading = false;
         _refreshing = false;
       });

@@ -1,3 +1,4 @@
+import 'package:prabhix_api_core/prabhix_api_core.dart' show describeError;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -32,7 +33,7 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
       setState(() => _web = controller);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = '$e');
+      setState(() => _error = describeError(e));
     }
   }
 

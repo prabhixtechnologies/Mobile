@@ -1,3 +1,4 @@
+import 'package:prabhix_api_core/prabhix_api_core.dart' show describeError;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -29,7 +30,7 @@ class InboxScreen extends StatelessWidget {
             );
           } catch (e) {
             if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(describeError(e))));
           }
         },
         icon: const Icon(Icons.done_all_rounded),
@@ -53,7 +54,7 @@ class InboxScreen extends StatelessWidget {
           );
         } catch (e) {
           if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(describeError(e))));
         }
       },
     );

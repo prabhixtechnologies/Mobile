@@ -1,3 +1,4 @@
+import 'package:prabhix_api_core/prabhix_api_core.dart' show describeError;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -12,26 +13,54 @@ class ReportsScreen extends StatefulWidget {
   State<ReportsScreen> createState() => _ReportsScreenState();
 }
 
+const Map<String, String> _ranges = {
+  'today': 'Today',
+  '7d': 'Last 7 days',
+  'this_month': 'This month',
+};
+
+String _rupees(Object? value) {
+  final n = value is num ? value : num.tryParse('${value ?? 0}') ?? 0;
+  return '₹${n.toStringAsFixed(n == n.roundToDouble() ? 0 : 2)}';
+}
+
 class _ReportsScreenState extends State<ReportsScreen> {
   String _range = 'today';
   String? _summary;
+  Map<String, dynamic>? _sales;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load(_range));
+  }
 
   Future<void> _load(String range) async {
     setState(() => _range = range);
     final state = context.read<AppState>();
     if (!state.online) {
-      setState(() => _summary = 'Offline · showing the cached counters');
+      setState(() {
+        _summary = 'Offline · showing the counters saved on this phone';
+        _sales = null;
+      });
       return;
     }
     try {
       final res = await state.api.dio.get<dynamic>('reports', queryParameters: {'range': range});
       final data = res.data;
       final sales = data is Map ? data['sales'] : null;
-      if (sales is Map) {
-        setState(() => _summary = 'Sales ${sales['sales']} · profit ${sales['profit']} · ${sales['transactions']} bills');
-      }
+      if (!mounted) return;
+      setState(() {
+        _sales = sales is Map ? Map<String, dynamic>.from(sales) : null;
+        _summary = null;
+      });
     } catch (e) {
-      if (mounted) setState(() => _summary = '$e');
+      if (mounted) {
+        setState(() {
+          _summary = describeError(e);
+          _sales = null;
+        });
+      }
     }
   }
 
@@ -44,16 +73,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Report copied')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(describeError(e))));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final d = context.watch<AppState>().dashboard;
+    final s = _sales;
     return ShopPage(
       title: 'Reports',
-      subtitle: 'Today on the counter',
+      subtitle: '${_ranges[_range]} on the counter',
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _copy,
         icon: const Icon(Icons.copy_rounded),
@@ -65,9 +95,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
           Wrap(
             spacing: 8,
             children: [
-              for (final range in const ['today', '7d', 'this_month'])
+              for (final range in _ranges.keys)
                 ChoiceChip(
-                  label: Text(range),
+                  label: Text(_ranges[range]!),
                   selected: _range == range,
                   onSelected: (_) => _load(range),
                 ),
@@ -78,9 +108,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
             Text(_summary!, style: Theme.of(context).textTheme.bodyMedium),
           ],
           const SizedBox(height: 12),
-          KpiTile(label: 'Today sales', value: d.todaySales.toStringAsFixed(2), tone: KpiTone.accent),
-          const SizedBox(height: 10),
-          KpiTile(label: 'Today transactions', value: '${d.todayTransactions}', tone: KpiTone.neutral),
+          if (s != null) ...[
+            KpiTile(label: 'Sales', value: _rupees(s['sales']), tone: KpiTone.accent),
+            const SizedBox(height: 10),
+            KpiTile(label: 'Profit', value: _rupees(s['profit']), tone: KpiTone.success),
+            const SizedBox(height: 10),
+            KpiTile(label: 'Bills', value: '${s['transactions'] ?? 0}', tone: KpiTone.neutral),
+          ] else ...[
+            KpiTile(label: 'Today sales', value: _rupees(d.todaySales), tone: KpiTone.accent),
+            const SizedBox(height: 10),
+            KpiTile(label: 'Today bills', value: '${d.todayTransactions}', tone: KpiTone.neutral),
+          ],
           const SizedBox(height: 10),
           KpiTile(label: 'Pending repairs', value: '${d.pendingRepairs}', tone: KpiTone.warning),
           const SizedBox(height: 10),
@@ -98,7 +136,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               ShopListTile(
                 title: sale.invoiceNumber,
                 subtitle: sale.status ?? 'Sale',
-                trailing: Text(sale.total.toStringAsFixed(2)),
+                trailing: Text(_rupees(sale.total)),
               ),
         ],
       ),

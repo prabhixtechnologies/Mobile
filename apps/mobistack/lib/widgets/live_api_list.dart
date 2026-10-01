@@ -1,3 +1,4 @@
+import 'package:prabhix_api_core/prabhix_api_core.dart' show describeError;
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
@@ -116,7 +117,7 @@ class _LiveApiListScreenState extends State<LiveApiListScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = _rows.isEmpty ? '$e' : null;
+        _error = _rows.isEmpty ? describeError(e) : null;
         _loading = false;
         _refreshing = false;
       });

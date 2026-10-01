@@ -1,3 +1,4 @@
+import 'package:prabhix_api_core/prabhix_api_core.dart' show describeError;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -47,16 +48,16 @@ class _HealthScreenState extends State<HealthScreen> {
       if (!mounted || data is! Map) return;
       final components = data['components'];
       setState(() {
-        _status = '${data['status'] ?? 'unknown'}';
+        _status = data['status'] == 'UP' ? 'Everything is running' : _sentence(data['status'] ?? 'unknown');
         _parts = components is List
             ? [
                 for (final row in components)
-                  if (row is Map) '${row['name']}: ${row['status']}',
+                  if (row is Map) '${_sentence(row['name'])}: ${row['status'] == 'UP' ? 'OK' : _sentence(row['status'])}',
               ]
             : const [];
       });
     } catch (e) {
-      if (mounted) setState(() => _status = '$e');
+      if (mounted) setState(() => _status = describeError(e));
     }
   }
 
@@ -82,7 +83,8 @@ class StandingScreen extends StatefulWidget {
 }
 
 class _StandingScreenState extends State<StandingScreen> {
-  String _text = 'Loading…';
+  Map<String, dynamic>? _standing;
+  String? _error;
 
   @override
   void initState() {
@@ -94,20 +96,76 @@ class _StandingScreenState extends State<StandingScreen> {
     try {
       final res = await context.read<AppState>().api.dio.get<dynamic>('commons/standing');
       if (!mounted) return;
-      setState(() => _text = '${res.data}');
+      final data = res.data;
+      setState(() {
+        _standing = data is Map ? Map<String, dynamic>.from(data) : const {};
+        _error = null;
+      });
     } catch (e) {
-      if (mounted) setState(() => _text = '$e');
+      if (mounted) setState(() => _error = describeError(e));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final s = _standing;
+    final banned = s?['banned'] == true;
+    final trusted = s?['trusted'] == true;
     return ShopPage(
       title: 'Standing',
-      child: Padding(padding: const EdgeInsets.all(20), child: Text(_text)),
+      subtitle: 'Your record in the shared catalog',
+      child: _error != null
+          ? ShopEmpty(title: 'Could not load', subtitle: _error!, icon: Icons.cloud_off_rounded)
+          : s == null
+              ? const Center(child: CircularProgressIndicator())
+              : ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+                  children: [
+                    KpiTile(
+                      label: 'Status',
+                      value: banned ? 'Blocked' : trusted ? 'Trusted' : 'Contributor',
+                      tone: banned ? KpiTone.danger : trusted ? KpiTone.accent : KpiTone.neutral,
+                    ),
+                    const SizedBox(height: 10),
+                    KpiTile(label: 'Accepted spares', value: '${s['accepted'] ?? 0}', tone: KpiTone.accent),
+                    const SizedBox(height: 10),
+                    KpiTile(label: 'Rejected spares', value: '${s['rejected'] ?? 0}', tone: KpiTone.warning),
+                    const SizedBox(height: 14),
+                    Text(
+                      banned
+                          ? 'New spares from this account are not accepted into the shared catalog.'
+                          : trusted
+                              ? 'Spares you share go live without waiting for review.'
+                              : 'Spares you share are reviewed before every shop sees them. Accepted ones build trust.',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
     );
   }
 }
+
+/// `JOIN_REQUEST_APPROVED` → `Join request approved`.
+String _sentence(Object? code) {
+  final words = '${code ?? ''}'.toLowerCase().replaceAll('_', ' ').trim();
+  if (words.isEmpty) return '';
+  return words[0].toUpperCase() + words.substring(1);
+}
+
+const Map<String, String> _eventLabels = {
+  'PASSWORD_RESET': 'Password reset',
+  'PHONE_OTP': 'Phone sign-in code',
+  'EMAIL_OTP': 'Email sign-in code',
+  'WHATSAPP_OTP': 'WhatsApp sign-in code',
+  'MAGIC_LINK': 'Sign-in link',
+  'USER_INVITED': 'Someone invited you',
+  'JOIN_REQUEST': 'Someone asks to join the shop',
+  'JOIN_REQUEST_APPROVED': 'Your join request is approved',
+  'JOIN_REQUEST_CANCELLED': 'A join request is cancelled',
+  'SALE_COMPLETED': 'Sale completed',
+  'REPAIR_READY': 'Repair ready for pickup',
+  'LOW_STOCK': 'Stock running low',
+};
 
 class NotificationPrefsScreen extends StatefulWidget {
   const NotificationPrefsScreen({super.key});
@@ -161,8 +219,8 @@ class _NotificationPrefsScreenState extends State<NotificationPrefsScreen> {
         children: [
           for (final row in _rows)
             SwitchListTile(
-              title: Text('${row['eventType']}'),
-              subtitle: const Text('Push'),
+              title: Text(_eventLabels[row['eventType']] ?? _sentence(row['eventType'])),
+              subtitle: const Text('Phone notification'),
               value: row['push'] == true,
               onChanged: (value) => _toggle(row, 'push', value),
             ),
