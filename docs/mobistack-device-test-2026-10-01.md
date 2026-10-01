@@ -1,4 +1,4 @@
-﻿# MobiStack device test â€” 2026-10-01
+# MobiStack device test â€” 2026-10-01
 
 Device: Samsung SM-F415F (Android, 1080Ã—2340). App: MobiStack 1.3.1 (10), from Play.
 Account: system admin, shop "Bihar Mobile Union" on the COMPATIBILITY plan until 2026-10-14.
