@@ -18,6 +18,7 @@ const Map<String, String> _featureLabels = {
   'IMPORT': 'Catalog import',
   'REPORTS': 'Reports',
   'MOVEMENTS': 'Stock movements',
+  'AUDIT': 'Audit',
 };
 
 class ProfileScreen extends StatelessWidget {

@@ -21,7 +21,7 @@ class PurchasesScreen extends StatelessWidget {
       onTap: (row) async {
         final id = '${row['id'] ?? ''}';
         if (id.isEmpty) return;
-        final error = await context.read<AppState>().onlinePost('purchases/$id/cancel', {'reason': 'Cancelled on the counter'});
+        final error = await context.read<AppState>().onlinePost('purchases/cancel?id=$id', {'reason': 'Cancelled on the counter'});
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error ?? 'Purchase cancelled')));
       },
