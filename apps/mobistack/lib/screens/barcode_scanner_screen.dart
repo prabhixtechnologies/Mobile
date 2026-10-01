@@ -95,13 +95,18 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                   },
                   onDetectError: (_, __) {},
                   errorBuilder: (context, error, _) => Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
+                    child: Container(
+                      margin: const EdgeInsets.all(24),
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: Px.surface,
+                        borderRadius: BorderRadius.circular(18),
+                      ),
                       child: Text(
                         'The camera did not start (${error.errorCode.name}). '
                         'Allow camera access in Android settings, or type the code below.',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.white),
+                        style: TextStyle(color: Px.ink),
                       ),
                     ),
                   ),
@@ -112,7 +117,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                       width: 260,
                       height: 160,
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.white, width: 2.5),
+                        border: Border.all(color: Px.accent, width: 3),
                         borderRadius: BorderRadius.circular(18),
                       ),
                     ),
@@ -125,10 +130,19 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text(
-                        'Hold the barcode inside the frame',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Px.surface,
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: Text(
+                            'Hold the barcode inside the frame',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Px.ink, fontSize: 15, fontWeight: FontWeight.w600),
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 14),
                       Row(
