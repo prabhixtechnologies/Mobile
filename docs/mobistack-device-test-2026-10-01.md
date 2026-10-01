@@ -63,3 +63,23 @@ had no such exemption and answered 402 to each of those calls. Every "broken" ro
 - Server: payment inbox messages use "Workspace activation" and "14 Oct 2026" (row 22). Existing inbox rows keep their old text.
 
 Not changed: row 10 (hiding Full shop is a product decision) and row 29 (needs the Firebase config file).
+
+## Retest on 1.3.2 (12) — 2026-10-02
+
+Same phone, same shop, after the Play update.
+
+| Check | Result |
+|---|---|
+| Startup | All 200. Slowest was `/compatibility-groups` at 519 ms. No 402. |
+| Home tiles | ₹ Sales opens Reports, Bills opens Sales, Repairs opens the job list, Low stock opens Stock |
+| Back from Stock | Returns to Home. The app stays open. |
+| New repair | Customer name, phone, phone model, problem, IMEI, and Estimate ₹ (the last one scrolls into view above the keyboard) |
+| Repair list | JOB000001 is there |
+| Open that job | **500.** The app called `/repairs/{id}`; the server only has `/repairs?id=` |
+| Same shape elsewhere | Sales detail, void, invoice, inbox mark-read, purchase cancel, adding a phone to a private note, and adding a variant all put the id in the path |
+| Billing | Customer banner, Compatibility shows **Current** |
+| Catalog iPhone 11 | Three calls, 421 + 71 + 56 ms, part shown |
+| Scanner | Frame, hint, torch, and Type the code. Camera view stayed black (phone face down; permission is granted) |
+| More | Standing, import, purchases, movements, customers, suppliers, members, workspaces, reports, notifications, audit, health, support, settings, profile and private notes all load. Inbox still shows the old payment sentence, which was written before the wording change |
+
+Fixed in 1.3.3 (13): those calls now use `?id=`, which is what the server maps. Audit rows read as sentences, and Profile labels Audit.

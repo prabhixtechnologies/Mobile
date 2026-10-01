@@ -47,7 +47,7 @@ class PrivateNotesScreen extends StatelessWidget {
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No matching phone in the catalog')));
             return;
           }
-          final error = await state.onlinePost('compatibility-groups/$id/devices', {'deviceModelId': deviceId});
+          final error = await state.onlinePost('compatibility-groups/devices?id=$id', {'deviceModelId': deviceId});
           if (!context.mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error ?? 'Phone added')));
           return;

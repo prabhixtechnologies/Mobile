@@ -86,7 +86,7 @@ class RepairsScreen extends StatelessWidget {
     final state = context.read<AppState>();
     if (state.online) {
       try {
-        final res = await state.api.dio.get<dynamic>('repairs/${job.id}');
+        final res = await state.api.dio.get<dynamic>('repairs', queryParameters: {'id': job.id});
         if (res.data is Map) {
           final row = res.data as Map;
           detail = [
@@ -129,7 +129,7 @@ class RepairsScreen extends StatelessWidget {
         );
         return;
       }
-      final error = await state.onlinePost('repairs/${job.id}/parts', {
+      final error = await state.onlinePost('repairs/parts?id=${job.id}', {
         'variantId': variant.id,
         'quantity': 1,
         'unitPrice': variant.retailPrice,
@@ -141,7 +141,7 @@ class RepairsScreen extends StatelessWidget {
     if (action == 'labor') {
       final values = await askCounterFields(context, title: 'Labor', labels: const ['Charge']);
       if (values == null || !context.mounted) return;
-      final error = await state.onlinePut('repairs/${job.id}', {
+      final error = await state.onlinePut('repairs?id=${job.id}', {
         'laborCharge': double.tryParse(values.first) ?? 0,
       });
       if (!context.mounted) return;
@@ -152,7 +152,7 @@ class RepairsScreen extends StatelessWidget {
     if (values == null || !context.mounted) return;
     final amount = double.tryParse(values.first) ?? 0;
     if (amount <= 0) return;
-    final error = await state.onlinePost('repairs/${job.id}/payments', {
+    final error = await state.onlinePost('repairs/payments?id=${job.id}', {
       'payments': [
         {'method': 'CASH', 'amount': amount},
       ],

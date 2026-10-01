@@ -47,7 +47,7 @@ class InboxScreen extends StatelessWidget {
           return;
         }
         try {
-          await state.api.dio.post<void>('inbox/$id/read');
+          await state.api.dio.post<void>('inbox/read', queryParameters: {'id': id});
           if (!context.mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Marked read')),

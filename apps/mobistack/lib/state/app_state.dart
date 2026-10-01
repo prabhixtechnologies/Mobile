@@ -303,7 +303,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       final productId = product.data is Map ? '${(product.data as Map)['id']}' : '';
       if (productId.isEmpty) return 'Could not create the part';
       await api.dio.post<dynamic>(
-        'products/$productId/variants',
+        'products/variants?id=$productId',
         data: {
           'variantName': name,
           'sku': sku,
@@ -331,11 +331,11 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   }) async {
     if (!online) return 'Offline · connect to add a variant';
     try {
-      final current = await api.dio.get<dynamic>('variants/$variantId');
+      final current = await api.dio.get<dynamic>('variants', queryParameters: {'id': variantId});
       final productId = current.data is Map ? '${(current.data as Map)['productId'] ?? ''}' : '';
       if (productId.isEmpty) return 'Could not find the product';
       await api.dio.post<dynamic>(
-        'products/$productId/variants',
+        'products/variants?id=$productId',
         data: {
           'variantName': name,
           'sku': sku,
@@ -436,7 +436,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   Future<String?> voidSale(String saleId) async {
     if (!online) return 'Offline · connect to void a sale';
     try {
-      await api.dio.post<dynamic>('sales/$saleId/void', data: {'reason': 'Voided on the counter'});
+      await api.dio.post<dynamic>('sales/void', queryParameters: {'id': saleId}, data: {'reason': 'Voided on the counter'});
       await refreshAll();
       return null;
     } catch (e) {
@@ -474,7 +474,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  Future<String> invoiceHtml(String saleId) => api.getText('sales/$saleId/invoice');
+  Future<String> invoiceHtml(String saleId) => api.getText('sales/invoice?id=$saleId');
 
   List<CachedVariant> searchVariants(String query) {
     final q = query.trim().toLowerCase();

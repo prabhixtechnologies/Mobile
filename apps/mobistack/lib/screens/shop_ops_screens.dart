@@ -15,7 +15,7 @@ class AuditScreen extends StatelessWidget {
     return LiveApiListScreen(
       title: 'Audit',
       path: 'audit',
-      titleOf: (row) => '${row['action'] ?? row['eventType'] ?? 'Event'}',
+      titleOf: (row) => _sentence(row['action'] ?? row['eventType'] ?? 'Event'),
       subtitleOf: (row) => '${row['actorName'] ?? row['createdAt'] ?? ''}',
       emptyTitle: 'No audit rows',
       emptySubtitle: 'Shop changes land here.',

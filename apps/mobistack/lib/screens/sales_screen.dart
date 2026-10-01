@@ -99,7 +99,7 @@ class _SalesScreenState extends State<SalesScreen> {
     Map data = {};
     if (state.online) {
       try {
-        final res = await state.api.dio.get<dynamic>('sales/${sale.id}');
+        final res = await state.api.dio.get<dynamic>('sales', queryParameters: {'id': sale.id});
         if (res.data is Map) data = res.data as Map;
       } catch (_) {}
     }
