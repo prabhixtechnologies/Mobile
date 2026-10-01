@@ -1,3 +1,4 @@
+import 'package:prabhix_api_core/prabhix_api_core.dart' show describeError;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -106,7 +107,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = _device == null ? '$e' : null;
+        _error = _device == null ? describeError(e) : null;
         _loading = false;
         _refreshing = false;
       });

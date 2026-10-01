@@ -64,7 +64,14 @@ class ShellScreen extends StatelessWidget {
     final selected = _selectedTab(routes, loc);
     final bottom = MediaQuery.paddingOf(context).bottom;
 
-    return Scaffold(
+    // Shell screens are reached with `go`, which leaves nothing beneath them, so the system
+    // Back would close the app from Stock or Catalog. Only the first tab may exit.
+    return PopScope(
+      canPop: loc == routes.first,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) context.go(routes.first);
+      },
+      child: Scaffold(
       backgroundColor: Px.bg,
       body: child,
       bottomNavigationBar: Padding(
@@ -100,6 +107,7 @@ class ShellScreen extends StatelessWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }

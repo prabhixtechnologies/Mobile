@@ -17,9 +17,11 @@ class ShopSyncBar extends StatelessWidget {
     final offline = !state.online;
     final pending = state.pendingOps;
     final cached = state.servingFromCache;
+    final problem = state.outboxProblem;
     if (!offline && pending == 0 && !cached) {
       return const SizedBox.shrink();
     }
+    final changes = '$pending change${pending == 1 ? '' : 's'}';
 
     // Fill and ink from the same family. These were the solid status colour at 10-14% with
     // the solid colour written over it, which is the pairing the tokens do not assert - each
@@ -33,11 +35,18 @@ class ShopSyncBar extends StatelessWidget {
             Px.warningSubtleInk,
             Icons.cloud_off_rounded,
             pending > 0
-                ? 'Offline · $pending sale${pending == 1 ? '' : 's'} queued'
+                ? 'Offline · $changes queued'
                 : (cached
                     ? 'Offline · showing last shop sync'
                     : 'Offline · waiting for connection'),
           )
+        : pending > 0 && problem != null
+            ? (
+                Px.dangerSubtle,
+                Px.dangerSubtleInk,
+                Icons.error_outline_rounded,
+                '$changes not saved · $problem',
+              )
         : pending > 0
             ? (
                 Px.infoSubtle,
@@ -55,7 +64,11 @@ class ShopSyncBar extends StatelessWidget {
     final bar = Material(
       color: bg,
       child: InkWell(
-        onTap: offline ? null : () => state.refreshAll(),
+        onTap: offline
+            ? null
+            : problem != null
+                ? () => _resolveStuck(context, changes, problem)
+                : () => state.refreshAll(),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
           child: Row(
@@ -73,7 +86,7 @@ class ShopSyncBar extends StatelessWidget {
               ),
               if (!offline)
                 Text(
-                  'Sync',
+                  problem != null ? 'Fix' : 'Sync',
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
                         color: fg,
                         fontSize: 12,
@@ -86,6 +99,22 @@ class ShopSyncBar extends StatelessWidget {
     );
     if (skipMotionForTests) return bar;
     return bar.animate().fadeIn(duration: 280.ms);
+  }
+
+  Future<void> _resolveStuck(BuildContext context, String changes, String problem) async {
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('$changes not saved'),
+        content: Text('$problem\n\nThey are kept on this phone. Try again, or discard them.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, 'discard'), child: const Text('Discard')),
+          FilledButton(onPressed: () => Navigator.pop(context, 'retry'), child: const Text('Try again')),
+        ],
+      ),
+    );
+    if (choice == 'retry') await state.refreshAll();
+    if (choice == 'discard') await state.discardQueued();
   }
 }
 

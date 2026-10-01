@@ -135,7 +135,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
         await _refreshLive();
       }
     } catch (e) {
-      error = '$e';
+      error = describeError(e);
       phase = AuthPhase.signedOut;
       notifyListeners();
     }
@@ -166,7 +166,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       await identity.signIn(promptOverride: create ? 'create' : null);
       await _loadSession();
     } catch (e) {
-      error = '$e';
+      error = describeError(e);
       phase = AuthPhase.signedOut;
     } finally {
       busy = false;
@@ -223,6 +223,16 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     if (online) {
       unawaited(sync.pullOfflineLists());
     }
+  }
+
+  /// Why queued changes did not go out, or null when nothing is stuck.
+  String? get outboxProblem => pendingOps > 0 ? sync.lastFlushError : null;
+
+  Future<void> discardQueued() async {
+    await sync.discardOutbox();
+    pendingOps = await sync.pendingCount();
+    notifyListeners();
+    await refreshAll();
   }
 
   /// Queues a sync operation. Returns a failure message, or null when the
@@ -307,7 +317,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       await refreshAll();
       return null;
     } catch (e) {
-      return '$e';
+      return describeError(e);
     }
   }
 
@@ -338,7 +348,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       await refreshAll();
       return null;
     } catch (e) {
-      return '$e';
+      return describeError(e);
     }
   }
 
@@ -419,7 +429,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
         invoiceNumber: invoice.isEmpty ? null : invoice,
       );
     } catch (e) {
-      return SaleOutcome.failed('$e');
+      return SaleOutcome.failed(describeError(e));
     }
   }
 
@@ -430,7 +440,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       await refreshAll();
       return null;
     } catch (e) {
-      return '$e';
+      return describeError(e);
     }
   }
 
@@ -449,7 +459,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       await refreshAll();
       return null;
     } catch (e) {
-      return '$e';
+      return describeError(e);
     }
   }
 
@@ -460,7 +470,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       await refreshAll();
       return null;
     } catch (e) {
-      return '$e';
+      return describeError(e);
     }
   }
 
@@ -691,7 +701,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       await _loadSession();
       return null;
     } catch (e) {
-      return '$e';
+      return describeError(e);
     }
   }
 
@@ -701,7 +711,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       await _loadSession();
       return null;
     } catch (e) {
-      return '$e';
+      return describeError(e);
     }
   }
 
@@ -715,7 +725,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       await _loadSession();
       return null;
     } catch (e) {
-      return '$e';
+      return describeError(e);
     }
   }
 

@@ -70,7 +70,7 @@ class _BillingScreenState extends State<BillingScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = _overview == null ? '$e' : null;
+        _error = _overview == null ? describeError(e) : null;
         _loading = false;
       });
     }
@@ -104,7 +104,7 @@ class _BillingScreenState extends State<BillingScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = '$e';
+        _error = describeError(e);
         _busy = false;
       });
     }
@@ -128,7 +128,7 @@ class _BillingScreenState extends State<BillingScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = '$e';
+        _error = describeError(e);
         _busy = false;
       });
     }
@@ -190,7 +190,7 @@ class _BillingScreenState extends State<BillingScreen> {
                           _Banner(
                             tone: Px.focus,
                             text:
-                                'Razorpay is not configured on the server yet — DEV confirm may still activate a plan.',
+                                'Online payment is not switched on yet. Write to Support and we will activate your plan.',
                           ),
                         if (overview?.subscription != null) ...[
                           _SectionTitle('Current plan'),
@@ -223,7 +223,7 @@ class _BillingScreenState extends State<BillingScreen> {
                             subtitle:
                                 '${plan.description ?? ''}\n${formatInr(plan.amount)} / ${(plan.interval ?? 'MONTHLY').toLowerCase()}',
                             trailing: FilledButton(
-                              onPressed: _busy || me?.planCode == plan.code
+                              onPressed: _busy || _isCurrent(me?.planCode, overview, plan.code)
                                   ? null
                                   : () => _startPay(plan.code),
                               style: FilledButton.styleFrom(
@@ -231,7 +231,7 @@ class _BillingScreenState extends State<BillingScreen> {
                                 foregroundColor: Px.accentInk,
                               ),
                               child: Text(
-                                me?.planCode == plan.code
+                                _isCurrent(me?.planCode, overview, plan.code)
                                     ? 'Current'
                                     : 'Activate',
                               ),
@@ -260,6 +260,12 @@ class _BillingScreenState extends State<BillingScreen> {
       ),
     );
   }
+}
+
+bool _isCurrent(String? mePlan, BillingOverview? overview, String code) {
+  final sub = overview?.subscription;
+  final live = sub != null && (sub.status == null || sub.status == 'ACTIVE');
+  return mePlan == code || (live && sub.planCode == code);
 }
 
 class _SectionTitle extends StatelessWidget {

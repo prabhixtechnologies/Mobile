@@ -94,10 +94,86 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                     _onCode(code);
                   },
                   onDetectError: (_, __) {},
+                  errorBuilder: (context, error, _) => Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        'The camera did not start (${error.errorCode.name}). '
+                        'Allow camera access in Android settings, or type the code below.',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ),
+                IgnorePointer(
+                  child: Center(
+                    child: Container(
+                      width: 260,
+                      height: 160,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.white, width: 2.5),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: 24 + MediaQuery.paddingOf(context).bottom,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Hold the barcode inside the frame',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          IconButton.filledTonal(
+                            tooltip: 'Torch',
+                            onPressed: () => _controller?.toggleTorch(),
+                            icon: const Icon(Icons.flashlight_on_rounded),
+                          ),
+                          const SizedBox(width: 12),
+                          FilledButton.icon(
+                            onPressed: _typeCode,
+                            icon: const Icon(Icons.keyboard_rounded),
+                            label: const Text('Type the code'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
     );
+  }
+
+  Future<void> _typeCode() async {
+    final field = TextEditingController();
+    final code = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Barcode or SKU'),
+        content: TextField(
+          controller: field,
+          autofocus: true,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (value) => Navigator.pop(context, value.trim()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, field.text.trim()), child: const Text('Look up')),
+        ],
+      ),
+    );
+    if (code != null && code.isNotEmpty) await _onCode(code);
   }
 }
 

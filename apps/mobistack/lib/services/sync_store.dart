@@ -267,10 +267,23 @@ class SyncStore {
     return (rows.first['n'] as int?) ?? 0;
   }
 
+  /// Why the last send left changes behind, in words for the person at the counter.
+  /// Null when the outbox emptied or has not been tried.
+  String? lastFlushError;
+
+  Future<void> discardOutbox() async {
+    final db = await _open();
+    await db.delete('outbox');
+    lastFlushError = null;
+  }
+
   Future<List<Map<String, dynamic>>> flush() async {
     final db = await _open();
     final rows = await db.query('outbox', orderBy: 'created_at ASC');
-    if (rows.isEmpty) return const [];
+    if (rows.isEmpty) {
+      lastFlushError = null;
+      return const [];
+    }
     final operations = rows
         .map((r) => jsonDecode('${r['payload']}') as Map<String, dynamic>)
         .toList();
@@ -282,11 +295,16 @@ class SyncStore {
               ? res.data['results'] as List
               : const [];
       final rejected = <String>{};
+      String? firstReason;
       for (final row in results.whereType<Map>()) {
         final status = '${row['status'] ?? ''}';
         final key = '${row['idempotencyKey'] ?? ''}';
-        if (status != 'SYNCED' && key.isNotEmpty) rejected.add(key);
+        if (status != 'SYNCED' && key.isNotEmpty) {
+          rejected.add(key);
+          firstReason ??= '${row['message'] ?? 'The server refused the change'}';
+        }
       }
+      lastFlushError = firstReason;
       for (final op in operations) {
         final key = '${op['idempotencyKey']}';
         if (!rejected.contains(key)) {
@@ -294,8 +312,12 @@ class SyncStore {
         }
       }
       return results.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
-    } catch (_) {
-      return const [];
+    } catch (e) {
+      lastFlushError = describeError(e);
+      return [
+        for (final op in operations)
+          {'idempotencyKey': op['idempotencyKey'], 'status': 'FAILED', 'message': lastFlushError},
+      ];
     }
   }
 

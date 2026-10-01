@@ -12,7 +12,7 @@ class WorkspacesScreen extends StatelessWidget {
     final orgs = context.watch<AppState>().me?.organizations ?? const [];
     return ShopPage(
       title: 'Workspaces',
-      subtitle: orgs.isEmpty ? 'No other shops on this login' : '${orgs.length} shops',
+      subtitle: orgs.isEmpty ? 'No other shops on this login' : orgs.length == 1 ? '1 shop on this login' : '${orgs.length} shops on this login',
       child: orgs.isEmpty
           ? const ShopEmpty(
               title: 'One shop on this login',
@@ -26,7 +26,9 @@ class WorkspacesScreen extends StatelessWidget {
                 final o = orgs[i];
                 return ShopListTile(
                   title: o.name,
-                  subtitle: o.slug ?? o.id,
+                  subtitle: o.id == context.read<AppState>().me?.selectedOrganizationId
+                      ? 'Open now'
+                      : 'Tap to switch to this shop',
                   trailing: const Icon(Icons.chevron_right_rounded),
                   onTap: () async {
                     await context.read<AppState>().api.selectOrganization(o.id);

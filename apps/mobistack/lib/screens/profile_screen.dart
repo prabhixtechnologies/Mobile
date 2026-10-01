@@ -5,6 +5,21 @@ import '../state/app_state.dart';
 import '../theme/prabhix_theme.dart';
 import '../widgets/shop_ui.dart';
 
+const Map<String, String> _featureLabels = {
+  'COMPATIBILITY': 'Fitment catalog',
+  'DASHBOARD': 'Home dashboard',
+  'SALES': 'Sales',
+  'REPAIRS': 'Repairs',
+  'INVENTORY': 'Stock',
+  'PURCHASES': 'Purchases',
+  'CUSTOMERS': 'Customers',
+  'SUPPLIERS': 'Suppliers',
+  'MEMBERS': 'Team members',
+  'IMPORT': 'Catalog import',
+  'REPORTS': 'Reports',
+  'MOVEMENTS': 'Stock movements',
+};
+
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
@@ -21,15 +36,13 @@ class ProfileScreen extends StatelessWidget {
                 Text(me.displayName, style: Theme.of(context).textTheme.headlineSmall),
                 const SizedBox(height: 6),
                 Text(me.email, style: Theme.of(context).textTheme.bodyLarge),
-                const SizedBox(height: 4),
-                Text('User id: ${me.id}', style: Theme.of(context).textTheme.bodySmall),
                 const SizedBox(height: 20),
-                Text('Features', style: Theme.of(context).textTheme.titleMedium),
+                Text('On your plan', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 10),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: me.features.map((f) => Chip(label: Text(f))).toList(),
+                  children: me.features.map((f) => Chip(label: Text(_featureLabels[f] ?? f))).toList(),
                 ),
                 const SizedBox(height: 20),
                 ShopListTile(

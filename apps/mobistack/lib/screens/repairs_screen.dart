@@ -26,25 +26,46 @@ class RepairsScreen extends StatelessWidget {
     final values = await askCounterFields(
       context,
       title: 'New repair',
-      labels: const ['Problem', 'IMEI', 'Estimate'],
+      labels: const ['Customer name', 'Customer phone', 'Phone model', 'Problem', 'IMEI', 'Estimate ₹'],
     );
     if (values == null || !context.mounted) return;
-    if (values[0].isEmpty) {
+    String field(int i) => values.length > i ? values[i].trim() : '';
+    final name = field(0);
+    final phone = field(1);
+    final model = field(2);
+    final problem = field(3);
+    if (problem.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Describe the problem')),
       );
       return;
     }
     final state = context.read<AppState>();
-    final customer = state.customers.isEmpty ? null : state.customers.first;
+    String digits(String? s) => (s ?? '').replaceAll(RegExp(r'\D'), '');
+    final phoneDigits = digits(phone);
+    CachedCustomer? customer;
+    if (phoneDigits.length >= 6) {
+      for (final c in state.customers) {
+        if (digits(c.phone).endsWith(phoneDigits) || phoneDigits.endsWith(digits(c.phone)) && digits(c.phone).length >= 6) {
+          customer = c;
+          break;
+        }
+      }
+    }
+    final notes = [
+      if (customer == null && name.isNotEmpty) 'Customer: $name',
+      if (customer == null && phone.isNotEmpty) 'Phone: $phone',
+      if (model.isNotEmpty) 'Device: $model',
+    ].join(' · ');
     final result = await state.submitOp(
       type: 'REPAIR',
       body: {
         'repair': {
-          'problem': values[0],
-          if (values.length > 1 && values[1].isNotEmpty) 'imei': values[1],
-          if (values.length > 2 && values[2].isNotEmpty) 'estimatedCost': double.tryParse(values[2]) ?? 0,
+          'problem': model.isEmpty ? problem : '$model — $problem',
+          if (field(4).isNotEmpty) 'imei': field(4),
+          if (field(5).isNotEmpty) 'estimatedCost': double.tryParse(field(5)) ?? 0,
           if (customer != null) 'customerId': customer.id,
+          if (notes.isNotEmpty) 'customerNotes': notes,
         },
       },
     );
