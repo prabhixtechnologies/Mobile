@@ -78,6 +78,15 @@ void main() {
     await tester.pumpWidget(wrap(state, const LoginScreen()));
     await tester.pump();
     expect(find.text('Login with Prabhix Identity'), findsOneWidget);
+    expect(find.text('MobiStack'), findsOneWidget);
+    expect(find.text('Powered by'), findsOneWidget);
+    expect(find.text('Prabhix Technologies'), findsOneWidget);
+    final ink = tester.widget<Text>(find.text('MobiStack')).style!.color!;
+    final ground = tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor!;
+    final lighter = ink.computeLuminance() > ground.computeLuminance() ? ink : ground;
+    final darker = identical(lighter, ink) ? ground : ink;
+    final contrast = (lighter.computeLuminance() + 0.05) / (darker.computeLuminance() + 0.05);
+    expect(contrast, greaterThan(4.5));
     state.dispose();
   });
 

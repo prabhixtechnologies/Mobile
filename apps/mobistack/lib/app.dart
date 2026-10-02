@@ -103,29 +103,7 @@ class _MobiStackAppState extends State<MobiStackApp> {
       routes: [
         GoRoute(
           path: '/splash',
-          builder: (_, __) => Atmosphere(
-            intense: true,
-            child: Scaffold(
-              backgroundColor: Colors.transparent,
-              body: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const BrandMark(),
-                    const SizedBox(height: 28),
-                    SizedBox(
-                      width: 28,
-                      height: 28,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.4,
-                        color: Px.accent,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          builder: (_, __) => const SplashScreen(),
         ),
         GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
         GoRoute(path: '/start', builder: (_, __) => const ShopStartScreen()),

@@ -3,7 +3,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
 import '../state/app_state.dart';
-import '../theme/prabhix_theme.dart';
 import '../widgets/chrome.dart';
 
 class LoginScreen extends StatelessWidget {
@@ -12,69 +11,58 @@ class LoginScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
+    final colors = brandColors(context);
     final bottom = MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
-      body: Atmosphere(
-        intense: true,
-        child: SafeArea(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(28, 20, 28, 20 + bottom),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                FadeSlide(
-                  child: const Align(
-                    alignment: Alignment.centerLeft,
-                    child: BrandMark(),
-                  ),
+      backgroundColor: colors.bg,
+      body: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(28, 20, 28, 16 + bottom),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Spacer(),
+              const FadeSlide(child: OpeningBrand()),
+              const SizedBox(height: 18),
+              FadeSlide(
+                delay: 80.ms,
+                child: Text(
+                  'Inventory, sales, and repairs.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: colors.inkMuted,
+                        fontSize: 17,
+                      ),
                 ),
-                const Spacer(flex: 2),
-                FadeSlide(delay: 80.ms, child: const HeroArc()),
-                const SizedBox(height: 12),
-                FadeSlide(
-                  delay: 120.ms,
+              ),
+              const Spacer(),
+              if (state.error != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
                   child: Text(
-                    'Shop floor\nin your pocket.',
-                    style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                          fontSize: 42,
-                          height: 1.02,
-                        ),
+                    state.error!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: colors.danger),
                   ),
                 ),
-                const SizedBox(height: 16),
-                FadeSlide(
-                  delay: 180.ms,
-                  child: Text(
-                    'Inventory, sales, and repairs.',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Px.muted,
-                          fontSize: 17,
-                        ),
-                  ),
+              FadeSlide(
+                delay: 140.ms,
+                child: PxPrimaryButton(
+                  label: state.busy ? 'Signing in…' : 'Login with Prabhix Identity',
+                  busy: state.busy,
+                  icon: Icons.arrow_forward_rounded,
+                  onPressed: state.busy ? null : () => state.signIn(),
                 ),
-                const Spacer(flex: 3),
-                if (state.error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 14),
-                    child: Text(state.error!, style: TextStyle(color: Px.danger)),
-                  ),
-                FadeSlide(
-                  delay: 240.ms,
-                  child: PxPrimaryButton(
-                    label: state.busy ? 'Signing in…' : 'Login with Prabhix Identity',
-                    busy: state.busy,
-                    icon: Icons.arrow_forward_rounded,
-                    onPressed: state.busy ? null : () => state.signIn(),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextButton(
-                  onPressed: state.busy ? null : () => state.signIn(create: true),
-                  child: const Text('Create account'),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 4),
+              TextButton(
+                onPressed: state.busy ? null : () => state.signIn(create: true),
+                child: Text('Create account', style: TextStyle(color: colors.accentText)),
+              ),
+              const SizedBox(height: 12),
+              const PoweredByPrabhix(),
+            ],
           ),
         ),
       ),
