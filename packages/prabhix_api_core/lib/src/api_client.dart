@@ -720,11 +720,11 @@ class ApiClient {
     }
   }
 
-  Future<CheckoutOrder> joinGroupCheckout(String joinCode) async {
+  Future<CheckoutOrder> joinGroupCheckout(String joinCode, {required String planCode}) async {
     try {
       final res = await _dio.post<Map<String, dynamic>>(
         'groups/join/checkout',
-        data: {'joinCode': joinCode},
+        data: {'joinCode': joinCode, 'planCode': planCode},
       );
       return CheckoutOrder.fromJson(Map<String, dynamic>.from(res.data ?? {}));
     } on DioException catch (e) {

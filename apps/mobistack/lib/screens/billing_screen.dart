@@ -217,7 +217,7 @@ class _BillingScreenState extends State<BillingScreen> {
                           ),
                         ],
                         _SectionTitle('Plans'),
-                        if ((overview?.plans ?? []).where((plan) => plan.code != 'FULL_SHOP').isEmpty)
+                        if ((overview?.plans ?? []).isEmpty)
                           Padding(
                             padding: const EdgeInsets.all(12),
                             child: Text(
@@ -225,8 +225,7 @@ class _BillingScreenState extends State<BillingScreen> {
                               style: TextStyle(color: Px.muted),
                             ),
                           ),
-                        for (final plan in (overview?.plans ?? const <BillingPlan>[])
-                            .where((plan) => plan.code != 'FULL_SHOP'))
+                        for (final plan in (overview?.plans ?? const <BillingPlan>[]))
                           _PlanCard(
                             title: plan.name,
                             subtitle:
