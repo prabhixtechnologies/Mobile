@@ -17,6 +17,7 @@ import 'package:mobistack/screens/purchases_screen.dart';
 import 'package:mobistack/screens/repairs_screen.dart';
 import 'package:mobistack/screens/sales_screen.dart';
 import 'package:mobistack/screens/settings_screen.dart';
+import 'package:mobistack/widgets/chrome.dart';
 import 'package:mobistack/services/counter_payloads.dart';
 import 'package:mobistack/services/open_bill.dart';
 import 'package:mobistack/screens/suppliers_screen.dart';
@@ -78,16 +79,24 @@ void main() {
     await tester.pumpWidget(wrap(state, const LoginScreen()));
     await tester.pump();
     expect(find.text('Login with Prabhix Identity'), findsOneWidget);
+    expect(find.text('Shop floor\nin your pocket.'), findsOneWidget);
+    expect(find.text('Powered by'), findsNothing);
+    state.dispose();
+  });
+
+  testWidgets('startup splash shows the brand instead of a spinner', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: SplashScreen()));
+    await tester.pump();
     expect(find.text('MobiStack'), findsOneWidget);
     expect(find.text('Powered by'), findsOneWidget);
     expect(find.text('Prabhix Technologies'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
     final ink = tester.widget<Text>(find.text('MobiStack')).style!.color!;
     final ground = tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor!;
     final lighter = ink.computeLuminance() > ground.computeLuminance() ? ink : ground;
     final darker = identical(lighter, ink) ? ground : ink;
     final contrast = (lighter.computeLuminance() + 0.05) / (darker.computeLuminance() + 0.05);
     expect(contrast, greaterThan(4.5));
-    state.dispose();
   });
 
   testWidgets('home and offline sync strip', (tester) async {

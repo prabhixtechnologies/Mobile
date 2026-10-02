@@ -412,26 +412,23 @@ class _Gate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = brandColors(context);
-    return Scaffold(
-      backgroundColor: colors.bg,
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(28, 28, 28, 20),
-          children: [
-            const OpeningBrand(markSize: 72),
-            const SizedBox(height: 28),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: colors.ink),
-            ),
-            const SizedBox(height: 10),
-            Text(body, style: TextStyle(color: colors.inkMuted, fontSize: 16, height: 1.4)),
-            const SizedBox(height: 28),
-            ...children,
-            const SizedBox(height: 36),
-            const PoweredByPrabhix(),
-          ],
+    return Atmosphere(
+      intense: true,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(28, 24, 28, 28),
+            children: [
+              const BrandMark(),
+              const SizedBox(height: 28),
+              Text(title, style: Theme.of(context).textTheme.headlineMedium),
+              const SizedBox(height: 10),
+              Text(body, style: TextStyle(color: Px.muted, fontSize: 16, height: 1.4)),
+              const SizedBox(height: 28),
+              ...children,
+            ],
+          ),
         ),
       ),
     );
