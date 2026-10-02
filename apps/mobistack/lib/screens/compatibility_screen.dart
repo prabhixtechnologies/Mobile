@@ -109,11 +109,11 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
                     ? 'Public specs'
                     : '${library.phones.length} phones · ${_book.groups.length} saved spares';
 
-    return PopScope(
-      // Brand and category are steps inside this screen, so system Back walks them first.
-      canPop: category == null,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && category != null) _back();
+    return _StepBack(
+      onBack: () {
+        if (_category == null || ModalRoute.of(context)?.isCurrent != true) return false;
+        _back();
+        return true;
       },
       child: Atmosphere(
       child: Scaffold(
@@ -264,6 +264,24 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
     return rows.where((phone) {
       return '${phone.name} ${phone.modelCode} ${phone.resolution}'.toLowerCase().contains(q);
     }).toList();
+  }
+}
+
+/// Brand and category are steps inside the catalog, so system Back walks them first.
+/// A PopScope would also fire the shell's own handler, which sends the shop to Home.
+class _StepBack extends StatelessWidget {
+  const _StepBack({required this.onBack, required this.child});
+
+  final bool Function() onBack;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (Router.maybeOf(context) == null) return child;
+    return BackButtonListener(
+      onBackButtonPressed: () async => onBack(),
+      child: child,
+    );
   }
 }
 
