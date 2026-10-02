@@ -133,6 +133,16 @@ class IdentityClient {
       await tokenStore.saveOidcTokens(tokens);
       completer.complete(tokens.accessToken);
       return tokens.accessToken;
+    } on FlutterAppAuthPlatformException catch (e, st) {
+      // Identity refused the refresh token: the account is gone or its sign-in was revoked.
+      // Retrying cannot help, so the session ends here instead of failing every request.
+      if (e.platformErrorDetails.error == 'invalid_grant') {
+        await tokenStore.clearAuthSecrets();
+        completer.complete(null);
+        return null;
+      }
+      completer.completeError(e, st);
+      rethrow;
     } catch (e, st) {
       completer.completeError(e, st);
       rethrow;

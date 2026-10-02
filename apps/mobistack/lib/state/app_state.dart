@@ -608,7 +608,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       debugPrint('live session failed: $e\n$st');
       if (e is ApiException && e.statusCode == 401) {
         await recovery.handleApiException(e);
-        error = e.message;
+        error = 'Your session has ended. Sign in again.';
         phase = AuthPhase.signedOut;
         notifyListeners();
         return;
