@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../models/mail_models.dart';
@@ -199,12 +202,18 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
             onSelected: (v) async {
               if (v == 'unread' && summary != null) {
                 await state.markRead(summary!, read: false);
+              } else if (v == 'snooze') {
+                final tomorrow = DateTime.now().add(const Duration(days: 1));
+                final morning = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 8);
+                await state.snoozeThreads([widget.threadId], morning);
+                if (context.mounted) Navigator.of(context).maybePop();
               } else if (v == 'move') {
                 await _showMoveSheet();
               }
             },
             itemBuilder: (_) => const [
               PopupMenuItem(value: 'unread', child: Text('Mark unread')),
+              PopupMenuItem(value: 'snooze', child: Text('Snooze until tomorrow')),
               PopupMenuItem(value: 'move', child: Text('Move to…')),
             ],
           ),
@@ -365,10 +374,7 @@ class _MessageCard extends StatelessWidget {
                   HtmlMailBody(message: message),
                   if (message.attachmentCount > 0) ...[
                     const SizedBox(height: 12),
-                    StatusChip(
-                      label: '${message.attachmentCount} attachment(s)',
-                      tone: ChipTone.neutral,
-                    ),
+                    _AttachmentList(messageId: message.id),
                   ],
                 ] else if (message.body.isNotEmpty) ...[
                   const SizedBox(height: 8),
@@ -384,6 +390,76 @@ class _MessageCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _AttachmentList extends StatefulWidget {
+  const _AttachmentList({required this.messageId});
+
+  final String messageId;
+
+  @override
+  State<_AttachmentList> createState() => _AttachmentListState();
+}
+
+class _AttachmentListState extends State<_AttachmentList> {
+  List<MailAttachment> files = const [];
+  String? error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final loaded = await context.read<AppState>().mail.attachmentsForMessage(widget.messageId);
+      if (mounted) setState(() => files = loaded);
+    } catch (e) {
+      if (mounted) setState(() => error = '$e');
+    }
+  }
+
+  Future<void> _save(MailAttachment file) async {
+    try {
+      final bytes = await context.read<AppState>().mail.downloadAttachment(file.id);
+      final dir = await getApplicationDocumentsDirectory();
+      final safe = file.filename.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+      final out = File('${dir.path}${Platform.pathSeparator}$safe');
+      await out.writeAsBytes(bytes, flush: true);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Saved ${out.path}')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not save ${file.filename}')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (error != null) {
+      return Text(error!, style: TextStyle(color: Px.danger));
+    }
+    if (files.isEmpty) {
+      return const Text('Loading attachments…');
+    }
+    return Column(
+      children: [
+        for (final file in files)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.attach_file_rounded),
+            title: Text(file.filename),
+            subtitle: Text(file.contentType ?? ''),
+            onTap: () => _save(file),
+          ),
+      ],
     );
   }
 }

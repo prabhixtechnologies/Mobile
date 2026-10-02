@@ -188,9 +188,11 @@ class _MailboxScreenState extends State<MailboxScreen> {
               child: RefreshIndicator(
                 color: Px.accent,
                 onRefresh: () => state.syncNow(),
-                child: state.busy && threads.isEmpty
+                child: state.busy && threads.isEmpty && state.drafts.isEmpty
                     ? const MailShimmerList()
-                    : threads.isEmpty
+                    : state.draftsMode
+                        ? _DraftList(drafts: state.drafts)
+                        : threads.isEmpty
                         ? ListView(
                             physics: const AlwaysScrollableScrollPhysics(),
                             children: [
@@ -243,6 +245,8 @@ class _MailboxScreenState extends State<MailboxScreen> {
                                 targetKind: 'TRASH',
                               ),
                             ),
+                            hasMore: state.hasMoreThreads,
+                            onLoadMore: state.loadMoreThreads,
                           ),
               ),
             ),
@@ -409,6 +413,20 @@ class _SelectionAppBar extends StatelessWidget implements PreferredSizeWidget {
           icon: const Icon(Icons.mark_email_read_outlined),
         ),
         IconButton(
+          tooltip: state.snoozedMode ? 'Unsnooze' : 'Snooze until tomorrow',
+          onPressed: () {
+            final ids = state.selectedIds.toList();
+            if (state.snoozedMode) {
+              state.unsnoozeThreads(ids);
+            } else {
+              final tomorrow = DateTime.now().add(const Duration(days: 1));
+              final morning = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 8);
+              state.snoozeThreads(ids, morning);
+            }
+          },
+          icon: Icon(state.snoozedMode ? Icons.alarm_off_rounded : Icons.snooze_rounded),
+        ),
+        IconButton(
           tooltip: 'Archive',
           onPressed: () => onUndoable(state.bulkArchive),
           icon: const Icon(Icons.archive_outlined),
@@ -513,6 +531,15 @@ class _MailNav extends StatelessWidget {
                   state.showStarred();
                 },
               ),
+              _NavTile(
+                icon: Icons.snooze_rounded,
+                label: 'Snoozed',
+                selected: state.snoozedMode,
+                onTap: () {
+                  Navigator.pop(context);
+                  state.showSnoozed();
+                },
+              ),
               for (final group in _ownerGroups()) ...[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
@@ -542,8 +569,9 @@ class _MailNav extends StatelessWidget {
                       icon: folderIcon(f.iconHint),
                       label: f.name,
                       trailing: f.unreadCount > 0 ? '${f.unreadCount}' : null,
-                      selected:
-                          !state.starredMode && state.selectedFolderId == f.id,
+                      selected: !state.starredMode &&
+                          !state.snoozedMode &&
+                          state.selectedFolderId == f.id,
                       onTap: () {
                         Navigator.pop(context);
                         state.selectFolder(f.id);
@@ -659,6 +687,48 @@ class _NavTile extends StatelessWidget {
   }
 }
 
+class _DraftList extends StatelessWidget {
+  const _DraftList({required this.drafts});
+
+  final List<MailDraft> drafts;
+
+  @override
+  Widget build(BuildContext context) {
+    if (drafts.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
+          SizedBox(
+            height: 320,
+            child: EmptyState(
+              title: 'No drafts',
+              subtitle: 'Messages you start writing are saved here.',
+              icon: Icons.edit_outlined,
+            ),
+          ),
+        ],
+      );
+    }
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      itemCount: drafts.length,
+      itemBuilder: (context, index) {
+        final draft = drafts[index];
+        return ListTile(
+          title: Text(draft.subject?.isNotEmpty == true ? draft.subject! : '(no subject)'),
+          subtitle: Text(
+            draft.to.isEmpty ? draft.preview : draft.to.join(', '),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          trailing: Text(relativeTime(draft.updatedAt)),
+          onTap: () => context.push('/compose?draft=${draft.id}'),
+        );
+      },
+    );
+  }
+}
+
 class _GroupedThreadList extends StatelessWidget {
   const _GroupedThreadList({
     required this.threads,
@@ -670,6 +740,8 @@ class _GroupedThreadList extends StatelessWidget {
     required this.onArchive,
     required this.onTrash,
     required this.onToggleRead,
+    required this.hasMore,
+    required this.onLoadMore,
   });
 
   final List<MailThreadSummary> threads;
@@ -681,6 +753,8 @@ class _GroupedThreadList extends StatelessWidget {
   final ValueChanged<MailThreadSummary> onArchive;
   final ValueChanged<MailThreadSummary> onTrash;
   final ValueChanged<MailThreadSummary> onToggleRead;
+  final bool hasMore;
+  final Future<void> Function() onLoadMore;
 
   @override
   Widget build(BuildContext context) {
@@ -727,6 +801,17 @@ class _GroupedThreadList extends StatelessWidget {
           ),
         );
       }
+    }
+    if (hasMore) {
+      children.add(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+          child: OutlinedButton(
+            onPressed: onLoadMore,
+            child: const Text('Load more'),
+          ),
+        ),
+      );
     }
     children.add(const SizedBox(height: 88));
 

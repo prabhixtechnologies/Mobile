@@ -284,6 +284,118 @@ class MailMessage {
   }
 }
 
+class ThreadPage {
+  const ThreadPage({
+    required this.items,
+    this.nextCursor,
+    this.hasMore = false,
+  });
+
+  final List<MailThreadSummary> items;
+  final String? nextCursor;
+  final bool hasMore;
+}
+
+class MailDraft {
+  MailDraft({
+    required this.id,
+    this.threadId,
+    this.mailboxId,
+    this.to = const [],
+    this.cc = const [],
+    this.bcc = const [],
+    this.subject,
+    this.bodyHtml,
+    this.attachmentIds = const [],
+    this.updatedAt,
+  });
+
+  final String id;
+  final String? threadId;
+  final String? mailboxId;
+  final List<String> to;
+  final List<String> cc;
+  final List<String> bcc;
+  final String? subject;
+  final String? bodyHtml;
+  final List<String> attachmentIds;
+  final String? updatedAt;
+
+  String get preview {
+    final html = bodyHtml ?? '';
+    return html
+        .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), ' ')
+        .replaceAll(RegExp(r'<[^>]+>'), '')
+        .replaceAll('&nbsp;', ' ')
+        .trim();
+  }
+
+  factory MailDraft.fromJson(Map<String, dynamic> json) {
+    List<String> emails(dynamic raw) {
+      if (raw is! List) return const [];
+      return raw.map((e) => '$e').where((e) => e.isNotEmpty && e != 'null').toList();
+    }
+
+    return MailDraft(
+      id: '${json['id']}',
+      threadId: json['threadId']?.toString(),
+      mailboxId: json['mailboxId']?.toString(),
+      to: emails(json['to']),
+      cc: emails(json['cc']),
+      bcc: emails(json['bcc']),
+      subject: json['subject']?.toString(),
+      bodyHtml: json['bodyHtml']?.toString(),
+      attachmentIds: emails(json['attachmentIds']),
+      updatedAt: json['updatedAt']?.toString(),
+    );
+  }
+}
+
+class MailAttachment {
+  MailAttachment({
+    required this.id,
+    required this.filename,
+    this.contentType,
+    this.sizeBytes = 0,
+    this.inline = false,
+  });
+
+  final String id;
+  final String filename;
+  final String? contentType;
+  final int sizeBytes;
+  final bool inline;
+
+  factory MailAttachment.fromJson(Map<String, dynamic> json) => MailAttachment(
+        id: '${json['id']}',
+        filename: '${json['filename'] ?? 'attachment'}',
+        contentType: json['contentType']?.toString(),
+        sizeBytes: _int(json['sizeBytes']),
+        inline: json['inline'] == true,
+      );
+}
+
+class PendingAttachment {
+  PendingAttachment({
+    required this.fileId,
+    required this.filename,
+    this.contentType,
+    this.sizeBytes = 0,
+  });
+
+  final String fileId;
+  final String filename;
+  final String? contentType;
+  final int sizeBytes;
+
+  factory PendingAttachment.fromJson(Map<String, dynamic> json) => PendingAttachment(
+        fileId: '${json['fileId']}',
+        filename: '${json['filename'] ?? 'attachment'}',
+        contentType: json['contentType']?.toString(),
+        sizeBytes: _int(json['sizeBytes']),
+      );
+}
+
 class MailAlias {
   MailAlias({required this.id, required this.address, this.mailboxId});
 

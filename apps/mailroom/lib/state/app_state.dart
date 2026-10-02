@@ -51,9 +51,15 @@ class AppState extends ChangeNotifier {
   String? selectedFolderId;
   bool starredMode = false;
   List<MailThreadSummary> threads = const [];
+  List<MailDraft> drafts = const [];
   List<MailAlias> aliases = const [];
   String signature = '';
   bool companyMail = false;
+  bool snoozedMode = false;
+  bool draftsMode = false;
+  String? threadCursor;
+  bool hasMoreThreads = false;
+  Timer? _searchTimer;
 
   String searchQuery = '';
   bool selecting = false;
@@ -67,6 +73,8 @@ class AppState extends ChangeNotifier {
 
   String get currentFolderTitle {
     if (starredMode) return 'Starred';
+    if (snoozedMode) return 'Snoozed';
+    if (draftsMode) return 'Drafts';
     for (final f in folders) {
       if (f.id == selectedFolderId) return f.name;
     }
@@ -76,6 +84,8 @@ class AppState extends ChangeNotifier {
   List<MailThreadSummary> get visibleThreads {
     final q = searchQuery.trim().toLowerCase();
     if (q.isEmpty) return threads;
+    // Folder search is applied by the server. Starred and snoozed stay local.
+    if (!starredMode && !snoozedMode && online) return threads;
     return threads.where((t) {
       final hay =
           '${t.subject} ${t.correspondent} ${t.preview ?? ''} ${t.fromAddress ?? ''}'
@@ -218,6 +228,8 @@ class AppState extends ChangeNotifier {
     companyMail = next;
     selectedFolderId = null;
     starredMode = false;
+    snoozedMode = false;
+    draftsMode = false;
     await loadMailbox();
   }
 
@@ -228,8 +240,9 @@ class AppState extends ChangeNotifier {
       final side = await mail.sidebar(company: companyMail && canReadCompany);
       mailboxes = side.mailboxes;
       folders = side.folders;
-      if (!starredMode) {
+      if (!starredMode && !snoozedMode && !draftsMode) {
         selectedFolderId ??= _preferredInboxId(folders);
+        draftsMode = _folderById(selectedFolderId)?.kind == 'DRAFTS';
       }
       await offline.store.putJson(
         'sidebar.mailboxes',
@@ -251,21 +264,57 @@ class AppState extends ChangeNotifier {
     try {
       if (starredMode) {
         threads = await mail.starred();
+        drafts = const [];
+        hasMoreThreads = false;
+        threadCursor = null;
         await offline.store.putJson(
           'threads.starred',
           threads.map((t) => t.toJson()).toList(),
         );
+      } else if (snoozedMode) {
+        threads = await mail.snoozed();
+        drafts = const [];
+        hasMoreThreads = false;
+        threadCursor = null;
+        await offline.store.putJson(
+          'threads.snoozed',
+          threads.map((t) => t.toJson()).toList(),
+        );
+      } else if (draftsMode) {
+        drafts = await mail.drafts();
+        threads = const [];
+        hasMoreThreads = false;
+        threadCursor = null;
+        await offline.store.putJson(
+          'drafts',
+          drafts.map((d) => {
+                'id': d.id,
+                'threadId': d.threadId,
+                'mailboxId': d.mailboxId,
+                'to': d.to,
+                'cc': d.cc,
+                'bcc': d.bcc,
+                'subject': d.subject,
+                'bodyHtml': d.bodyHtml,
+                'attachmentIds': d.attachmentIds,
+                'updatedAt': d.updatedAt,
+              }).toList(),
+        );
       } else if (selectedFolderId != null) {
-        threads = await mail.folderThreads(selectedFolderId!);
+        final page = await mail.folderThreads(
+          selectedFolderId!,
+          query: searchQuery,
+        );
+        threads = page.items;
+        drafts = const [];
+        threadCursor = page.nextCursor;
+        hasMoreThreads = page.hasMore;
         await offline.store.putJson(
           'threads.folder.$selectedFolderId',
           threads.map((t) => t.toJson()).toList(),
         );
       }
-      await offline.store.putMeta(
-        'selection',
-        starredMode ? 'starred' : (selectedFolderId ?? ''),
-      );
+      await offline.store.putMeta('selection', _selectionKey);
       debugPrint('threads ok count=${threads.length}');
     } catch (e, st) {
       debugPrint('threads failed: $e\n$st');
@@ -298,6 +347,13 @@ class AppState extends ChangeNotifier {
     final selection = await offline.store.getMeta('selection');
     if (selection == 'starred') {
       starredMode = true;
+      snoozedMode = false;
+      draftsMode = false;
+      selectedFolderId = null;
+    } else if (selection == 'snoozed') {
+      snoozedMode = true;
+      starredMode = false;
+      draftsMode = false;
       selectedFolderId = null;
     } else if (selection != null && selection.isNotEmpty) {
       starredMode = false;
@@ -308,9 +364,11 @@ class AppState extends ChangeNotifier {
 
     final key = starredMode
         ? 'threads.starred'
-        : (selectedFolderId != null
-            ? 'threads.folder.$selectedFolderId'
-            : null);
+        : snoozedMode
+            ? 'threads.snoozed'
+            : (selectedFolderId != null
+                ? 'threads.folder.$selectedFolderId'
+                : null);
     if (key != null) {
       final threadsRaw = await offline.store.getJson(key);
       if (threadsRaw is List) {
@@ -332,6 +390,8 @@ class AppState extends ChangeNotifier {
         threadId: '${item.payload['threadId']}',
         read: item.payload['read'] as bool?,
         starred: item.payload['starred'] as bool?,
+        snoozeUntil: _date(item.payload['snoozeUntil']),
+        clearSnooze: item.payload['clearSnooze'] == true,
       );
       return;
     }
@@ -340,6 +400,8 @@ class AppState extends ChangeNotifier {
         threadIds: (item.payload['threadIds'] as List).map((e) => '$e').toList(),
         read: item.payload['read'] as bool?,
         starred: item.payload['starred'] as bool?,
+        snoozeUntil: _date(item.payload['snoozeUntil']),
+        clearSnooze: item.payload['clearSnooze'] == true,
       );
       return;
     }
@@ -375,7 +437,11 @@ class AppState extends ChangeNotifier {
 
   Future<void> selectFolder(String folderId) async {
     starredMode = false;
+    snoozedMode = false;
+    draftsMode = _folderById(folderId)?.kind == 'DRAFTS';
     selectedFolderId = folderId;
+    threadCursor = null;
+    hasMoreThreads = false;
     busy = true;
     error = null;
     notifyListeners();
@@ -399,11 +465,36 @@ class AppState extends ChangeNotifier {
     }
 
     try {
-      threads = await mail.folderThreads(folderId);
-      await offline.store.putJson(
-        'threads.folder.$folderId',
-        threads.map((t) => t.toJson()).toList(),
-      );
+      if (draftsMode) {
+        drafts = await mail.drafts();
+        threads = const [];
+        await offline.store.putJson(
+          'drafts',
+          drafts
+              .map((d) => {
+                    'id': d.id,
+                    'mailboxId': d.mailboxId,
+                    'to': d.to,
+                    'cc': d.cc,
+                    'bcc': d.bcc,
+                    'subject': d.subject,
+                    'bodyHtml': d.bodyHtml,
+                    'attachmentIds': d.attachmentIds,
+                    'updatedAt': d.updatedAt,
+                  })
+              .toList(),
+        );
+      } else {
+        final page = await mail.folderThreads(folderId, query: searchQuery);
+        threads = page.items;
+        drafts = const [];
+        threadCursor = page.nextCursor;
+        hasMoreThreads = page.hasMore;
+        await offline.store.putJson(
+          'threads.folder.$folderId',
+          threads.map((t) => t.toJson()).toList(),
+        );
+      }
       await offline.store.putMeta('selection', folderId);
       servingFromCache = false;
     } catch (e) {
@@ -416,7 +507,10 @@ class AppState extends ChangeNotifier {
 
   Future<void> showStarred() async {
     starredMode = true;
+    snoozedMode = false;
+    draftsMode = false;
     selectedFolderId = null;
+    hasMoreThreads = false;
     busy = true;
     error = null;
     notifyListeners();
@@ -455,6 +549,114 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  Future<void> showSnoozed() async {
+    snoozedMode = true;
+    starredMode = false;
+    draftsMode = false;
+    selectedFolderId = null;
+    hasMoreThreads = false;
+    busy = true;
+    error = null;
+    notifyListeners();
+
+    final cached = await offline.store.getJson('threads.snoozed');
+    if (cached is List) {
+      threads = cached
+          .whereType<Map>()
+          .map((e) => MailThreadSummary.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+      servingFromCache = true;
+      busy = false;
+      notifyListeners();
+    }
+
+    if (offlineMode) {
+      await offline.store.putMeta('selection', 'snoozed');
+      busy = false;
+      notifyListeners();
+      return;
+    }
+
+    try {
+      threads = await mail.snoozed();
+      drafts = const [];
+      await offline.store.putJson(
+        'threads.snoozed',
+        threads.map((t) => t.toJson()).toList(),
+      );
+      await offline.store.putMeta('selection', 'snoozed');
+      servingFromCache = false;
+    } catch (e) {
+      if (threads.isEmpty) error = '$e';
+    } finally {
+      busy = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadMoreThreads() async {
+    if (!hasMoreThreads ||
+        threadCursor == null ||
+        selectedFolderId == null ||
+        starredMode ||
+        snoozedMode ||
+        draftsMode ||
+        busy) {
+      return;
+    }
+    busy = true;
+    notifyListeners();
+    try {
+      final page = await mail.folderThreads(
+        selectedFolderId!,
+        cursor: threadCursor,
+        query: searchQuery,
+      );
+      final seen = threads.map((t) => t.id).toSet();
+      threads = [
+        ...threads,
+        ...page.items.where((t) => !seen.contains(t.id)),
+      ];
+      threadCursor = page.nextCursor;
+      hasMoreThreads = page.hasMore;
+      await _persistThreadsCache();
+    } catch (e) {
+      error = '$e';
+    } finally {
+      busy = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> snoozeThreads(List<String> threadIds, DateTime until) async {
+    if (threadIds.isEmpty) return;
+    if (snoozedMode) {
+      threads = threads.where((t) => !threadIds.contains(t.id)).toList();
+    }
+    exitSelection();
+    await _persistThreadsCache();
+    await _enqueueOrRun(
+      type: 'bulkFlags',
+      payload: {
+        'threadIds': threadIds,
+        'snoozeUntil': until.toUtc().toIso8601String(),
+      },
+      onlineAction: () => mail.bulkFlags(threadIds: threadIds, snoozeUntil: until),
+    );
+  }
+
+  Future<void> unsnoozeThreads(List<String> threadIds) async {
+    if (threadIds.isEmpty) return;
+    threads = threads.where((t) => !threadIds.contains(t.id)).toList();
+    exitSelection();
+    await _persistThreadsCache();
+    await _enqueueOrRun(
+      type: 'bulkFlags',
+      payload: {'threadIds': threadIds, 'clearSnooze': true},
+      onlineAction: () => mail.bulkFlags(threadIds: threadIds, clearSnooze: true),
+    );
+  }
+
   Future<void> toggleStar(MailThreadSummary thread) async {
     final next = !thread.starred;
     _patchThreadLocal(thread.id, starred: next);
@@ -488,11 +690,20 @@ class AppState extends ChangeNotifier {
   void setSearchQuery(String value) {
     searchQuery = value;
     notifyListeners();
+    _searchTimer?.cancel();
+    if (starredMode || snoozedMode || draftsMode || selectedFolderId == null) return;
+    _searchTimer = Timer(const Duration(milliseconds: 300), () {
+      unawaited(selectFolder(selectedFolderId!));
+    });
   }
 
   void clearSearch() {
     searchQuery = '';
+    _searchTimer?.cancel();
     notifyListeners();
+    if (!starredMode && !snoozedMode && !draftsMode && selectedFolderId != null && online) {
+      unawaited(selectFolder(selectedFolderId!));
+    }
   }
 
   void enterSelection([String? seedId]) {
@@ -703,10 +914,34 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  String get _selectionKey {
+    if (starredMode) return 'starred';
+    if (snoozedMode) return 'snoozed';
+    return selectedFolderId ?? '';
+  }
+
+  MailFolder? _folderById(String? id) {
+    if (id == null) return null;
+    for (final folder in folders) {
+      if (folder.id == id) return folder;
+    }
+    return null;
+  }
+
+  DateTime? _date(dynamic raw) {
+    if (raw == null) return null;
+    return DateTime.tryParse('$raw');
+  }
+
   Future<void> _persistThreadsCache() async {
     if (starredMode) {
       await offline.store.putJson(
         'threads.starred',
+        threads.map((t) => t.toJson()).toList(),
+      );
+    } else if (snoozedMode) {
+      await offline.store.putJson(
+        'threads.snoozed',
         threads.map((t) => t.toJson()).toList(),
       );
     } else if (selectedFolderId != null) {
@@ -781,6 +1016,7 @@ class AppState extends ChangeNotifier {
 
   @override
   void dispose() {
+    _searchTimer?.cancel();
     offline.connectivity.removeListener(_onConnectivityChanged);
     offline.sync.removeListener(_onSyncChanged);
     unawaited(offline.dispose());
