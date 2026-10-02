@@ -10,7 +10,7 @@
 /// MaterialApp.router(
 ///   theme: prabhixTheme(brand: 'mobistack', brightness: Brightness.light, density: PxDensity.compact),
 ///   darkTheme: prabhixTheme(brand: 'mobistack', brightness: Brightness.dark, density: PxDensity.compact),
-///   themeMode: ThemeMode.system,
+///   themeMode: ThemeMode.light,
 /// )
 /// ```
 ///
