@@ -159,7 +159,7 @@ class SplashScreen extends StatelessWidget {
           child: const Column(
             children: [
               Spacer(),
-              OpeningBrand(busy: true),
+              OpeningBrand(),
               Spacer(),
               PoweredByPrabhix(),
             ],
@@ -170,11 +170,11 @@ class SplashScreen extends StatelessWidget {
   }
 }
 
-/// Word, then the MobiStack mark. Used on the splash, sign-in, and shop-setup screens.
+/// Word, then the MobiStack mark. This replaces the yellow ring that used to sit alone
+/// in the middle of the startup screen.
 class OpeningBrand extends StatelessWidget {
-  const OpeningBrand({super.key, this.busy = false, this.markSize = 88});
+  const OpeningBrand({super.key, this.markSize = 88});
 
-  final bool busy;
   final double markSize;
 
   @override
@@ -196,14 +196,6 @@ class OpeningBrand extends StatelessWidget {
         ),
         const SizedBox(height: 18),
         MobiStackMark(size: markSize),
-        if (busy) ...[
-          const SizedBox(height: 28),
-          SizedBox(
-            width: 28,
-            height: 28,
-            child: CircularProgressIndicator(strokeWidth: 2.4, color: colors.accent),
-          ),
-        ],
       ],
     );
   }
@@ -406,6 +398,62 @@ class _PrabhixMarkPainter extends CustomPainter {
       oldDelegate.to != to ||
       oldDelegate.ink != ink ||
       oldDelegate.second != second;
+}
+
+class BrandMark extends StatelessWidget {
+  const BrandMark({super.key, this.compact = false});
+
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = brandColors(context);
+    final size = compact ? 36.0 : 56.0;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: size,
+          height: size,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(compact ? 12 : 16),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [colors.accent, colors.accentHover],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: colors.accent.withValues(alpha: 0.35),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Text(
+            'M',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: colors.accentInk,
+                  fontWeight: FontWeight.w700,
+                  fontSize: compact ? 18 : 26,
+                ),
+          ),
+        ),
+        SizedBox(width: compact ? 10 : 14),
+        Text(
+          'MobiStack',
+          style: GoogleFonts.fraunces(
+            fontWeight: FontWeight.w700,
+            fontSize: compact ? 20 : 28,
+            height: 1.05,
+            color: colors.ink,
+            letterSpacing: -0.4,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class PxPrimaryButton extends StatelessWidget {
