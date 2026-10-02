@@ -59,7 +59,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   String? error;
   bool busy = false;
   bool allowCreateAccount = false;
-  ThemeMode themeMode = ThemeMode.dark;
+  ThemeMode themeMode = ThemeMode.light;
 
   CachedDashboard dashboard = CachedDashboard();
   List<CachedVariant> variants = const [];
@@ -516,7 +516,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> _loadAppearance() async {
     final saved = await sync.appearance();
-    themeMode = saved == 'light' ? ThemeMode.light : ThemeMode.dark;
+    themeMode = saved == 'dark' ? ThemeMode.dark : ThemeMode.light;
   }
 
   Future<void> setAppearance(ThemeMode mode) async {

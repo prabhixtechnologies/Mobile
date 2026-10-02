@@ -111,10 +111,9 @@ class _MailroomAppState extends State<MailroomApp> {
           title: 'Prabhix Mailroom',
           theme: mailroomTheme(Brightness.light),
           darkTheme: mailroomTheme(Brightness.dark),
-          themeMode: ThemeMode.system,
+          themeMode: ThemeMode.light,
           // Px is a mutable global, so it has to be re-pointed at whichever theme actually
-          // resolved. This is the first place the brightness is known under
-          // ThemeMode.system, and it runs before any descendant reads Px.
+          // resolved before any descendant reads it.
           builder: (context, child) {
             syncPx(Theme.of(context).brightness);
             return child!;

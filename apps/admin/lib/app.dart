@@ -67,10 +67,9 @@ class _AdminAppState extends State<AdminApp> {
           debugShowCheckedModeBanner: false,
           theme: adminTheme(Brightness.light),
           darkTheme: adminTheme(Brightness.dark),
-          themeMode: ThemeMode.system,
+          themeMode: ThemeMode.light,
           // Px is a mutable global, so it has to be re-pointed at whichever theme actually
-          // resolved. This is the first place the brightness is known under
-          // ThemeMode.system, and it runs before any descendant reads Px.
+          // resolved before any descendant reads it.
           builder: (context, child) {
             syncPx(Theme.of(context).brightness);
             return child!;
