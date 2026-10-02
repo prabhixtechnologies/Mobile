@@ -47,10 +47,10 @@ jobs:
       # run, pointed at Dart: it reads Color(0xFF...) as readily as a CSS hex, and web-kit is
       # already cloned above so there is nothing extra to install.
       #
-      # One exception is recorded in the source. widgets/pay_sheet.dart builds a standalone HTML
-      # document for the Razorpay WebView, which has no Flutter widget tree and no stylesheet to
-      # inherit, so its surface and accent are written out — and were the house cyan until this
-      # ran, meaning MobiStack wore another brand on the one screen where money changes hands.
+      # One exception is recorded in the source. widgets/pay_sheet.dart hands Razorpay's native
+      # checkout its accent as a hex string, because that SDK cannot read the Flutter theme. It was
+      # the house cyan until this ran, meaning MobiStack wore another brand on the one screen
+      # where money changes hands.
       - name: No hard-coded colours
         working-directory: ${{ github.workspace }}/../web-kit/packages/brand
         run: node scripts/check-literals.mjs

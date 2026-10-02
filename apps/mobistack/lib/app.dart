@@ -131,38 +131,38 @@ class _MobiStackAppState extends State<MobiStackApp> {
           routes: [
             GoRoute(
               path: '/home',
-              pageBuilder: (_, __) =>
-                  const NoTransitionPage(child: HomeScreen()),
+              pageBuilder: (_, page) =>
+                  NoTransitionPage(key: page.pageKey, child: const HomeScreen()),
             ),
             GoRoute(
               path: '/commons',
-              pageBuilder: (_, __) =>
-                  const NoTransitionPage(child: CompatibilityScreen()),
+              pageBuilder: (_, page) =>
+                  NoTransitionPage(key: page.pageKey, child: const CompatibilityScreen()),
             ),
             GoRoute(
               path: '/billing',
-              pageBuilder: (_, __) =>
-                  const NoTransitionPage(child: BillingScreen()),
+              pageBuilder: (_, page) =>
+                  NoTransitionPage(key: page.pageKey, child: const BillingScreen()),
             ),
             GoRoute(
               path: '/more',
-              pageBuilder: (_, __) =>
-                  const NoTransitionPage(child: MoreScreen()),
+              pageBuilder: (_, page) =>
+                  NoTransitionPage(key: page.pageKey, child: const MoreScreen()),
             ),
             GoRoute(
               path: '/inventory',
-              pageBuilder: (_, __) =>
-                  const NoTransitionPage(child: InventoryScreen()),
+              pageBuilder: (_, page) =>
+                  NoTransitionPage(key: page.pageKey, child: const InventoryScreen()),
             ),
             GoRoute(
               path: '/sales',
-              pageBuilder: (_, __) =>
-                  const NoTransitionPage(child: SalesScreen()),
+              pageBuilder: (_, page) =>
+                  NoTransitionPage(key: page.pageKey, child: const SalesScreen()),
             ),
             GoRoute(
               path: '/repairs',
-              pageBuilder: (_, __) =>
-                  const NoTransitionPage(child: RepairsScreen()),
+              pageBuilder: (_, page) =>
+                  NoTransitionPage(key: page.pageKey, child: const RepairsScreen()),
             ),
           ],
         ),

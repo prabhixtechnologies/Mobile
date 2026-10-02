@@ -109,7 +109,13 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
                     ? 'Public specs'
                     : '${library.phones.length} phones · ${_book.groups.length} saved spares';
 
-    return Atmosphere(
+    return PopScope(
+      // Brand and category are steps inside this screen, so system Back walks them first.
+      canPop: category == null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && category != null) _back();
+      },
+      child: Atmosphere(
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: SafeArea(
@@ -160,7 +166,7 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                'Activate billing to unlock inventory, sales, and repairs.',
+                                'No active plan on this shop. Open Billing.',
                                 style: TextStyle(color: Px.warningSubtleInk),
                               ),
                             ),
@@ -244,6 +250,7 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

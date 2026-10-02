@@ -24,6 +24,7 @@ class _BillingScreenState extends State<BillingScreen> {
   bool _loading = true;
   bool _busy = false;
   CheckoutOrder? _pay;
+  String? _payingPlan;
 
   @override
   void initState() {
@@ -76,12 +77,13 @@ class _BillingScreenState extends State<BillingScreen> {
     }
   }
 
-  Future<void> _startPay(String planCode) async {
+  Future<void> _startPay(String planCode, String planName) async {
     final app = context.read<AppState>();
     setState(() {
       _busy = true;
       _error = null;
       _notice = null;
+      _payingPlan = planName;
     });
     try {
       final order = await app.api.createBillingOrder(planCode);
@@ -97,7 +99,7 @@ class _BillingScreenState extends State<BillingScreen> {
       await app.refreshMe();
       if (!mounted) return;
       setState(() {
-        _notice = 'Plan is active on this shop.';
+        _notice = '${_payingPlan ?? 'The plan'} is active on this shop.';
         _busy = false;
       });
       await _load();
@@ -121,7 +123,7 @@ class _BillingScreenState extends State<BillingScreen> {
       await app.refreshMe();
       if (!mounted) return;
       setState(() {
-        _notice = 'Paid ${formatPaise(order.amount)}. Shop features unlocked.';
+        _notice = 'Paid ${formatPaise(order.amount)}. ${_payingPlan ?? 'The plan'} is active.';
         _busy = false;
       });
       await _load();
@@ -144,11 +146,15 @@ class _BillingScreenState extends State<BillingScreen> {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
-          leading: IconButton(
-            tooltip: 'Back',
-            icon: const Icon(Icons.arrow_back_rounded),
-            onPressed: () => context.pop(),
-          ),
+          // Billing is a tab for an unpaid shop; there is nothing under it to go back to.
+          automaticallyImplyLeading: false,
+          leading: context.canPop()
+              ? IconButton(
+                  tooltip: 'Back',
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  onPressed: () => context.pop(),
+                )
+              : null,
           title: Text(
             'Billing',
             style: GoogleFonts.fraunces(fontWeight: FontWeight.w600),
@@ -166,6 +172,10 @@ class _BillingScreenState extends State<BillingScreen> {
                 order: _pay!,
                 description: 'MobiStack shop plan',
                 onCancel: () => setState(() => _pay = null),
+                onError: (message) => setState(() {
+                  _pay = null;
+                  _error = message;
+                }),
                 onPaid: _onPaid,
               )
             : _loading
@@ -179,8 +189,7 @@ class _BillingScreenState extends State<BillingScreen> {
                         if (me?.paymentRequired == true)
                           _Banner(
                             tone: Px.warning,
-                            text:
-                                'This shop needs an active plan. Pay below to unlock inventory, sales, and repairs.',
+                            text: 'This shop has no active plan yet.',
                           ),
                         if (_error != null)
                           _Banner(tone: Px.danger, text: _error!),
@@ -225,7 +234,7 @@ class _BillingScreenState extends State<BillingScreen> {
                             trailing: FilledButton(
                               onPressed: _busy || _isCurrent(me?.planCode, overview, plan.code)
                                   ? null
-                                  : () => _startPay(plan.code),
+                                  : () => _startPay(plan.code, plan.name),
                               style: FilledButton.styleFrom(
                                 backgroundColor: Px.accent,
                                 foregroundColor: Px.accentInk,
@@ -254,6 +263,18 @@ class _BillingScreenState extends State<BillingScreen> {
                               child: CircularProgressIndicator(color: Px.accent),
                             ),
                           ),
+                        // A catalog-only shop has no More tab, so the account lives here.
+                        if (state.catalogOnlyMode) ...[
+                          _SectionTitle('Account'),
+                          _PlanCard(
+                            title: me?.displayName ?? 'Signed in',
+                            subtitle: me?.email ?? '',
+                            trailing: OutlinedButton(
+                              onPressed: state.busy ? null : () => state.signOut(),
+                              child: const Text('Sign out'),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
