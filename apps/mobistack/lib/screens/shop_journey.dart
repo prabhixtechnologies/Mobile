@@ -132,7 +132,7 @@ class JoinUnionScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return const _CodeJoin(
       title: 'Join the union',
-      body: 'Enter the code for Bihar mobile union. A matching code opens payment of ₹50.',
+      body: 'Enter the fitment group code. A matching code asks to join that catalog.',
       group: true,
     );
   }
@@ -230,12 +230,16 @@ class _WaitingScreenState extends State<WaitingScreen> {
   @override
   Widget build(BuildContext context) {
     final title = context.watch<AppState>().waitingTitle;
-    final who = widget.union ? 'a union admin' : 'the shop owner';
+    final body = widget.union
+        ? (title == null
+            ? 'A group admin still has to approve this shop before the catalog opens.'
+            : 'A group admin still has to approve $title before the catalog opens.')
+        : (title == null
+            ? 'Payment is done. The shop owner still has to approve.'
+            : 'Payment is done for $title. The shop owner still has to approve.');
     return _Gate(
       title: 'Waiting',
-      body: title == null
-          ? 'Payment is done. $who still has to approve.'
-          : 'Payment is done for $title. $who still has to approve.',
+      body: body,
       children: [
         if (_error != null) ...[
           Text(_error!, style: TextStyle(color: Px.danger)),
@@ -258,7 +262,7 @@ class OutsideUnionScreen extends StatelessWidget {
     final name = context.watch<AppState>().waitingTitle ?? 'This shop';
     return _Gate(
       title: name,
-      body: 'You are in this shop. It is not in Bihar mobile union yet, so compatibility stays closed until a union admin adds it.',
+      body: 'You are in this shop. It is not in a fitment group yet, so compatibility stays closed until a group admin adds it.',
       children: [
         TextButton(
           onPressed: () => context.read<AppState>().signOut(),

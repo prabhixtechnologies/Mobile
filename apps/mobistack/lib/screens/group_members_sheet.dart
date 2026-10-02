@@ -28,6 +28,7 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
   final _email = TextEditingController();
   final _code = TextEditingController();
   List<Map<String, dynamic>> _members = const [];
+  String? _joinCode;
   String? _error;
   bool _busy = false;
 
@@ -48,15 +49,20 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
     final group = context.read<AppState>().selectedFitmentGroup;
     if (group == null) return;
     try {
-      final res = await context.read<AppState>().api.dio.get<dynamic>('groups/${group.id}');
+      final res = await context.read<AppState>().api.dio.get<dynamic>(
+        'groups',
+        queryParameters: {'id': group.id},
+      );
       final data = res.data;
       final rows = data is Map && data['members'] is List ? data['members'] as List : const [];
+      final code = data is Map ? data['joinCode']?.toString() : null;
       if (!mounted) return;
       setState(() {
         _members = [
           for (final row in rows)
             if (row is Map) Map<String, dynamic>.from(row),
         ];
+        _joinCode = code == null || code.isEmpty ? null : code;
         _error = null;
       });
     } catch (e) {
@@ -111,6 +117,11 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
             Text(group?.name ?? 'Group', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 4),
             Text('Shops and people who share this fitment.', style: TextStyle(color: Px.muted)),
+            if (_joinCode != null) ...[
+              const SizedBox(height: 8),
+              Text('Group code $_joinCode', style: TextStyle(color: Px.ink, fontWeight: FontWeight.w600)),
+              Text('A new shop enters this on Join the union.', style: TextStyle(color: Px.muted)),
+            ],
             if (_error != null) ...[
               const SizedBox(height: 12),
               Text(_error!, style: TextStyle(color: Px.danger)),
@@ -168,7 +179,8 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
     final group = context.read<AppState>().selectedFitmentGroup;
     if (group == null) return;
     await context.read<AppState>().api.dio.post<dynamic>(
-      'groups/${group.id}/people',
+      'groups/people',
+      queryParameters: {'id': group.id},
       data: {'email': _email.text.trim(), 'role': role},
     );
     _email.clear();
@@ -178,7 +190,8 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
     final group = context.read<AppState>().selectedFitmentGroup;
     if (group == null) return;
     await context.read<AppState>().api.dio.post<dynamic>(
-      'groups/${group.id}/shops',
+      'groups/shops',
+      queryParameters: {'id': group.id},
       data: {'joinCode': _code.text.trim()},
     );
     _code.clear();
@@ -189,17 +202,25 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
     if (group == null) return;
     final id = '${member['subjectId']}';
     final kind = '${member['kind']}';
-    final path = kind == 'SHOP'
-        ? 'groups/${group.id}/shops/$id'
-        : 'groups/${group.id}/people/$id';
-    await context.read<AppState>().api.dio.delete<dynamic>(path);
+    if (kind == 'SHOP') {
+      await context.read<AppState>().api.dio.delete<dynamic>(
+        'groups/shops',
+        queryParameters: {'id': group.id, 'workspaceId': id},
+      );
+    } else {
+      await context.read<AppState>().api.dio.delete<dynamic>(
+        'groups/people',
+        queryParameters: {'id': group.id, 'userId': id},
+      );
+    }
   }
 
   Future<void> _setRole(Map<String, dynamic> member, String role) async {
     final group = context.read<AppState>().selectedFitmentGroup;
     if (group == null) return;
     await context.read<AppState>().api.dio.put<dynamic>(
-      'groups/${group.id}/people/${member['subjectId']}',
+      'groups/people',
+      queryParameters: {'id': group.id, 'userId': '${member['subjectId']}'},
       data: {'role': role},
     );
   }
