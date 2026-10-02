@@ -137,7 +137,7 @@ class JoinUnionScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return const _CodeJoin(
       title: 'Join the union',
-      body: 'Enter the fitment group code. A matching code asks to join that catalog.',
+      body: 'Enter the fitment group code, then choose the plan that fits your shop.',
       group: true,
     );
   }
@@ -326,6 +326,7 @@ class _CodeJoinState extends State<_CodeJoin> {
   String? _error;
   bool _busy = false;
   CheckoutOrder? _pay;
+  String _planCode = 'COMPATIBILITY';
 
   @override
   void dispose() {
@@ -343,7 +344,7 @@ class _CodeJoinState extends State<_CodeJoin> {
     final api = context.read<AppState>().api;
     try {
       final order = widget.group
-          ? await api.joinGroupCheckout(code)
+          ? await api.joinGroupCheckout(code, planCode: _planCode)
           : await api.joinShopCheckout(code);
       if (!mounted) return;
       if (order.alreadyPaid || !order.needsRazorpay) {
@@ -413,13 +414,38 @@ class _CodeJoinState extends State<_CodeJoin> {
                 },
                 decoration: const InputDecoration(labelText: 'Code'),
               ),
+            if (widget.group) ...[
+              const SizedBox(height: 20),
+              Text('Choose your plan', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 6),
+              Text(
+                'The payment activates this plan. There is no separate joining fee.',
+                style: TextStyle(color: Px.muted),
+              ),
+              const SizedBox(height: 10),
+              _JoinPlanCard(
+                selected: _planCode == 'COMPATIBILITY',
+                title: 'Compatibility',
+                price: '₹50 / month',
+                body: 'Check and view which parts fit each phone.',
+                onTap: () => setState(() => _planCode = 'COMPATIBILITY'),
+              ),
+              const SizedBox(height: 10),
+              _JoinPlanCard(
+                selected: _planCode == 'FULL_SHOP',
+                title: 'Full Inventory Management',
+                price: '₹499 / month',
+                body: 'Inventory, sales, repairs, customers, suppliers, reports and compatibility.',
+                onTap: () => setState(() => _planCode = 'FULL_SHOP'),
+              ),
+            ],
             if (_error != null) ...[
               const SizedBox(height: 12),
               Text(_error!, style: TextStyle(color: Px.danger)),
             ],
             const SizedBox(height: 18),
             PxPrimaryButton(
-              label: _busy ? 'Checking…' : 'Continue',
+              label: _busy ? 'Checking…' : (widget.group ? 'Continue to payment' : 'Continue'),
               busy: _busy,
               onPressed: ready ? _submit : null,
             ),
@@ -450,6 +476,74 @@ class _CodeJoinState extends State<_CodeJoin> {
             },
           ),
       ],
+    );
+  }
+}
+
+class _JoinPlanCard extends StatelessWidget {
+  const _JoinPlanCard({
+    required this.selected,
+    required this.title,
+    required this.price,
+    required this.body,
+    required this.onTap,
+  });
+
+  final bool selected;
+  final String title;
+  final String price;
+  final String body;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? Px.accentSubtle : Px.surface,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            border: Border.all(color: selected ? Px.accent : Px.line, width: selected ? 2 : 1),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                selected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
+                color: selected ? Px.accent : Px.muted,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+                        ),
+                        Text(
+                          price,
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                color: Px.accent,
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(body, style: TextStyle(color: Px.muted, height: 1.35)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
