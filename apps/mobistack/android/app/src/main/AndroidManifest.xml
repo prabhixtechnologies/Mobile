@@ -23,12 +23,10 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW"/>
-                <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="mobistack" android:host="oauth2redirect"/>
-            </intent-filter>
+            <!-- flutter_appauth registers RedirectUriReceiverActivity for
+                 mobistack://oauth2redirect. MainActivity must not claim the same URI:
+                 Android can otherwise deliver the OAuth result here, leaving AppAuth
+                 with a null result intent. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>

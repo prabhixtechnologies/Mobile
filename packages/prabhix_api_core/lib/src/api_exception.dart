@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/services.dart';
 
 class ApiException implements Exception {
   ApiException(this.message, {this.statusCode, this.code});
@@ -15,6 +16,15 @@ class ApiException implements Exception {
 /// otherwise a plain line for the kind of failure. Never Dio's developer text.
 String describeError(Object error) {
   if (error is ApiException) return error.message;
+  if (error is PlatformException) {
+    return switch (error.code) {
+      'authorize_and_exchange_code_failed' ||
+      'authorize_failed' ||
+      'null_intent' =>
+        'Could not open secure sign-in. Try again.',
+      _ => 'The phone could not complete that action. Try again.',
+    };
+  }
   if (error is DioException) {
     final data = error.response?.data;
     if (data is Map) {
