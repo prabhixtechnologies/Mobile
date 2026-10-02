@@ -36,8 +36,9 @@ class AuthMe {
   final String? planName;
   final String? periodEnd;
 
-  bool hasFeature(String code) =>
-      systemAdmin || platformAdmin || features.contains(code);
+  /// The shop's paid plan only. The server reports an admin's shop features from that
+  /// shop's plan too, so an admin flag must not reopen what the plan keeps locked.
+  bool hasFeature(String code) => features.contains(code);
 
   bool hasPermission(String code) =>
       systemAdmin || platformAdmin || permissions.contains(code);

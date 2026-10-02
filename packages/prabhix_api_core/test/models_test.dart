@@ -21,6 +21,21 @@ void main() {
     expect(me.organizations.single.name, 'Acme');
   });
 
+  test('an admin on a Compatibility shop gets only the paid features', () {
+    final me = AuthMe.fromJson({
+      'userId': 'u1',
+      'email': 'a@b.co',
+      'systemAdmin': true,
+      'catalogOnly': true,
+      'features': ['COMPATIBILITY'],
+      'planCode': 'COMPATIBILITY',
+    });
+    expect(me.hasFeature('COMPATIBILITY'), isTrue);
+    for (final locked in ['DASHBOARD', 'SALES', 'REPAIRS', 'INVENTORY', 'REPORTS']) {
+      expect(me.hasFeature(locked), isFalse, reason: locked);
+    }
+  });
+
   test('PlatformOverview parses nested Ops DTO', () {
     final overview = PlatformOverview.fromJson({
       'tenants': {
