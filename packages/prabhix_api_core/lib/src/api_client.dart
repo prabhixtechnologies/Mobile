@@ -84,7 +84,15 @@ class ApiClient {
             try {
               token = await identity.refreshIfNeeded(force: true);
             } catch (e, st) {
-              debugPrint('ApiClient 401 refresh failed: $e\n$st');
+              // No network or Identity briefly down: the refresh token was never refused, so the
+              // 30-day sign-in stays. Only a null result (invalid_grant / no session) ends it.
+              debugPrint('ApiClient 401 refresh unreachable, keeping session: $e\n$st');
+              return handler.next(DioException(
+                requestOptions: error.requestOptions,
+                error: e,
+                stackTrace: st,
+                type: DioExceptionType.connectionError,
+              ));
             }
             if (token != null) {
               final req = error.requestOptions;
