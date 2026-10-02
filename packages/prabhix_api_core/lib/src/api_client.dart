@@ -79,20 +79,28 @@ class ApiClient {
           }
           if (error.response?.statusCode == 401 &&
               error.requestOptions.extra['retried401'] != true) {
+            debugPrint('ApiClient 401 → force Identity refresh');
+            String? token;
             try {
-              debugPrint('ApiClient 401 → force Identity refresh');
-              final token = await identity.refreshIfNeeded(force: true);
-              if (token != null) {
-                final req = error.requestOptions;
-                req.headers['Authorization'] = 'Bearer $token';
-                req.extra['retried401'] = true;
-                final clone = await _dio.fetch(req);
-                return handler.resolve(clone);
-              }
+              token = await identity.refreshIfNeeded(force: true);
             } catch (e, st) {
               debugPrint('ApiClient 401 refresh failed: $e\n$st');
-              await identity.tokenStore.clearAuthSecrets();
             }
+            if (token != null) {
+              final req = error.requestOptions;
+              req.headers['Authorization'] = 'Bearer $token';
+              req.extra['retried401'] = true;
+              try {
+                return handler.resolve(await _dio.fetch(req));
+              } on DioException catch (retry) {
+                return handler.next(retry);
+              }
+            }
+            await identity.tokenStore.clearAuthSecrets();
+            await _sessionLost();
+          } else if (error.response?.statusCode == 401) {
+            // A fresh token was refused too: the account or its grant is gone.
+            await _sessionLost();
           }
           handler.next(error);
         },
@@ -105,6 +113,20 @@ class ApiClient {
   final Dio _dio;
 
   ApiRecoveryHandler? recoveryHandler;
+
+  /// Called once the session cannot be renewed (refresh refused, or a fresh token still
+  /// answered 401). The app should clear what it shows and return to sign-in.
+  Future<void> Function()? onSessionLost;
+
+  Future<void> _sessionLost() async {
+    final lost = onSessionLost;
+    if (lost == null) return;
+    try {
+      await lost();
+    } catch (e, st) {
+      debugPrint('ApiClient onSessionLost failed: $e\n$st');
+    }
+  }
 
   /// Selected fitment group. Sent on every request so catalog reads stay in that group.
   String? fitmentGroupId;

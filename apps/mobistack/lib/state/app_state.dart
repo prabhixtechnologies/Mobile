@@ -37,6 +37,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     );
     api = ApiClient(config: config.product, identity: identity);
     attachRecoveryToApi(api, recovery);
+    api.onSessionLost = _onSessionLost;
     sync = SyncStore(api);
     api.traceRequests((message) => debugPrint('mobistack $message'));
     WidgetsBinding.instance.addObserver(this);
@@ -153,7 +154,27 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && phase == AuthPhase.ready) {
-      unawaited(refreshAll());
+      // Admission, approval and removal happen on someone else's screen. Without looking
+      // again, a shop stays on its gate (or in a catalog it lost) until the app is killed.
+      unawaited(recheckAccess());
+    }
+  }
+
+  bool _recheckRunning = false;
+
+  /// Reloads the profile and the shop journey, so a gate opens once someone admits the shop.
+  Future<void> recheckAccess() async {
+    if (_recheckRunning || phase != AuthPhase.ready) return;
+    _recheckRunning = true;
+    try {
+      me = await api.authMe();
+      await sync.saveSession(_sessionJson(me!));
+      await refreshJourney();
+      if (gate == ShopGate.catalog) await refreshAll();
+    } catch (e, st) {
+      debugPrint('recheck access failed: $e\n$st');
+    } finally {
+      _recheckRunning = false;
     }
   }
 
@@ -165,6 +186,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     try {
       await identity.signIn(promptOverride: create ? 'create' : null);
       await _loadSession();
+    } on SignInCancelled {
+      error = null;
+      phase = AuthPhase.signedOut;
     } catch (e) {
       error = describeError(e);
       phase = AuthPhase.signedOut;
@@ -220,7 +244,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     }
     busy = false;
     notifyListeners();
-    if (online) {
+    if (online && !catalogOnlyMode) {
       unawaited(sync.pullOfflineLists());
     }
   }
@@ -505,25 +529,53 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     return identity.openAccount();
   }
 
+  bool _signingOut = false;
+
   Future<void> signOut() async {
+    _signingOut = true;
     busy = true;
     notifyListeners();
     try {
       await api.platformLogout();
       await identity.signOut();
     } finally {
-      await sync.clearLocal();
-      me = null;
-      variants = const [];
-      sales = const [];
-      repairs = const [];
-      customers = const [];
-      devices = const [];
-      commonsDevices = const [];
-      phase = AuthPhase.signedOut;
-      busy = false;
-      notifyListeners();
+      await _clearSession();
+      _signingOut = false;
     }
+  }
+
+  /// The server no longer accepts this session: the account was removed or its sign-in
+  /// revoked. Clear the shop off the phone instead of showing data that is no longer theirs.
+  Future<void> _onSessionLost() async {
+    if (_signingOut || phase != AuthPhase.ready) return;
+    _signingOut = true;
+    try {
+      await identity.tokenStore.clearAuthSecrets();
+      await _clearSession();
+      error = 'Your session has ended. Sign in again.';
+      notifyListeners();
+    } finally {
+      _signingOut = false;
+    }
+  }
+
+  Future<void> _clearSession() async {
+    await sync.clearLocal();
+    me = null;
+    variants = const [];
+    sales = const [];
+    repairs = const [];
+    customers = const [];
+    devices = const [];
+    commonsDevices = const [];
+    fitmentGroups = const [];
+    api.fitmentGroupId = null;
+    gate = ShopGate.catalog;
+    waitingTitle = null;
+    waitingShopId = null;
+    phase = AuthPhase.signedOut;
+    busy = false;
+    notifyListeners();
   }
 
   Future<void> _hydrateFromDisk() async {

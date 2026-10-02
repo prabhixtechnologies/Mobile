@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:prabhix_api_core/prabhix_api_core.dart';
@@ -95,6 +97,9 @@ class _CreateShopScreenState extends State<CreateShopScreen> {
             textCapitalization: TextCapitalization.words,
             autofillHints: const [AutofillHints.addressCity],
             textInputAction: TextInputAction.done,
+            onSubmitted: (_) {
+              if (!_busy) _submit();
+            },
             decoration: const InputDecoration(labelText: 'City'),
           ),
         if (_error != null) ...[
@@ -215,6 +220,28 @@ class WaitingScreen extends StatefulWidget {
 class _WaitingScreenState extends State<WaitingScreen> {
   String? _error;
   bool _busy = false;
+  bool _checking = false;
+  Timer? _poll;
+
+  @override
+  void initState() {
+    super.initState();
+    _poll = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (!_busy && !_checking) context.read<AppState>().recheckAccess();
+    });
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _check() async {
+    setState(() => _checking = true);
+    await context.read<AppState>().recheckAccess();
+    if (mounted) setState(() => _checking = false);
+  }
 
   Future<void> _cancel() async {
     setState(() {
@@ -245,9 +272,19 @@ class _WaitingScreenState extends State<WaitingScreen> {
           Text(_error!, style: TextStyle(color: Px.danger)),
           const SizedBox(height: 12),
         ],
+        PxPrimaryButton(
+          label: _checking ? 'Checking…' : 'Check again',
+          busy: _checking,
+          onPressed: _busy || _checking ? null : _check,
+        ),
+        const SizedBox(height: 10),
         OutlinedButton(
-          onPressed: _busy ? null : _cancel,
+          onPressed: _busy || _checking ? null : _cancel,
           child: Text(_busy ? 'Cancelling…' : 'Cancel request'),
+        ),
+        TextButton(
+          onPressed: _busy ? null : () => context.read<AppState>().signOut(),
+          child: const Text('Sign out'),
         ),
       ],
     );
@@ -386,6 +423,12 @@ class _CodeJoinState extends State<_CodeJoin> {
               busy: _busy,
               onPressed: ready ? _submit : null,
             ),
+            // Join the union is a gate with nothing behind it, so it needs its own way out.
+            if (widget.group)
+              TextButton(
+                onPressed: _busy ? null : () => context.read<AppState>().signOut(),
+                child: const Text('Sign out'),
+              ),
           ],
         ),
         if (_pay != null)
@@ -393,6 +436,10 @@ class _CodeJoinState extends State<_CodeJoin> {
             order: _pay!,
             description: widget.group ? 'Join the union' : 'Join shop',
             onCancel: () => setState(() => _pay = null),
+            onError: (message) => setState(() {
+              _pay = null;
+              _error = message;
+            }),
             onPaid: (slip) async {
               final order = _pay;
               setState(() {

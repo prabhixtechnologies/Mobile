@@ -28,6 +28,7 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
   final _email = TextEditingController();
   final _code = TextEditingController();
   List<Map<String, dynamic>> _members = const [];
+  List<Map<String, dynamic>> _requests = const [];
   String? _joinCode;
   String? _error;
   bool _busy = false;
@@ -48,18 +49,28 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
   Future<void> _load() async {
     final group = context.read<AppState>().selectedFitmentGroup;
     if (group == null) return;
+    final dio = context.read<AppState>().api.dio;
     try {
-      final res = await context.read<AppState>().api.dio.get<dynamic>(
+      final res = await dio.get<dynamic>(
         'groups',
         queryParameters: {'id': group.id},
       );
       final data = res.data;
       final rows = data is Map && data['members'] is List ? data['members'] as List : const [];
       final code = data is Map ? data['joinCode']?.toString() : null;
+      final asked = await dio.get<dynamic>(
+        'groups/requests',
+        queryParameters: {'id': group.id},
+      );
+      final waiting = asked.data is List ? asked.data as List : const [];
       if (!mounted) return;
       setState(() {
         _members = [
           for (final row in rows)
+            if (row is Map) Map<String, dynamic>.from(row),
+        ];
+        _requests = [
+          for (final row in waiting)
             if (row is Map) Map<String, dynamic>.from(row),
         ];
         _joinCode = code == null || code.isEmpty ? null : code;
@@ -126,6 +137,31 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
               const SizedBox(height: 12),
               Text(_error!, style: TextStyle(color: Px.danger)),
             ],
+            if (_requests.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text('Waiting to join', style: Theme.of(context).textTheme.titleMedium),
+              Text('These shops paid with the group code. The catalog opens for them when you admit them.',
+                  style: TextStyle(color: Px.muted)),
+              for (final request in _requests)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text('${request['shopName'] ?? 'Shop'}'),
+                  subtitle: Text('Asked by ${request['askedBy'] ?? 'the owner'}'),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextButton(
+                        onPressed: _busy ? null : () => _run(() => _decide(request, 'reject')),
+                        child: const Text('Refuse'),
+                      ),
+                      FilledButton(
+                        onPressed: _busy ? null : () => _run(() => _decide(request, 'approve')),
+                        child: const Text('Admit'),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
             const SizedBox(height: 16),
             for (final member in _members)
               _MemberTile(
@@ -184,6 +220,15 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
       data: {'email': _email.text.trim(), 'role': role},
     );
     _email.clear();
+  }
+
+  Future<void> _decide(Map<String, dynamic> request, String action) async {
+    final group = context.read<AppState>().selectedFitmentGroup;
+    if (group == null) return;
+    await context.read<AppState>().api.dio.post<dynamic>(
+      'groups/requests/$action',
+      queryParameters: {'id': group.id, 'requestId': '${request['id']}'},
+    );
   }
 
   Future<void> _addShop() async {

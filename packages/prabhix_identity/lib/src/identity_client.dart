@@ -10,6 +10,14 @@ import 'token_store.dart';
 
 typedef UrlOpener = Future<bool> Function(Uri uri);
 
+/// The person closed the sign-in page before finishing. Nothing failed.
+class SignInCancelled implements Exception {
+  const SignInCancelled();
+
+  @override
+  String toString() => 'Sign-in was cancelled.';
+}
+
 /// Signs in against Prabhix Identity through the system browser / Custom Tab.
 ///
 /// No password field. PKCE is mandatory. Refresh goes to Identity, never the product API.
@@ -41,21 +49,25 @@ class IdentityClient {
   }
 
   Future<OidcTokens> signIn({String? promptOverride}) async {
-    final AuthorizationTokenResponse result =
-        await _appAuth.authorizeAndExchangeCode(
-      AuthorizationTokenRequest(
-        config.clientId,
-        config.redirectUri,
-        serviceConfiguration: AuthorizationServiceConfiguration(
-          authorizationEndpoint: config.authorizeEndpoint,
-          tokenEndpoint: config.tokenEndpoint,
-          endSessionEndpoint: config.endSessionEndpoint,
+    final AuthorizationTokenResponse result;
+    try {
+      result = await _appAuth.authorizeAndExchangeCode(
+        AuthorizationTokenRequest(
+          config.clientId,
+          config.redirectUri,
+          serviceConfiguration: AuthorizationServiceConfiguration(
+            authorizationEndpoint: config.authorizeEndpoint,
+            tokenEndpoint: config.tokenEndpoint,
+            endSessionEndpoint: config.endSessionEndpoint,
+          ),
+          scopes: config.scopes,
+          promptValues: _promptList(promptOverride ?? config.prompt),
+          allowInsecureConnections: identityAllowsInsecureConnections(config.issuer),
         ),
-        scopes: config.scopes,
-        promptValues: _promptList(promptOverride ?? config.prompt),
-        allowInsecureConnections: identityAllowsInsecureConnections(config.issuer),
-      ),
-    );
+      );
+    } on FlutterAppAuthUserCancelledException {
+      throw const SignInCancelled();
+    }
     final access = result.accessToken;
     final refresh = result.refreshToken;
     if (access == null || refresh == null) {
