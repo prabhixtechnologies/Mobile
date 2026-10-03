@@ -333,7 +333,7 @@ jobs:
         run: |
           set -e
           DEFINES=(
-            --dart-define=IDENTITY_ISSUER=https://api.prabhixtechnologies.com
+            --dart-define=IDENTITY_ISSUER=https://identity.prabhixtechnologies.com
             --dart-define=API_BASE_URL=https://api.prabhixtechnologies.com/api/v1
           )
           if flutter build apk --release "${DEFINES[@]}"; then

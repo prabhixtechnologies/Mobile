@@ -20,7 +20,7 @@ foreach ($app in $apps) {
     Push-Location $dir
     try {
         flutter build appbundle --release `
-            --dart-define=IDENTITY_ISSUER=https://api.prabhixtechnologies.com `
+            --dart-define=IDENTITY_ISSUER=https://identity.prabhixtechnologies.com `
             --dart-define=API_BASE_URL=$($app.Api)
         if ($LASTEXITCODE -ne 0) { throw "flutter build appbundle failed for $($app.Name)" }
         $aab = Join-Path $dir "build\app\outputs\bundle\release\app-release.aab"

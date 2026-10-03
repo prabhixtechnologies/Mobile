@@ -22,7 +22,7 @@ foreach ($app in $apps) {
     Push-Location $dir
     try {
         flutter build apk --release --target-platform android-arm64 `
-            --dart-define=IDENTITY_ISSUER=https://api.prabhixtechnologies.com `
+            --dart-define=IDENTITY_ISSUER=https://identity.prabhixtechnologies.com `
             --dart-define=API_BASE_URL=$($app.Api)
         if ($LASTEXITCODE -ne 0) { throw "flutter build apk failed for $($app.Name)" }
         $apk = Join-Path $dir "build\app\outputs\flutter-apk\app-release.apk"

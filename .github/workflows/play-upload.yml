@@ -140,7 +140,7 @@ jobs:
       - name: Build the app bundle
         if: inputs.apps == 'all' || contains(format(',{0},', inputs.apps), format(',{0},', matrix.app))
         env:
-          IDENTITY_ISSUER: https://api.prabhixtechnologies.com
+          IDENTITY_ISSUER: https://identity.prabhixtechnologies.com
           API_BASE_URL: ${{ matrix.api_base }}
         run: |
           set -euo pipefail
