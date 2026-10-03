@@ -808,12 +808,16 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
+  String? issuedJoinCode;
+
   Future<String?> createFitmentGroup(String name) async {
     final trimmed = name.trim();
     if (trimmed.isEmpty) return 'A group needs a name';
     try {
       final res = await api.dio.post<dynamic>('groups', data: {'name': trimmed});
-      final id = res.data is Map ? '${(res.data as Map)['id'] ?? ''}' : '';
+      final data = res.data is Map ? Map<String, dynamic>.from(res.data as Map) : const <String, dynamic>{};
+      final id = '${data['id'] ?? ''}';
+      issuedJoinCode = data['joinCode'] == null ? null : '${data['joinCode']}';
       await loadFitmentGroups();
       if (id.isNotEmpty) selectFitmentGroup(id);
       return null;

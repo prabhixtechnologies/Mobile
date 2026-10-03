@@ -8,6 +8,7 @@ import '../catalog/spare_group.dart';
 import 'group_members_sheet.dart';
 import 'spare_phone_page.dart';
 import '../state/app_state.dart';
+import '../widgets/live_api_list.dart';
 import '../theme/prabhix_theme.dart';
 import '../widgets/chrome.dart';
 import '../widgets/shop_ui.dart';
@@ -26,20 +27,131 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
   FitmentBook _book = const FitmentBook([]);
   FitmentCategory? _category;
   String? _brand;
+  String? _brandId;
+  List<Map<String, dynamic>> _brands = const [];
+  List<Map<String, dynamic>> _models = const [];
+  String? _requestedGroup;
+  bool _loadingCatalog = false;
+  String? _catalogError;
 
   @override
   void initState() {
     super.initState();
-    _load();
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadBook());
   }
 
-  Future<void> _load() async {
-    try {
-      final library = await FitmentLibrary.load();
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final id = context.read<AppState>().fitmentGroupId ?? '';
+    if (id == _requestedGroup) return;
+    _requestedGroup = id;
+    _loadCatalog(id);
+  }
+
+  Future<void> _loadCatalog(String groupId) async {
+    if (groupId.isEmpty) {
       if (!mounted) return;
-      setState(() => _library = library);
-    } catch (_) {}
+      setState(() {
+        _brands = const [];
+        _models = const [];
+        _loadingCatalog = false;
+        _catalogError = null;
+      });
+      return;
+    }
+    setState(() {
+      _loadingCatalog = true;
+      _catalogError = null;
+      _brand = null;
+      _brandId = null;
+      _models = const [];
+    });
+    try {
+      final brands = await _pages('commons/brands', const {});
+      if (!mounted || _requestedGroup != groupId) return;
+      setState(() {
+        _brands = brands;
+        _loadingCatalog = false;
+      });
+    } catch (_) {
+      if (!mounted || _requestedGroup != groupId) return;
+      setState(() {
+        _loadingCatalog = false;
+        _catalogError = 'Could not load this group\'s phones.';
+      });
+    }
+  }
+
+  Future<void> _loadModels(String brandId) async {
+    setState(() => _loadingCatalog = true);
+    try {
+      final models = await _pages('commons/devices', {'brandId': brandId});
+      if (!mounted || _brandId != brandId) return;
+      setState(() {
+        _models = models;
+        _loadingCatalog = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingCatalog = false);
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _pages(String path, Map<String, dynamic> query) async {
+    final state = context.read<AppState>();
+    final rows = <Map<String, dynamic>>[];
+    for (var page = 0; page < 40; page++) {
+      final res = await state.api.dio.get<dynamic>(
+        path,
+        queryParameters: {...query, 'page': page, 'size': 100},
+      );
+      final batch = pageRows(res.data);
+      rows.addAll(batch);
+      final last = res.data is Map && (res.data as Map)['last'] == true;
+      if (last || batch.length < 100) break;
+    }
+    return rows;
+  }
+
+  Future<void> _addPhone() async {
+    final brand = TextEditingController(text: _brand ?? '');
+    final model = TextEditingController();
+    final created = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Add a phone'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: brand, decoration: const InputDecoration(labelText: 'Brand')),
+            TextField(controller: model, decoration: const InputDecoration(labelText: 'Model')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Save')),
+        ],
+      ),
+    );
+    final brandName = brand.text.trim();
+    final modelName = model.text.trim();
+    brand.dispose();
+    model.dispose();
+    if (created != true || !mounted || brandName.isEmpty || modelName.isEmpty) return;
+    try {
+      await context.read<AppState>().api.dio.post<dynamic>(
+        'commons/devices',
+        data: {'brand': brandName, 'name': modelName},
+      );
+      final groupId = _requestedGroup ?? '';
+      await _loadCatalog(groupId);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not add that phone. Only a group admin can add phones.')),
+      );
+    }
   }
 
   Future<void> _loadBook() async {
@@ -77,10 +189,25 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
     final value = name.text;
     name.dispose();
     if (created != true || !context.mounted) return;
-    final error = await context.read<AppState>().createFitmentGroup(value);
-    if (error != null && context.mounted) {
+    final state = context.read<AppState>();
+    final error = await state.createFitmentGroup(value);
+    if (!context.mounted) return;
+    if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      return;
     }
+    final code = state.issuedJoinCode;
+    if (code == null || code.isEmpty) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Join ID'),
+        content: Text('Forward $code to anyone who should see this group\'s phones and parts.'),
+        actions: [
+          FilledButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Done')),
+        ],
+      ),
+    );
   }
 
   void _back() {
@@ -88,6 +215,8 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
       _query.clear();
       if (_brand != null) {
         _brand = null;
+        _brandId = null;
+        _models = const [];
       } else {
         _category = null;
       }
@@ -98,16 +227,13 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final needsBilling = state.me?.paymentRequired == true;
-    final library = _library;
     final category = _category;
     final title = _brand ?? category?.label ?? 'Parts';
     final subtitle = _brand != null
         ? '${category?.label ?? 'Parts'} · search a model'
         : category != null
             ? 'Choose a brand'
-                : library == null
-                    ? 'Public specs'
-                    : '${library.phones.length} phones · ${_book.groups.length} saved spares';
+            : '${_brands.length} brands · ${_book.groups.length} saved spares';
 
     return _StepBack(
       onBack: () {
@@ -125,8 +251,8 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
                 title: category == null ? 'Fitment catalog' : title,
                 subtitle: category == null
                     ? (state.selectedFitmentGroup == null
-                        ? (library == null ? 'Phones and the parts that fit them' : '${library.phones.length} phones')
-                        : '${state.selectedFitmentGroup!.name} · ${library?.phones.length ?? 0} phones')
+                        ? 'Choose a fitment group'
+                        : '${state.selectedFitmentGroup!.name} · ${_brands.length} brands')
                     : subtitle,
                 actions: [
                   if (category == null)
@@ -134,6 +260,12 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
                       tooltip: 'New group',
                       onPressed: () => _newGroup(context),
                       icon: Icon(Icons.add_rounded, color: Px.ink),
+                    ),
+                  if (category != null && (state.selectedFitmentGroup?.canManage ?? false))
+                    IconButton(
+                      tooltip: 'Add a phone',
+                      onPressed: _addPhone,
+                      icon: Icon(Icons.phone_android_rounded, color: Px.ink),
                     ),
                   if (category == null && (state.selectedFitmentGroup?.canManage ?? false))
                     IconButton(
@@ -205,47 +337,51 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
               Expanded(
                 child: category == null
                     ? _CategoryGrid(
-                        count: library?.phones.length,
+                        count: _brands.length,
                         saved: _book.groups.length,
                         onPick: (picked) => setState(() {
                           _category = picked;
                           _brand = null;
+                          _brandId = null;
                           _query.clear();
                         }),
-                        onSaved: library == null
-                            ? null
-                            : () async {
-                                await Navigator.of(context).push(MaterialPageRoute<void>(
-                                  builder: (_) => SavedSparesPage(library: library),
-                                ));
-                                await _loadBook();
-                              },
+                        onSaved: () async {
+                          final library = _library ?? await FitmentLibrary.load();
+                          if (!context.mounted) return;
+                          _library = library;
+                          await Navigator.of(context).push(MaterialPageRoute<void>(
+                            builder: (_) => SavedSparesPage(library: library),
+                          ));
+                          await _loadBook();
+                        },
                       )
-                    : library == null
+                    : _loadingCatalog
                         ? Center(child: CircularProgressIndicator(color: Px.accent))
-                        : _brand == null
-                            ? _BrandList(
-                                library: library,
-                                query: _query.text,
-                                onPick: (brand) => setState(() {
-                                  _brand = brand;
-                                  _query.clear();
-                                }),
-                              )
-                            : _PhoneList(
-                                phones: _phones(library),
-                                category: category,
-                                onOpen: (phone) async {
-                                  await Navigator.of(context).push(MaterialPageRoute<void>(
-                                    builder: (_) => SparePhonePage(
-                                      phone: phone,
-                                      category: category,
-                                      library: library,
-                                    ),
-                                  ));
-                                  await _loadBook();
-                                },
-                              ),
+                        : _catalogError != null
+                            ? ShopEmpty(title: _catalogError!, icon: Icons.cloud_off_rounded)
+                            : _brand == null
+                                ? _BrandList(
+                                    brands: _brands,
+                                    query: _query.text,
+                                    onPick: (brand) {
+                                      final id = '${brand['id'] ?? ''}';
+                                      setState(() {
+                                        _brand = '${brand['name'] ?? ''}';
+                                        _brandId = id;
+                                        _query.clear();
+                                      });
+                                      if (id.isNotEmpty) _loadModels(id);
+                                    },
+                                  )
+                                : _PhoneList(
+                                    phones: _visibleModels(),
+                                    category: category,
+                                    onOpen: (phone) {
+                                      final id = '${phone['id'] ?? ''}';
+                                      if (id.isEmpty) return;
+                                      context.push('/commons/devices/$id?category=${category.code}');
+                                    },
+                                  ),
               ),
             ],
           ),
@@ -255,14 +391,11 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
     );
   }
 
-  List<FitmentPhone> _phones(FitmentLibrary library) {
-    final brand = _brand;
-    if (brand == null) return const [];
+  List<Map<String, dynamic>> _visibleModels() {
     final q = _query.text.trim().toLowerCase();
-    final rows = library.byBrand(brand);
-    if (q.isEmpty) return rows;
-    return rows.where((phone) {
-      return '${phone.name} ${phone.modelCode} ${phone.resolution}'.toLowerCase().contains(q);
+    if (q.isEmpty) return _models;
+    return _models.where((phone) {
+      return '${phone['name'] ?? ''} ${phone['modelCode'] ?? ''}'.toLowerCase().contains(q);
     }).toList();
   }
 }
@@ -370,7 +503,7 @@ class _CategoryCard extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                count == null ? 'Phones' : '$count phones',
+                count == null ? 'This group' : '$count brands',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -383,32 +516,34 @@ class _CategoryCard extends StatelessWidget {
 
 class _BrandList extends StatelessWidget {
   const _BrandList({
-    required this.library,
+    required this.brands,
     required this.query,
     required this.onPick,
   });
 
-  final FitmentLibrary library;
+  final List<Map<String, dynamic>> brands;
   final String query;
-  final ValueChanged<String> onPick;
+  final ValueChanged<Map<String, dynamic>> onPick;
 
   @override
   Widget build(BuildContext context) {
     final q = query.trim().toLowerCase();
-    final brands = library.brands().where((name) => q.isEmpty || name.toLowerCase().contains(q)).toList();
-    if (brands.isEmpty) {
-      return const ShopEmpty(title: 'No brand matches', icon: Icons.search_off_rounded);
+    final shown = brands.where((brand) => q.isEmpty || '${brand['name'] ?? ''}'.toLowerCase().contains(q)).toList();
+    if (shown.isEmpty) {
+      return ShopEmpty(
+        title: q.isEmpty ? 'This group has no phones yet' : 'No brand matches',
+        icon: Icons.search_off_rounded,
+      );
     }
     return ListView.builder(
       padding: const EdgeInsets.only(bottom: 28),
-      itemCount: brands.length,
+      itemCount: shown.length,
       itemBuilder: (context, index) {
-        final brand = brands[index];
-        final count = library.countBrand(brand);
+        final brand = shown[index];
+        final name = '${brand['name'] ?? ''}';
         return ShopListTile(
-          title: brand,
-          subtitle: '$count models',
-          leading: _Mark(letter: brand.isEmpty ? '?' : brand[0].toUpperCase()),
+          title: name,
+          leading: _Mark(letter: name.isEmpty ? '?' : name[0].toUpperCase()),
           trailing: Icon(Icons.chevron_right_rounded, color: Px.faint),
           onTap: () => onPick(brand),
         );
@@ -424,9 +559,9 @@ class _PhoneList extends StatelessWidget {
     required this.onOpen,
   });
 
-  final List<FitmentPhone> phones;
+  final List<Map<String, dynamic>> phones;
   final FitmentCategory category;
-  final ValueChanged<FitmentPhone> onOpen;
+  final ValueChanged<Map<String, dynamic>> onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -447,11 +582,12 @@ class _PhoneList extends StatelessWidget {
           );
         }
         final phone = phones[index - 1];
-        final spec = fitmentSpec(phone, category.code);
+        final name = '${phone['name'] ?? ''}';
+        final code = '${phone['modelCode'] ?? ''}'.trim();
         return ShopListTile(
-          title: phone.name,
-          subtitle: spec.isEmpty ? phone.brand : spec,
-          leading: _Mark(letter: phone.name.isEmpty ? '?' : phone.name[0].toUpperCase()),
+          title: name,
+          subtitle: code.isEmpty ? category.label : '$code · ${category.label}',
+          leading: _Mark(letter: name.isEmpty ? '?' : name[0].toUpperCase()),
           onTap: () => onOpen(phone),
         );
       },
