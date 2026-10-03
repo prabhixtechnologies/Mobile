@@ -23,6 +23,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
   Map<String, dynamic>? _device;
   List<Map<String, dynamic>> _fits = const [];
   List<Map<String, dynamic>> _stock = const [];
+  List<Map<String, dynamic>> _companions = const [];
   String? _error;
   bool _loading = true;
   bool _refreshing = false;
@@ -43,6 +44,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
       _device = device is Map ? Map<String, dynamic>.from(device) : _device;
       _fits = pageRows(cached['fits']);
       _stock = pageRows(cached['stock']);
+      _companions = pageRows(cached['companions']);
       _loading = false;
     });
   }
@@ -73,7 +75,13 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
         'commons/devices/fits',
         queryParameters: {'deviceId': widget.deviceId},
       );
+      final companionsFuture = state.api.dio.get<dynamic>(
+        'commons/devices/companions',
+        queryParameters: {'deviceId': widget.deviceId},
+      );
+      final usesInventory = state.hasFeature('INVENTORY');
       final stockFuture = () async {
+        if (!usesInventory) return null;
         try {
           return await state.api.dio.get<dynamic>(
             'inventory/catalog-links/devices/stock',
@@ -86,21 +94,25 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
       final deviceRes = await deviceFuture;
       final fitsRes = await fitsFuture;
       final stockRes = await stockFuture;
+      final companionsRes = await companionsFuture;
       final device = deviceRes.data is Map
           ? Map<String, dynamic>.from(deviceRes.data as Map)
           : null;
       final fits = pageRows(fitsRes.data);
-      final stock = stockRes == null ? _stock : pageRows(stockRes.data);
+      final stock = !usesInventory ? const <Map<String, dynamic>>[] : stockRes == null ? _stock : pageRows(stockRes.data);
+      final companions = pageRows(companionsRes.data);
       await state.sync.saveCommonsPage(_cacheKey, {
         'device': device,
         'fits': fits,
         'stock': stock,
+        'companions': companions,
       });
       if (!mounted) return;
       setState(() {
         _device = device;
         _fits = fits;
         _stock = stock;
+        _companions = companions;
         _loading = false;
         _refreshing = false;
       });
@@ -191,18 +203,40 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 18),
-                    Text('THIS SHOP’S STOCK', style: Theme.of(context).textTheme.labelLarge),
-                    const SizedBox(height: 8),
-                    if (_stock.isEmpty)
-                      const Text('No linked stock for this phone.')
-                    else
-                      ..._stock.map(
-                        (row) => ShopListTile(
-                          title: '${row['name'] ?? row['sku']}',
-                          subtitle: '${row['sku'] ?? ''} · ${row['available'] ?? 0} on hand',
+                    for (final group in _companions) ...[
+                      const SizedBox(height: 18),
+                      Text(
+                        '${group['name'] ?? 'Same part'}'.toUpperCase(),
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                      const SizedBox(height: 8),
+                      ...pageRows(group['members']).map(
+                        (member) => ShopListTile(
+                          title: '${member['name'] ?? ''}',
+                          subtitle: '${member['brandName'] ?? ''}',
+                          onTap: () {
+                            final id = '${member['id'] ?? ''}';
+                            if (id.isNotEmpty && id != widget.deviceId) {
+                              context.push('/commons/devices/$id');
+                            }
+                          },
                         ),
                       ),
+                    ],
+                    if (context.watch<AppState>().hasFeature('INVENTORY')) ...[
+                      const SizedBox(height: 18),
+                      Text('THIS SHOP’S STOCK', style: Theme.of(context).textTheme.labelLarge),
+                      const SizedBox(height: 8),
+                      if (_stock.isEmpty)
+                        const Text('No linked stock for this phone or the models that share its parts.')
+                      else
+                        ..._stock.map(
+                          (row) => ShopListTile(
+                            title: '${row['name'] ?? row['sku']}',
+                            subtitle: '${row['sku'] ?? ''} · ${row['available'] ?? 0} on hand',
+                          ),
+                        ),
+                    ],
                     const SizedBox(height: 18),
                     Text('WHAT FITS', style: Theme.of(context).textTheme.labelLarge),
                     const SizedBox(height: 8),
