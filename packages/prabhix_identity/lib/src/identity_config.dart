@@ -11,7 +11,7 @@ class IdentityConfig {
     this.scopes = const ['openid', 'profile', 'email'],
   });
 
-  /// e.g. `https://api.prabhixtechnologies.com` or `http://10.0.2.2:8081`
+  /// e.g. `https://identity.prabhixtechnologies.com` or `http://10.0.2.2:8081`
   final String issuer;
 
   /// Seeded client id, e.g. `prabhix-admin-android`.
