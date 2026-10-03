@@ -17,7 +17,7 @@ class AppConfig {
     final issuer = issuerOverride.isNotEmpty
         ? issuerOverride
         : (kReleaseMode
-            ? 'https://api.prabhixtechnologies.com'
+            ? 'https://identity.prabhixtechnologies.com'
             : 'http://10.0.2.2:8081');
     final apiBase = apiOverride.isNotEmpty
         ? apiOverride

@@ -56,7 +56,7 @@ applicationIds. Play upload key is `prabhix-play-upload.jks` (not the debug keys
 ```bash
 cd apps/<app>
 flutter build apk --release \
-  --dart-define=IDENTITY_ISSUER=https://api.prabhixtechnologies.com \
+  --dart-define=IDENTITY_ISSUER=https://identity.prabhixtechnologies.com \
   --dart-define=API_BASE_URL=https://api.prabhixtechnologies.com/api/v1
 # mobistack API_BASE_URL=https://mobistack.prabhixtechnologies.com/api/v1
 # admin uses the same oneOps API_BASE_URL (BFF); do not point it at MobiStack.
