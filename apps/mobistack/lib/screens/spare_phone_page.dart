@@ -90,30 +90,31 @@ class _SparePhonePageState extends State<SparePhonePage> {
         });
         return;
       }
-      final fitsRes = await api.dio.get<dynamic>(
-        'commons/devices/fits',
-        queryParameters: {'deviceId': id},
+      final familyRes = await api.dio.get<dynamic>(
+        'commons/devices/family',
+        queryParameters: {
+          'deviceId': id,
+          'categoryCode': widget.category.code,
+        },
       );
       final shared = <_SharedPart>[];
-      for (final fit in pageRows(fitsRes.data)) {
-        final code = '${fit['categoryCode'] ?? ''}';
-        if (code.isNotEmpty && code != widget.category.code) continue;
-        final componentId = '${fit['componentId'] ?? ''}';
-        if (componentId.isEmpty) continue;
-        final devicesRes = await api.dio.get<dynamic>(
-          'commons/components/devices',
-          queryParameters: {'componentId': componentId},
-        );
+      for (final family in pageRows(familyRes.data)) {
+        final members = family['members'];
+        final rows = members is List ? members.whereType<Map>().toList() : <Map>[];
         final self = phone.name.toLowerCase();
-        final others = pageRows(devicesRes.data)
+        final others = rows
             .where((row) => '${row['name'] ?? ''}'.toLowerCase() != self)
             .map((row) => '${row['brandName'] ?? ''} ${row['name'] ?? ''}'.trim())
             .where((label) => label.isNotEmpty)
             .toList();
+        final fitmentId = rows
+            .map((row) => '${row['fitmentId'] ?? ''}')
+            .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+        final fit = rows.isEmpty ? 'COMPATIBLE' : '${rows.first['fit'] ?? 'COMPATIBLE'}';
         shared.add(_SharedPart(
-          fitmentId: '${fit['fitmentId'] ?? ''}',
-          name: '${fit['componentName'] ?? 'Part'}',
-          fit: spareQualityLabel('${fit['fit'] ?? 'EXACT'}'),
+          fitmentId: fitmentId,
+          name: '${family['name'] ?? 'Part'}',
+          fit: spareQualityLabel(fit),
           others: others,
         ));
       }
