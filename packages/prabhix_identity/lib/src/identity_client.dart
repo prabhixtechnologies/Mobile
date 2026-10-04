@@ -151,6 +151,11 @@ class IdentityClient {
     }
   }
 
+  /// Asks Identity for a fresh proof. Sensitive actions call this, then retry.
+  Future<OidcTokens> stepUp() {
+    return signIn(promptOverride: 'login');
+  }
+
   Future<void> signOut() async {
     final idToken = await tokenStore.idToken();
     await tokenStore.clearAuthSecrets();
