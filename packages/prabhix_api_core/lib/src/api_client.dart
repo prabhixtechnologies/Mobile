@@ -76,6 +76,25 @@ class ApiClient {
               }
               return handler.next(error);
             }
+            if (earlyCode == 'STEP_UP_REQUIRED' &&
+                error.requestOptions.extra['retriedStepUp'] != true) {
+              try {
+                await identity.stepUp();
+              } on SignInCancelled {
+                return handler.next(error);
+              }
+              final token = await identity.refreshIfNeeded();
+              if (token != null) {
+                final req = error.requestOptions;
+                req.headers['Authorization'] = 'Bearer $token';
+                req.extra['retriedStepUp'] = true;
+                try {
+                  return handler.resolve(await _dio.fetch(req));
+                } on DioException catch (retry) {
+                  return handler.next(retry);
+                }
+              }
+            }
           }
           if (error.response?.statusCode == 401 &&
               error.requestOptions.extra['retried401'] != true) {
