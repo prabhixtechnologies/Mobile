@@ -47,9 +47,14 @@ jobs:
         env:
           TRACK: ${{ inputs.track }}
           CONFIRM: ${{ inputs.confirm }}
+          APPS: ${{ inputs.apps }}
           JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
         run: |
           set -euo pipefail
+          if ! printf '%s\n' "$APPS" | grep -Eq '^(all|(admin|mailroom|oneops|mobistack)(,(admin|mailroom|oneops|mobistack))*)$'; then
+            echo "::error title=Invalid app selection::Use all or a comma-separated list containing only admin, mailroom, oneops, and mobistack."
+            exit 1
+          fi
           if [ -z "$JSON" ]; then
             echo "::error title=Play API key missing::Add secret PLAY_SERVICE_ACCOUNT_JSON on this repository. Play Console → Setup → API access → service account with Release permissions → JSON key."
             exit 1
