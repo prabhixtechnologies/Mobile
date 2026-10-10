@@ -48,7 +48,7 @@ function Invoke-Tool {
     try {
         $prior = $ErrorActionPreference
         $ErrorActionPreference = "Continue"
-        $lines = @(& $File @Arguments 2>&1)
+        $lines = @(& $File @Arguments 2>&1 | ForEach-Object { "$_" })
         $code = $LASTEXITCODE
         $ErrorActionPreference = $prior
     } finally {
@@ -68,6 +68,28 @@ function Get-SelectedApps {
         if (-not $catalog.Contains($app)) { throw "Unknown app '$app'." }
     }
     @($catalog.Keys | Where-Object { $selected -contains $_ })
+}
+
+function ConvertTo-Version {
+    param([string[]]$Lines, [string]$Source)
+    $line = $Lines | Where-Object { $_ -match '^version:\s*' } | Select-Object -First 1
+    if (-not $line -or $line -notmatch '^version:\s*(\d+\.\d+\.\d+)\+(\d+)\s*$') {
+        throw "Could not read a Flutter version from $Source."
+    }
+    [pscustomobject]@{ Text = "$($Matches[1])+$($Matches[2])"; Name = $Matches[1]; Code = [int]$Matches[2] }
+}
+
+function Get-CommittedVersion {
+    param([string]$App)
+    Push-Location $root
+    try {
+        $lines = @(& git show "HEAD:apps/$App/pubspec.yaml" 2>$null)
+        $code = $LASTEXITCODE
+    } finally {
+        Pop-Location
+    }
+    if ($code -ne 0) { throw "Could not read the committed version of apps/$App/pubspec.yaml." }
+    ConvertTo-Version $lines "HEAD:apps/$App/pubspec.yaml"
 }
 
 function Get-Version {
@@ -104,6 +126,7 @@ function Get-StatusRows {
             App = $app
             Package = $catalog[$app].Package
             LocalVersion = $version.Text
+            CommittedVersion = (Get-CommittedVersion $app).Text
             RecordedPlayVersion = $knownPlay[$app]
             Pubspec = $version.RelativePath
         }
@@ -115,10 +138,10 @@ function Assert-VersionIncrease {
     if ($Next -notmatch '^(\d+)\.(\d+)\.(\d+)\+(\d+)$') {
         throw "$App version '$Next' must be major.minor.patch+versionCode."
     }
-    $current = Get-Version $App
     $nextCode = [int]$Matches[4]
-    if ($nextCode -le $current.Code) {
-        throw "$App versionCode must be greater than $($current.Code)."
+    $committed = Get-CommittedVersion $App
+    if ($nextCode -le $committed.Code) {
+        throw "$App versionCode must be greater than the committed $($committed.Code)."
     }
 }
 
@@ -130,6 +153,10 @@ function Save-Versions {
     }
     foreach ($app in $Selected) {
         $current = Get-Version $app
+        if ($current.Text -eq $Map[$app]) {
+            Write-Host "${app}: already at $($current.Text)"
+            continue
+        }
         Write-Host "${app}: $($current.Text) -> $($Map[$app])"
         if (-not $DryRun) {
             $content = [IO.File]::ReadAllText($current.Path)
@@ -213,18 +240,31 @@ function Assert-MainReady {
         if ([int]$counts[1] -gt 0) { throw "Mobile is behind origin/main. Pull before releasing." }
     }
     $allowed = @($Selected | ForEach-Object { "apps/$_/pubspec.yaml" })
-    $changes = @((Get-GitOutput @("status", "--porcelain=v1")) -split "`r?`n" | Where-Object { $_ })
-    if ($DryRun -and $AllowDirtyPreview -and $changes.Count -gt 0) {
+    $status = Invoke-Tool "git" @("status", "--porcelain=v1", "--untracked-files=all")
+    if ($status.ExitCode -ne 0) { throw "git status failed." }
+    # Porcelain lines start with a two-letter status that can begin with a space, so they must
+    # not be trimmed before the path is read.
+    $changed = @(
+        foreach ($line in @($status.Output -split "`r?`n")) {
+            if ($line -match '^.. (.+)$') { ($Matches[1] -split ' -> ')[-1].Trim('"').Replace('\', '/') }
+        }
+    )
+    if ($DryRun -and $AllowDirtyPreview -and $changed.Count -gt 0) {
         Write-Host "DRY RUN: ignoring working-tree changes for command preview."
         return
     }
-        if ($RequireClean -and $changes.Count -gt 0) { throw "This Play action requires a clean Mobile working tree." }
-    if (-not $RequireClean) {
-        $unexpected = @($changes | Where-Object {
-            $path = if ($_.Length -gt 3) { $_.Substring(3).Replace('\', '/') } else { "" }
-            $allowed -notcontains $path
-        })
-        if ($unexpected.Count -gt 0) { throw "Mobile has unrelated changes. Commit or discard them before this release." }
+    if ($RequireClean -and $changed.Count -gt 0) {
+        throw "This Play action requires a clean Mobile working tree. Changed: $($changed -join ', ')"
+    }
+    $unexpected = @($changed | Where-Object { $allowed -notcontains $_ })
+    $secrets = @($unexpected | Where-Object {
+        $_ -match '(^|/)(\.env(\..*)?|key\.properties|[^/]*\.(jks|pem|p12|pfx)|[^/]*credentials[^/]*)$'
+    })
+    if ($secrets.Count -gt 0) {
+        throw "Refusing to release while these files are changed: $($secrets -join ', ')"
+    }
+    if ($unexpected.Count -gt 0) {
+        Write-Host "Leaving these files uncommitted: $($unexpected -join ', ')"
     }
 }
 
@@ -233,10 +273,15 @@ function Commit-Push {
     Assert-MainReady $Selected
     $paths = @($Selected | ForEach-Object { "apps/$_/pubspec.yaml" })
     if (-not $CommitMessage) { throw "A commit message is required." }
-    $add = Invoke-Tool "git" (@("add", "--") + $paths) -Mutating
-    if ($add.ExitCode -ne 0) { throw "Could not stage version files." }
-    $commit = Invoke-Tool "git" (@("commit", "-m", $CommitMessage, "--") + $paths) -Mutating
-    if ($commit.ExitCode -ne 0) { throw "Could not commit version files." }
+    $pending = Invoke-Tool "git" (@("status", "--porcelain=v1", "--") + $paths)
+    if ($DryRun -or $pending.Output) {
+        $add = Invoke-Tool "git" (@("add", "--") + $paths) -Mutating
+        if ($add.ExitCode -ne 0) { throw "Could not stage version files." }
+        $commit = Invoke-Tool "git" (@("commit", "-m", $CommitMessage, "--") + $paths) -Mutating
+        if ($commit.ExitCode -ne 0) { throw "Could not commit version files." }
+    } else {
+        Write-Host "Version files are already committed."
+    }
     $push = Invoke-Tool "git" @("push", "origin", "main") -Mutating
     if ($push.ExitCode -ne 0) { throw "Could not push Mobile main." }
 }
@@ -253,7 +298,7 @@ function Start-PlayUpload {
     param([string[]]$Selected)
     Assert-UploadApproval
     Assert-Tools @("gh")
-    Assert-MainReady $Selected -RequireClean
+    Assert-MainReady $Selected
     $head = Get-GitOutput @("rev-parse", "HEAD")
     if (-not $DryRun) {
         $remote = Get-GitOutput @("rev-parse", "origin/main")
@@ -298,7 +343,7 @@ switch ($Action) {
     "CommitPush" { Commit-Push $selectedApps }
     "Upload" { Start-PlayUpload $selectedApps }
     "QuickRelease" {
-        Assert-MainReady $selectedApps -RequireClean
+        Assert-MainReady $selectedApps
         Save-Versions $selectedApps (Get-VersionMap)
         Commit-Push $selectedApps
         Start-PlayUpload $selectedApps
