@@ -37,7 +37,8 @@ function Invoke-Tool {
         [string]$File,
         [string[]]$Arguments,
         [string]$WorkingDirectory = $root,
-        [switch]$Mutating
+        [switch]$Mutating,
+        [switch]$Quiet
     )
     Write-Verbose "$File $($Arguments -join ' ')"
     if ($DryRun -and $Mutating) {
@@ -56,7 +57,7 @@ function Invoke-Tool {
         $ErrorActionPreference = "Stop"
     }
     $text = ($lines | Out-String).TrimEnd()
-    if ($text) { Write-Host $text }
+    if ($text -and -not $Quiet) { Write-Host $text }
     [pscustomobject]@{ ExitCode = $code; Output = $text }
 }
 
@@ -140,8 +141,10 @@ function Assert-VersionIncrease {
     }
     $nextCode = [int]$Matches[4]
     $committed = Get-CommittedVersion $App
+    $nextName = "$($Matches[1]).$($Matches[2]).$($Matches[3])"
+    if ($nextCode -eq $committed.Code -and $nextName -eq $committed.Name) { return }
     if ($nextCode -le $committed.Code) {
-        throw "$App versionCode must be greater than the committed $($committed.Code)."
+        throw "$App versionCode must be greater than the committed $($committed.Code), or left unchanged to publish that build to another track."
     }
 }
 
@@ -316,7 +319,7 @@ function Start-PlayUpload {
         "run", "list", "--repo", $repo, "--workflow", "play-upload.yml",
         "--event", "workflow_dispatch", "--limit", "10",
         "--json", "databaseId,url,status,conclusion,createdAt,headSha"
-    )
+    ) -Quiet
     if ($list.ExitCode -ne 0) { throw "Upload started, but its workflow run could not be found." }
     $parsedRuns = ConvertFrom-Json -InputObject $list.Output
     $matchingRuns = @(
@@ -328,6 +331,41 @@ function Start-PlayUpload {
     if (-not $run) { throw "Upload started, but its workflow run has not appeared yet. Check GitHub Actions." }
     Write-Host "PLAY_RUN_ID=$($run.databaseId)"
     Write-Host "PLAY_RUN_URL=$($run.url)"
+    Watch-PlayRun $run.databaseId
+}
+
+function Watch-PlayRun {
+    param($Id)
+    $deadline = (Get-Date).AddMinutes(50)
+    while ($true) {
+        $view = Invoke-Tool "gh" @(
+            "run", "view", "$Id", "--repo", $repo,
+            "--json", "status,conclusion,jobs,url"
+        ) -Quiet
+        if ($view.ExitCode -ne 0) { throw "Could not read Play workflow $Id." }
+        $run = $view.Output | ConvertFrom-Json
+        $state = if ($run.status -eq "completed") { $run.conclusion } else { $run.status }
+        Write-Host "Play upload ${Id}: $state"
+        $jobs = @($run.jobs)
+        if ($jobs.Count -eq 0) {
+            Write-Host "  waiting for the build jobs to start"
+        }
+        foreach ($job in $jobs) {
+            $jobState = if ($job.status -eq "completed") { $job.conclusion } else { $job.status }
+            Write-Host "  $($job.name): $jobState"
+        }
+        if ($run.status -eq "completed") {
+            if ($run.conclusion -ne "success") {
+                throw "Play upload finished with $($run.conclusion). $($run.url)"
+            }
+            Write-Host "Play upload succeeded. $($run.url)"
+            return
+        }
+        if ((Get-Date) -gt $deadline) {
+            throw "Play upload is still running after 50 minutes. $($run.url)"
+        }
+        Start-Sleep -Seconds 15
+    }
 }
 
 $selectedApps = @(Get-SelectedApps)
