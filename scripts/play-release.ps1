@@ -336,23 +336,37 @@ function Start-PlayUpload {
 
 function Watch-PlayRun {
     param($Id)
-    $deadline = (Get-Date).AddMinutes(50)
+    $started = Get-Date
+    $deadline = $started.AddMinutes(50)
+    $misses = 0
     while ($true) {
         $view = Invoke-Tool "gh" @(
             "run", "view", "$Id", "--repo", $repo,
             "--json", "status,conclusion,jobs,url"
         ) -Quiet
-        if ($view.ExitCode -ne 0) { throw "Could not read Play workflow $Id." }
-        $run = $view.Output | ConvertFrom-Json
+        if ($view.ExitCode -ne 0) {
+            $misses++
+            Write-Host "Status check failed ($misses of 5). The Play upload is still running."
+            if ($misses -ge 5) { throw "Could not read Play workflow $Id after 5 attempts. $($view.Output)" }
+            Start-Sleep -Seconds 15
+            continue
+        }
+        $misses = 0
+        $jsonStart = $view.Output.IndexOf("{")
+        if ($jsonStart -lt 0) { continue }
+        $run = $view.Output.Substring($jsonStart) | ConvertFrom-Json
         $state = if ($run.status -eq "completed") { $run.conclusion } else { $run.status }
         Write-Host "Play upload ${Id}: $state"
         $jobs = @($run.jobs)
         if ($jobs.Count -eq 0) {
             Write-Host "  waiting for the build jobs to start"
         }
+        $elapsed = [int]((Get-Date) - $started).TotalMinutes
         foreach ($job in $jobs) {
             $jobState = if ($job.status -eq "completed") { $job.conclusion } else { $job.status }
-            Write-Host "  $($job.name): $jobState"
+            $step = @($job.steps | Where-Object { $_.status -eq "in_progress" } | Select-Object -First 1)
+            $stepText = if ($step.Count -gt 0) { " - $($step[0].name)" } else { "" }
+            Write-Host "  $($job.name): $jobState$stepText ($elapsed min; builds usually take about 8)"
         }
         if ($run.status -eq "completed") {
             if ($run.conclusion -ne "success") {
