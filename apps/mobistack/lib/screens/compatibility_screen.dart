@@ -123,17 +123,29 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
         _categoryBrands = const [];
         _models = const [];
         _loadingCatalog = false;
-        _catalogError = null;
+        // No group is not an empty catalog. Drawing "0 brands" here is what a failed
+        // sign-in refresh used to look like.
+        _catalogError = 'Your fitment group has not loaded.';
       });
       return;
     }
-    setState(() {
-      _loadingCatalog = true;
-      _catalogError = null;
-      _brand = null;
-      _brandId = null;
-      _models = const [];
-    });
+    final cached = await context.read<AppState>().sync.readCatalogList('commons/brands', const {});
+    if (!mounted || _requestedGroup != groupId) return;
+    if (cached != null) {
+      setState(() {
+        _brands = cached;
+        _loadingCatalog = false;
+        _catalogError = null;
+      });
+    } else {
+      setState(() {
+        _loadingCatalog = true;
+        _catalogError = null;
+        _brand = null;
+        _brandId = null;
+        _models = const [];
+      });
+    }
     try {
       final brands = await _pages('commons/brands', const {});
       if (!mounted || _requestedGroup != groupId) return;
@@ -141,24 +153,38 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
         _brands = brands;
         // A part type opened from the address is loading its own brands; that load ends the spinner.
         if (_category == null) _loadingCatalog = false;
+        _catalogError = null;
       });
     } catch (_) {
       if (!mounted || _requestedGroup != groupId) return;
       setState(() {
         _loadingCatalog = false;
-        _catalogError = 'Could not load this group\'s phones.';
+        if (_brands.isEmpty) {
+          _catalogError = 'Could not load this group\'s phones.';
+        }
       });
     }
   }
 
   Future<void> _loadCategoryBrands(String code) async {
-    setState(() => _loadingCatalog = true);
+    final cached = await context.read<AppState>().sync.readCatalogList('commons/brands', {'categoryCode': code});
+    if (!mounted || _category?.code != code) return;
+    if (cached != null) {
+      setState(() {
+        _categoryBrands = cached;
+        _loadingCatalog = false;
+        _catalogError = null;
+      });
+    } else {
+      setState(() => _loadingCatalog = true);
+    }
     try {
       final brands = await _pages('commons/brands', {'categoryCode': code});
       if (!mounted || _category?.code != code) return;
       setState(() {
         _categoryBrands = brands;
         _loadingCatalog = false;
+        _catalogError = null;
       });
       final pending = _pendingBrandId;
       _pendingBrandId = null;
@@ -174,22 +200,35 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
       if (!mounted || _category?.code != code) return;
       setState(() {
         _loadingCatalog = false;
-        _catalogError = 'Could not load brands for this spare.';
+        if (_categoryBrands.isEmpty) {
+          _catalogError = 'Could not load brands for this spare.';
+        }
       });
     }
   }
 
   Future<void> _loadModels(String brandId) async {
-    setState(() => _loadingCatalog = true);
+    final query = <String, dynamic>{'brandId': brandId};
+    final code = _category?.code;
+    if (code != null) query['categoryCode'] = code;
+    final cached = await context.read<AppState>().sync.readCatalogList('commons/devices', query);
+    if (!mounted || _brandId != brandId) return;
+    if (cached != null) {
+      setState(() {
+        _models = cached;
+        _loadingCatalog = false;
+        _catalogError = null;
+      });
+    } else {
+      setState(() => _loadingCatalog = true);
+    }
     try {
-      final query = <String, dynamic>{'brandId': brandId};
-      final code = _category?.code;
-      if (code != null) query['categoryCode'] = code;
       final models = await _pages('commons/devices', query);
       if (!mounted || _brandId != brandId) return;
       setState(() {
         _models = models;
         _loadingCatalog = false;
+        _catalogError = null;
       });
     } catch (_) {
       if (!mounted) return;
@@ -199,18 +238,29 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
 
   Future<List<Map<String, dynamic>>> _pages(String path, Map<String, dynamic> query) async {
     final state = context.read<AppState>();
-    final rows = <Map<String, dynamic>>[];
-    for (var page = 0; page < 40; page++) {
-      final res = await state.api.dio.get<dynamic>(
-        path,
-        queryParameters: {...query, 'page': page, 'size': 100},
-      );
-      final batch = pageRows(res.data);
-      rows.addAll(batch);
-      final last = res.data is Map && (res.data as Map)['last'] == true;
-      if (last || batch.length < 100) break;
+    final cached = await state.sync.readCatalogList(path, query);
+    if (!state.online) {
+      if (cached != null) return cached;
+      throw StateError('offline');
     }
-    return rows;
+    try {
+      final rows = <Map<String, dynamic>>[];
+      for (var page = 0; page < 40; page++) {
+        final res = await state.api.dio.get<dynamic>(
+          path,
+          queryParameters: {...query, 'page': page, 'size': 100},
+        );
+        final batch = pageRows(res.data);
+        rows.addAll(batch);
+        final last = res.data is Map && (res.data as Map)['last'] == true;
+        if (last || batch.length < 100) break;
+      }
+      await state.sync.saveCatalogList(path, query, rows);
+      return rows;
+    } catch (e) {
+      if (cached != null) return cached;
+      rethrow;
+    }
   }
 
   Future<void> _addPhone() async {
@@ -435,7 +485,11 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
                 ),
               Expanded(
                 child: category == null
-                    ? _CategoryGrid(
+                    ? (_loadingCatalog
+                        ? Center(child: CircularProgressIndicator(color: Px.accent))
+                        : _catalogError != null
+                            ? ShopEmpty(title: _catalogError!, icon: Icons.cloud_off_rounded)
+                            : _CategoryGrid(
                         count: _brands.length,
                         saved: _book.groups.length,
                         onPick: (picked) {
@@ -458,7 +512,7 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
                           ));
                           await _loadBook();
                         },
-                      )
+                      ))
                     : _loadingCatalog
                         ? Center(child: CircularProgressIndicator(color: Px.accent))
                         : _catalogError != null

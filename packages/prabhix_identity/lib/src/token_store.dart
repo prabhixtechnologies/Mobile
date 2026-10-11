@@ -24,6 +24,7 @@ class TokenStore {
   static const _kRefresh = 'refresh';
   static const _kIdToken = 'id_token';
   static const _kExpires = 'expires';
+  static const _kLease = 'lease_extended_at';
   static const _kOrg = 'org';
   static const _kPermissions = 'permissions';
   static const _kUserId = 'user_id';
@@ -51,6 +52,8 @@ class TokenStore {
     await _storage.write(key: _kAccess, value: tokens.accessToken);
     await _storage.write(key: _kRefresh, value: tokens.refreshToken);
     await _storage.write(key: _kExpires, value: '${tokens.expiresAtEpochMs}');
+    final extendedAt = DateTime.now().millisecondsSinceEpoch;
+    await _storage.write(key: _kLease, value: '$extendedAt');
     if (tokens.idToken != null) {
       await _storage.write(key: _kIdToken, value: tokens.idToken);
     }
@@ -60,6 +63,7 @@ class TokenStore {
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
         expiresAtEpochMs: tokens.expiresAtEpochMs,
+        leaseExtendedAtEpochMs: extendedAt,
         idToken: tokens.idToken ?? current.idToken,
       );
     }
@@ -114,11 +118,22 @@ class TokenStore {
     final refresh = await _storage.read(key: _kRefresh);
     if (access == null || refresh == null) return null;
     final expiresRaw = await _storage.read(key: _kExpires);
+    final leaseRaw = await _storage.read(key: _kLease);
+    // A session saved before the lease existed starts its 30 days from this read,
+    // which is the first launch that knows how to keep working offline.
+    final leaseExtendedAt = int.tryParse(leaseRaw ?? '') ?? 0;
+    final stampedLease = leaseExtendedAt > 0
+        ? leaseExtendedAt
+        : DateTime.now().millisecondsSinceEpoch;
+    if (leaseExtendedAt <= 0) {
+      await _storage.write(key: _kLease, value: '$stampedLease');
+    }
     final permissionsRaw = await _storage.read(key: _kPermissions) ?? '';
     _memory = SessionState(
       accessToken: access,
       refreshToken: refresh,
       expiresAtEpochMs: int.tryParse(expiresRaw ?? '0') ?? 0,
+      leaseExtendedAtEpochMs: stampedLease,
       idToken: await _storage.read(key: _kIdToken),
       organizationId: await _storage.read(key: _kOrg),
       permissions: permissionsRaw.isEmpty
@@ -147,6 +162,7 @@ class TokenStore {
       _kRefresh,
       _kIdToken,
       _kExpires,
+      _kLease,
       _kOrg,
       _kPermissions,
       _kUserId,
