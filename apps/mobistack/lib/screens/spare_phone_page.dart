@@ -101,16 +101,21 @@ class _SparePhonePageState extends State<SparePhonePage> {
       for (final family in pageRows(familyRes.data)) {
         final members = family['members'];
         final rows = members is List ? members.whereType<Map>().toList() : <Map>[];
-        final self = phone.name.toLowerCase();
+        final selfName = phone.name.toLowerCase();
+        final selfBrand = phone.brand.toLowerCase();
+        final ownRows = rows.where((row) {
+          final name = '${row['name'] ?? ''}'.toLowerCase();
+          final brand = '${row['brandName'] ?? ''}'.toLowerCase();
+          return name == selfName && (brand.isEmpty || brand == selfBrand);
+        });
+        final own = ownRows.isEmpty ? null : ownRows.first;
         final others = rows
-            .where((row) => '${row['name'] ?? ''}'.toLowerCase() != self)
+            .where((row) => !identical(row, own))
             .map((row) => '${row['brandName'] ?? ''} ${row['name'] ?? ''}'.trim())
             .where((label) => label.isNotEmpty)
             .toList();
-        final fitmentId = rows
-            .map((row) => '${row['fitmentId'] ?? ''}')
-            .firstWhere((value) => value.isNotEmpty, orElse: () => '');
-        final fit = rows.isEmpty ? 'COMPATIBLE' : '${rows.first['fit'] ?? 'COMPATIBLE'}';
+        final fitmentId = '${own?['fitmentId'] ?? ''}';
+        final fit = '${own?['fit'] ?? 'COMPATIBLE'}';
         shared.add(_SharedPart(
           fitmentId: fitmentId,
           name: '${family['name'] ?? 'Part'}',
@@ -195,25 +200,11 @@ class _SparePhonePageState extends State<SparePhonePage> {
                       )
                     else
                       for (final part in _shared) ...[
-                        Text(part.name, style: Theme.of(context).textTheme.titleMedium),
-                        Text(part.fit, style: Theme.of(context).textTheme.bodySmall),
-                        if (part.others.isEmpty)
-                          Text('Only this phone so far', style: Theme.of(context).textTheme.bodyMedium)
-                        else
-                          for (final other in part.others)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 4),
-                              child: Text(other),
-                            ),
-                        if (part.fitmentId.isNotEmpty)
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: TextButton(
-                              onPressed: () => _confirm(part.fitmentId),
-                              child: const Text('Confirm'),
-                            ),
-                          ),
-                        const SizedBox(height: 8),
+                        _SharedCatalogCard(
+                          part: part,
+                          onConfirm: part.fitmentId.isEmpty ? null : () => _confirm(part.fitmentId),
+                        ),
+                        const SizedBox(height: 12),
                       ],
                     const SizedBox(height: 18),
                     Text(
@@ -320,6 +311,121 @@ class _SparePhonePageState extends State<SparePhonePage> {
     if (!mounted) return;
     setState(() => _sharing = false);
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.message)));
+  }
+}
+
+class _SharedCatalogCard extends StatelessWidget {
+  const _SharedCatalogCard({required this.part, required this.onConfirm});
+
+  final _SharedPart part;
+  final VoidCallback? onConfirm;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: Px.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Px.line),
+        boxShadow: Px.lift,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Px.accentSubtle,
+                    borderRadius: BorderRadius.circular(13),
+                    border: Border.all(color: Px.accentSubtleBorder),
+                  ),
+                  child: Icon(Icons.hub_outlined, color: Px.accentSubtleInk, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        part.name,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Px.accentSubtle,
+                              borderRadius: BorderRadius.circular(99),
+                            ),
+                            child: Text(
+                              part.fit,
+                              style: TextStyle(color: Px.accentSubtleInk, fontSize: 10, fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            part.others.isEmpty ? 'Dedicated fitment' : '${part.others.length} compatible models',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+            decoration: BoxDecoration(
+              color: Px.surfaceSunken.withValues(alpha: 0.65),
+              border: Border(top: BorderSide(color: Px.line)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'COMPATIBLE PHONE MODELS',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Px.muted),
+                ),
+                const SizedBox(height: 8),
+                if (part.others.isEmpty)
+                  Text('Only this phone uses this spare in the current catalog group.')
+                else
+                  Wrap(
+                    spacing: 7,
+                    runSpacing: 7,
+                    children: [
+                      for (final other in part.others)
+                        Chip(
+                          avatar: const Icon(Icons.phone_android_rounded, size: 15),
+                          label: Text(other),
+                        ),
+                    ],
+                  ),
+                if (onConfirm != null) ...[
+                  const SizedBox(height: 10),
+                  FilledButton.tonalIcon(
+                    onPressed: onConfirm,
+                    icon: const Icon(Icons.check_circle_outline_rounded),
+                    label: const Text('Confirm this fitment'),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
