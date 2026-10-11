@@ -11,6 +11,39 @@ import '../widgets/chrome.dart';
 import '../widgets/live_api_list.dart';
 import '../widgets/shop_ui.dart';
 
+List<Map<String, dynamic>> _canonicalFamilyRows(List<Map<String, dynamic>> rows) {
+  final dropped = <String>{};
+  final imported = rows.where(
+    (row) => '${row['description'] ?? ''}'.toLowerCase().contains('combo support'),
+  );
+  for (final family in rows) {
+    final members = pageRows(family['members']);
+    if (members.length != 1) continue;
+    final member = members.first;
+    final expectedName = [
+      member['brandName'],
+      member['name'],
+      member['variant'],
+      family['categoryName'],
+    ].where((value) => value != null && '$value'.trim().isNotEmpty).join(' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+    if ('${family['name'] ?? ''}'.toLowerCase() != expectedName.toLowerCase()) continue;
+    final memberId = '${member['id'] ?? ''}';
+    final covered = imported.any((candidate) {
+      if ('${candidate['categoryCode'] ?? ''}'.toUpperCase() !=
+          '${family['categoryCode'] ?? ''}'.toUpperCase()) {
+        return false;
+      }
+      return pageRows(candidate['members']).any(
+        (candidateMember) => '${candidateMember['id'] ?? ''}' == memberId,
+      );
+    });
+    if (covered) {
+      dropped.add('${family['id'] ?? ''}');
+    }
+  }
+  return rows.where((row) => !dropped.contains('${row['id'] ?? ''}')).toList();
+}
+
 class DeviceDetailScreen extends StatefulWidget {
   const DeviceDetailScreen({super.key, required this.deviceId, this.categoryCode});
 
@@ -146,6 +179,46 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
       data: {'kind': 'CONFIRM_FITMENT', 'targetId': fitmentId},
     );
     await _load();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Fitment confirmed for the community catalog.')),
+    );
+  }
+
+  Future<void> _dispute(String fitmentId) async {
+    final reason = TextEditingController();
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Report a fitment issue'),
+        content: TextField(
+          controller: reason,
+          autofocus: true,
+          minLines: 2,
+          maxLines: 4,
+          decoration: const InputDecoration(
+            labelText: 'What did not fit?',
+            hintText: 'Describe what you found on the bench',
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Submit')),
+        ],
+      ),
+    );
+    final note = reason.text.trim();
+    reason.dispose();
+    if (submitted != true || note.isEmpty || !mounted) return;
+    await context.read<AppState>().api.dio.post<dynamic>(
+      'commons/contributions',
+      data: {'kind': 'DISPUTE_FITMENT', 'targetId': fitmentId, 'reason': note},
+    );
+    await _load();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Fitment issue submitted for review.')),
+    );
   }
 
   @override
@@ -156,19 +229,25 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
     final brand = '${_device?['brandName'] ?? fallback?.brandName ?? ''}';
     final categoryCode = _categoryCode;
     final category = categoryCode == null ? null : categoryByCode(categoryCode);
-    final families = categoryCode == null
+    final families = _canonicalFamilyRows(categoryCode == null
         ? _families
         : _families.where((group) {
             final code = '${group['categoryCode'] ?? ''}'.toUpperCase();
             return code.isEmpty || code == categoryCode.toUpperCase();
-          }).toList();
+          }).toList());
     final partIds = families.map((group) => '${group['id'] ?? ''}').where((id) => id.isNotEmpty).toSet();
-    final fits = categoryCode == null
-        ? _fits
-        : _fits.where((fit) => '${fit['categoryCode'] ?? ''}'.toUpperCase() == categoryCode.toUpperCase()).toList();
+    final fits = _fits.where((fit) => partIds.contains('${fit['componentId'] ?? ''}')).toList();
+    final fitByComponent = <String, Map<String, dynamic>>{
+      for (final fit in fits) '${fit['componentId'] ?? ''}': fit,
+    };
     final stock = categoryCode == null
         ? _stock
         : _stock.where((row) => partIds.contains('${row['componentId'] ?? ''}')).toList();
+    final compatibleIds = <String>{
+      for (final family in families)
+        for (final member in pageRows(family['members']))
+          if ('${member['id'] ?? ''}' != widget.deviceId) '${member['id'] ?? ''}',
+    }..remove('');
 
     return Atmosphere(
       child: Scaffold(
@@ -198,112 +277,410 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                         padding: const EdgeInsets.only(bottom: 12),
                         child: Text(_error!, style: TextStyle(color: Px.muted)),
                       ),
-                    Container(
-                      padding: const EdgeInsets.all(22),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(22),
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Px.accent, Px.accentStrong],
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            name,
-                            style: GoogleFonts.fraunces(
-                              color: Px.accentInk,
-                              fontSize: 28,
-                              fontWeight: FontWeight.w600,
-                              height: 1.1,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            [
-                              if (brand.isNotEmpty) brand,
-                              if (category != null) category.label,
-                              if (_device?['modelCode'] != null) '${_device!['modelCode']}',
-                            ].join(' · '),
-                            style: TextStyle(color: Px.accentInk, fontSize: 15),
-                          ),
-                        ],
-                      ),
+                    _DeviceCatalogHero(
+                      name: name,
+                      brand: brand,
+                      category: category?.label,
+                      modelCode: '${_device?['modelCode'] ?? ''}',
+                      familyCount: families.length,
+                      compatibleCount: compatibleIds.length,
                     ),
-                    for (final group in families) ...[
-                      const SizedBox(height: 18),
-                      Text(
-                        '${group['name'] ?? category?.label ?? 'Same part'}'.toUpperCase(),
-                        style: Theme.of(context).textTheme.labelLarge,
-                      ),
-                      const SizedBox(height: 8),
-                      ...pageRows(group['members']).map(
-                        (member) => ShopListTile(
-                          title: '${member['name'] ?? ''}',
-                          subtitle: '${member['brandName'] ?? ''}',
-                          onTap: () {
-                            final id = '${member['id'] ?? ''}';
-                            if (id.isNotEmpty && id != widget.deviceId) {
-                              final scope = categoryCode == null
-                                  ? ''
-                                  : '?category=${Uri.encodeQueryComponent(categoryCode)}';
-                              context.push('/commons/devices/$id$scope');
-                            }
-                          },
-                        ),
-                      ),
-                    ],
-                    if (context.watch<AppState>().hasFeature('INVENTORY')) ...[
-                      const SizedBox(height: 18),
-                      Text('THIS SHOP’S STOCK', style: Theme.of(context).textTheme.labelLarge),
-                      const SizedBox(height: 8),
-                      if (stock.isEmpty)
-                        Text(category == null
-                            ? 'No linked stock for this phone or the models that share its parts.'
-                            : 'No linked stock for this ${category.label.toLowerCase()}.')
-                      else
-                        ...stock.map(
-                          (row) => ShopListTile(
-                            title: '${row['name'] ?? row['sku']}',
-                            subtitle: '${row['sku'] ?? ''} · ${row['available'] ?? 0} on hand',
-                          ),
-                        ),
-                    ],
-                    const SizedBox(height: 18),
-                    Text(
-                      category == null ? 'WHAT FITS' : category.label.toUpperCase(),
-                      style: Theme.of(context).textTheme.labelLarge,
+                    const SizedBox(height: 22),
+                    _SectionLead(
+                      title: category?.label ?? 'Available spares',
+                      subtitle: families.length == 1
+                          ? 'One spare family covers this phone.'
+                          : '${families.length} distinct spare families cover this phone.',
                     ),
-                    const SizedBox(height: 8),
-                    if (fits.isEmpty)
-                      Text(category == null
-                          ? 'Nothing linked in the shared catalog yet.'
-                          : 'No ${category.label.toLowerCase()} linked for this phone yet.')
+                    const SizedBox(height: 12),
+                    if (families.isEmpty)
+                      ShopEmpty(
+                        title: category == null
+                            ? 'Nothing linked yet'
+                            : 'No ${category.label.toLowerCase()} linked',
+                        subtitle: 'This phone has no shared catalog fitment in the selected group.',
+                        icon: Icons.link_off_rounded,
+                      )
                     else
-                      ...fits.map((fit) {
-                        final id = '${fit['fitmentId'] ?? ''}';
-                        return ShopListTile(
-                          title: '${fit['componentName'] ?? 'Part'}',
-                          subtitle:
-                              '${fit['fit'] ?? ''} · ${fit['confirmations'] ?? 0} confirm · ${fit['disputes'] ?? 0} dispute',
-                          trailing: IconButton(
-                            tooltip: 'Confirm this part fits',
-                            icon: const Icon(Icons.check_rounded),
-                            onPressed: id.isEmpty ? null : () => _confirm(id),
-                          ),
-                          onTap: () {
-                            final componentId = '${fit['componentId'] ?? ''}';
-                            if (componentId.isNotEmpty) {
-                              context.push('/commons/components/$componentId');
-                            }
-                          },
-                        );
-                      }),
+                      for (var index = 0; index < families.length; index++) ...[
+                        _FitmentFamilyCard(
+                          index: index,
+                          family: families[index],
+                          fit: fitByComponent['${families[index]['id'] ?? ''}'],
+                          deviceId: widget.deviceId,
+                          categoryCode: categoryCode,
+                          stock: stock
+                              .where((row) => '${row['componentId'] ?? ''}' == '${families[index]['id'] ?? ''}')
+                              .toList(),
+                          showInventory: context.watch<AppState>().hasFeature('INVENTORY'),
+                          busy: _refreshing,
+                          onConfirm: _confirm,
+                          onDispute: _dispute,
+                        ),
+                        const SizedBox(height: 14),
+                      ],
                   ],
                 ),
               ),
+      ),
+    );
+  }
+}
+
+class _DeviceCatalogHero extends StatelessWidget {
+  const _DeviceCatalogHero({
+    required this.name,
+    required this.brand,
+    required this.category,
+    required this.modelCode,
+    required this.familyCount,
+    required this.compatibleCount,
+  });
+
+  final String name;
+  final String brand;
+  final String? category;
+  final String modelCode;
+  final int familyCount;
+  final int compatibleCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(26),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Px.accent, Px.accentStrong],
+        ),
+        boxShadow: Px.lift,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: Px.accentInk.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(17),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    brand.isEmpty ? 'PH' : brand.substring(0, brand.length >= 2 ? 2 : 1).toUpperCase(),
+                    style: TextStyle(color: Px.accentInk, fontWeight: FontWeight.w800),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: GoogleFonts.fraunces(
+                          color: Px.accentInk,
+                          fontSize: 29,
+                          fontWeight: FontWeight.w600,
+                          height: 1.05,
+                        ),
+                      ),
+                      const SizedBox(height: 7),
+                      Text(
+                        [
+                          if (brand.isNotEmpty) brand,
+                          if (category != null) category!,
+                          if (modelCode.isNotEmpty) modelCode,
+                        ].join(' · '),
+                        style: TextStyle(color: Px.accentInk.withValues(alpha: 0.86), fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            color: Px.scrim.withValues(alpha: 0.12),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+            child: Row(
+              children: [
+                Expanded(child: _HeroFact(icon: Icons.inventory_2_outlined, value: '$familyCount', label: 'spares')),
+                Container(width: 1, height: 28, color: Px.accentInk.withValues(alpha: 0.22)),
+                Expanded(child: _HeroFact(icon: Icons.link_rounded, value: '$compatibleCount', label: 'models')),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroFact extends StatelessWidget {
+  const _HeroFact({required this.icon, required this.value, required this.label});
+
+  final IconData icon;
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, size: 17, color: Px.accentInk),
+        const SizedBox(width: 7),
+        Text('$value $label', style: TextStyle(color: Px.accentInk, fontWeight: FontWeight.w700)),
+      ],
+    );
+  }
+}
+
+class _SectionLead extends StatelessWidget {
+  const _SectionLead({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('COMPATIBILITY RESULTS', style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Px.accent)),
+              const SizedBox(height: 3),
+              Text(title, style: GoogleFonts.fraunces(fontSize: 23, fontWeight: FontWeight.w600, color: Px.ink)),
+              const SizedBox(height: 3),
+              Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FitmentFamilyCard extends StatelessWidget {
+  const _FitmentFamilyCard({
+    required this.index,
+    required this.family,
+    required this.fit,
+    required this.deviceId,
+    required this.categoryCode,
+    required this.stock,
+    required this.showInventory,
+    required this.busy,
+    required this.onConfirm,
+    required this.onDispute,
+  });
+
+  final int index;
+  final Map<String, dynamic> family;
+  final Map<String, dynamic>? fit;
+  final String deviceId;
+  final String? categoryCode;
+  final List<Map<String, dynamic>> stock;
+  final bool showInventory;
+  final bool busy;
+  final Future<void> Function(String) onConfirm;
+  final Future<void> Function(String) onDispute;
+
+  @override
+  Widget build(BuildContext context) {
+    final members = pageRows(family['members']);
+    final self = members.where((member) => '${member['id'] ?? ''}' == deviceId);
+    final own = self.isEmpty ? null : self.first;
+    final others = members.where((member) => '${member['id'] ?? ''}' != deviceId).toList();
+    final fitmentId = '${fit?['fitmentId'] ?? own?['fitmentId'] ?? ''}';
+    final quality = '${fit?['fit'] ?? own?['fit'] ?? 'COMPATIBLE'}'.replaceAll('_', ' ');
+    final disputed = fit?['disputed'] == true || own?['disputed'] == true;
+    final verified = fit?['verified'] == true || own?['verified'] == true;
+
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: Px.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Px.line),
+        boxShadow: Px.lift,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: Px.accentSubtle,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Px.accentSubtleBorder),
+                  ),
+                  child: Text(
+                    '${index + 1}'.padLeft(2, '0'),
+                    style: TextStyle(color: Px.accentSubtleInk, fontWeight: FontWeight.w800),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${family['categoryName'] ?? family['categoryCode'] ?? 'Spare'}'.toUpperCase(),
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Px.accent, letterSpacing: .8),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${family['name'] ?? 'Same part'}',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      Text(
+                        others.isEmpty ? 'Dedicated to this phone' : 'Shared with ${others.length} other models',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Spare details',
+                  icon: const Icon(Icons.arrow_forward_rounded),
+                  onPressed: () => context.push('/commons/components/${family['id']}'),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 10, 10, 10),
+            decoration: BoxDecoration(
+              color: disputed ? Px.warningSubtle : Px.surfaceSunken,
+              border: Border(top: BorderSide(color: Px.line)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: disputed ? Px.warningSubtle : Px.accentSubtle,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Text(
+                    quality,
+                    style: TextStyle(
+                      color: disputed ? Px.warningSubtleInk : Px.accentSubtleInk,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    [
+                      if (fit != null) '${fit!['confirmations'] ?? 0} confirm',
+                      if (fit != null) '${fit!['disputes'] ?? 0} dispute',
+                      if (verified) 'Verified',
+                      if (disputed) 'Disputed',
+                    ].join(' · '),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Confirm this fitment',
+                  icon: const Icon(Icons.check_circle_outline_rounded),
+                  onPressed: busy || fitmentId.isEmpty ? null : () => onConfirm(fitmentId),
+                ),
+                IconButton(
+                  tooltip: 'Report an issue',
+                  icon: const Icon(Icons.flag_outlined),
+                  onPressed: busy || fitmentId.isEmpty ? null : () => onDispute(fitmentId),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('COMPATIBLE PHONE MODELS', style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Px.muted)),
+                const SizedBox(height: 9),
+                if (others.isEmpty)
+                  Row(
+                    children: [
+                      Icon(Icons.verified_user_outlined, size: 18, color: Px.accent),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text('Only this phone uses the spare in the current catalog group.')),
+                    ],
+                  )
+                else
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final member in others)
+                        ActionChip(
+                          avatar: const Icon(Icons.phone_android_rounded, size: 16),
+                          label: Text('${member['brandName'] ?? ''} ${member['name'] ?? ''}'.trim()),
+                          onPressed: () {
+                            final memberId = '${member['id'] ?? ''}';
+                            if (memberId.isEmpty) return;
+                            final scope = categoryCode == null
+                                ? ''
+                                : '?category=${Uri.encodeQueryComponent(categoryCode!)}';
+                            context.push('/commons/devices/$memberId$scope');
+                          },
+                        ),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+          if (showInventory)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Px.surfaceSunken.withValues(alpha: 0.62),
+                border: Border(top: BorderSide(color: Px.line)),
+              ),
+              child: stock.isEmpty
+                  ? Row(
+                      children: [
+                        Icon(Icons.inventory_2_outlined, size: 18, color: Px.faint),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text('No shop SKU linked yet.', style: TextStyle(color: Px.muted))),
+                      ],
+                    )
+                  : Column(
+                      children: [
+                        for (final row in stock)
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            dense: true,
+                            title: Text('${row['name'] ?? row['sku']}'),
+                            subtitle: Text('${row['sku'] ?? ''}'),
+                            trailing: Text('${row['available'] ?? 0} on hand'),
+                          ),
+                      ],
+                    ),
+            ),
+        ],
       ),
     );
   }
