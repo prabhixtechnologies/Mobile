@@ -29,6 +29,7 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
   String? _brand;
   String? _brandId;
   List<Map<String, dynamic>> _brands = const [];
+  List<Map<String, dynamic>> _categoryBrands = const [];
   List<Map<String, dynamic>> _models = const [];
   String? _requestedGroup;
   bool _loadingCatalog = false;
@@ -54,6 +55,7 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
       if (!mounted) return;
       setState(() {
         _brands = const [];
+        _categoryBrands = const [];
         _models = const [];
         _loadingCatalog = false;
         _catalogError = null;
@@ -83,10 +85,31 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
     }
   }
 
+  Future<void> _loadCategoryBrands(String code) async {
+    setState(() => _loadingCatalog = true);
+    try {
+      final brands = await _pages('commons/brands', {'categoryCode': code});
+      if (!mounted || _category?.code != code) return;
+      setState(() {
+        _categoryBrands = brands;
+        _loadingCatalog = false;
+      });
+    } catch (_) {
+      if (!mounted || _category?.code != code) return;
+      setState(() {
+        _loadingCatalog = false;
+        _catalogError = 'Could not load brands for this spare.';
+      });
+    }
+  }
+
   Future<void> _loadModels(String brandId) async {
     setState(() => _loadingCatalog = true);
     try {
-      final models = await _pages('commons/devices', {'brandId': brandId});
+      final query = <String, dynamic>{'brandId': brandId};
+      final code = _category?.code;
+      if (code != null) query['categoryCode'] = code;
+      final models = await _pages('commons/devices', query);
       if (!mounted || _brandId != brandId) return;
       setState(() {
         _models = models;
@@ -339,12 +362,17 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
                     ? _CategoryGrid(
                         count: _brands.length,
                         saved: _book.groups.length,
-                        onPick: (picked) => setState(() {
-                          _category = picked;
-                          _brand = null;
-                          _brandId = null;
-                          _query.clear();
-                        }),
+                        onPick: (picked) {
+                          setState(() {
+                            _category = picked;
+                            _brand = null;
+                            _brandId = null;
+                            _categoryBrands = const [];
+                            _query.clear();
+                            _catalogError = null;
+                          });
+                          _loadCategoryBrands(picked.code);
+                        },
                         onSaved: () async {
                           final library = _library ?? await FitmentLibrary.load();
                           if (!context.mounted) return;
@@ -361,7 +389,7 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
                             ? ShopEmpty(title: _catalogError!, icon: Icons.cloud_off_rounded)
                             : _brand == null
                                 ? _BrandList(
-                                    brands: _brands,
+                                    brands: _categoryBrands,
                                     query: _query.text,
                                     onPick: (brand) {
                                       final id = '${brand['id'] ?? ''}';
