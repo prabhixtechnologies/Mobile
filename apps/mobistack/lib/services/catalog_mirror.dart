@@ -5,11 +5,11 @@ import 'sync_store.dart';
 
 typedef CatalogGet = Future<dynamic> Function(String path, Map<String, dynamic> query);
 
-/// Downloads the fitment catalog onto the phone while the network is up.
+/// Installs the backend's one immutable catalog snapshot on the phone.
 ///
-/// Lists and phone pages already saved stay readable when Identity or the shop
-/// API is down. A failed request stops the pass; the next connection resumes
-/// from the cursor instead of starting over.
+/// One HTTP request, one SQLite transaction. This deliberately does not crawl
+/// brands or phones: the backend has already published an internally consistent
+/// graph in Redis, and that exact graph is what the phone keeps offline.
 class CatalogMirror {
   CatalogMirror({
     required this.sync,
@@ -24,132 +24,182 @@ class CatalogMirror {
   final String? Function() groupId;
   bool _running = false;
 
-  Future<void> warm(int generation) async {
+  Future<void> warm() async {
     if (_running || !online()) return;
     final group = groupId();
     if (group == null || group.isEmpty) return;
     _running = true;
     try {
-      final stored = await sync.catalogWarmCursor() ?? {};
-      final sameGeneration = stored['generation'] == generation && stored['groupId'] == group;
-      final cursor = sameGeneration ? Map<String, dynamic>.from(stored) : <String, dynamic>{
-        'generation': generation,
-        'groupId': group,
-        'categoryIndex': 0,
-        'brandIndex': 0,
-        'listsDone': false,
-        'familyCategoryIndex': 0,
-        'familyBrandIndex': 0,
-        'familyDeviceIndex': 0,
-      };
-      if (!sameGeneration) await sync.saveCatalogWarmCursor(cursor);
-      if (cursor['listsDone'] != true) {
-        await _brands(const {});
-        await _deviceLists(cursor);
+      final installed = await sync.catalogVersion(group);
+      final body = await get('commons/snapshot', {
+        if (installed != null) 'version': installed,
+      });
+      if (body is! Map || body['unchanged'] == true) return;
+      final version = '${body['version'] ?? ''}';
+      final catalog = body['catalog'];
+      if (version.isEmpty || catalog is! Map) {
+        throw const FormatException('Catalog snapshot is incomplete');
       }
-      if (cursor['listsDone'] == true) await _families(cursor);
+      final projection = _project(group, Map<String, dynamic>.from(catalog));
+      await sync.installCatalogSnapshot(
+        groupId: group,
+        version: version,
+        lists: projection.lists,
+        details: projection.details,
+      );
     } catch (e, st) {
-      debugPrint('catalog mirror paused: $e\n$st');
+      debugPrint('catalog snapshot unchanged: $e\n$st');
     } finally {
       _running = false;
     }
   }
 
-  Future<void> _deviceLists(Map<String, dynamic> cursor) async {
-    var categoryIndex = (cursor['categoryIndex'] as num?)?.toInt() ?? 0;
-    while (categoryIndex < fitmentCategories.length) {
-      if (!online()) return;
-      final code = fitmentCategories[categoryIndex].code;
-      final brands = await _brands({'categoryCode': code});
-      var brandIndex = (cursor['brandIndex'] as num?)?.toInt() ?? 0;
-      while (brandIndex < brands.length) {
-        if (!online()) return;
-        final brandId = '${brands[brandIndex]['id'] ?? ''}';
-        if (brandId.isNotEmpty) {
-          await _pages('commons/devices', {'brandId': brandId, 'categoryCode': code});
-        }
-        brandIndex += 1;
-        cursor['brandIndex'] = brandIndex;
-        await sync.saveCatalogWarmCursor(cursor);
-      }
-      categoryIndex += 1;
-      cursor['categoryIndex'] = categoryIndex;
-      cursor['brandIndex'] = 0;
-      await sync.saveCatalogWarmCursor(cursor);
+  _Projection _project(String group, Map<String, dynamic> catalog) {
+    final brands = _rows(catalog['brands']);
+    final devices = _rows(catalog['devices']);
+    final components = _rows(catalog['components']);
+    final fitments = _rows(catalog['fitments']);
+    final brandsById = {for (final row in brands) '${row['id']}': row};
+    final devicesById = {for (final row in devices) '${row['id']}': row};
+    final componentsById = {for (final row in components) '${row['id']}': row};
+    final fitmentsByComponent = <String, List<Map<String, dynamic>>>{};
+    final fitmentsByDevice = <String, List<Map<String, dynamic>>>{};
+    for (final fitment in fitments) {
+      fitmentsByComponent.putIfAbsent('${fitment['componentId']}', () => []).add(fitment);
+      fitmentsByDevice.putIfAbsent('${fitment['deviceId']}', () => []).add(fitment);
     }
-    cursor['listsDone'] = true;
-    await sync.saveCatalogWarmCursor(cursor);
-  }
 
-  Future<void> _families(Map<String, dynamic> cursor) async {
-    var categoryIndex = (cursor['familyCategoryIndex'] as num?)?.toInt() ?? 0;
-    while (categoryIndex < fitmentCategories.length) {
-      if (!online()) return;
-      final code = fitmentCategories[categoryIndex].code;
-      final brands = await sync.readCatalogList('commons/brands', {'categoryCode': code}) ?? const [];
-      var brandIndex = (cursor['familyBrandIndex'] as num?)?.toInt() ?? 0;
-      while (brandIndex < brands.length) {
-        if (!online()) return;
-        final brandId = '${brands[brandIndex]['id'] ?? ''}';
-        final devices = brandId.isEmpty
-            ? const <Map<String, dynamic>>[]
-            : await sync.readCatalogList('commons/devices', {'brandId': brandId, 'categoryCode': code}) ??
-                const <Map<String, dynamic>>[];
-        var deviceIndex = (cursor['familyDeviceIndex'] as num?)?.toInt() ?? 0;
-        while (deviceIndex < devices.length) {
-          if (!online()) return;
-          await _family(devices[deviceIndex], code);
-          deviceIndex += 1;
-          cursor['familyDeviceIndex'] = deviceIndex;
-          await sync.saveCatalogWarmCursor(cursor);
-        }
-        brandIndex += 1;
-        cursor['familyBrandIndex'] = brandIndex;
-        cursor['familyDeviceIndex'] = 0;
-        await sync.saveCatalogWarmCursor(cursor);
-      }
-      categoryIndex += 1;
-      cursor['familyCategoryIndex'] = categoryIndex;
-      cursor['familyBrandIndex'] = 0;
-      cursor['familyDeviceIndex'] = 0;
-      await sync.saveCatalogWarmCursor(cursor);
+    Map<String, dynamic> deviceView(Map<String, dynamic> device) => {
+          ...device,
+          'brandName': brandsById['${device['brandId']}']?['name'],
+        };
+
+    final allDeviceViews = [for (final device in devices) deviceView(device)];
+    List<Map<String, dynamic>> brandViews(Set<String> mappedDevices, {required bool mappedOnly}) {
+      return [
+        for (final brand in brands)
+          if (!mappedOnly ||
+              mappedDevices.any((id) => '${devicesById[id]?['brandId']}' == '${brand['id']}'))
+            {
+              ...brand,
+              'deviceCount': devices.where((device) => '${device['brandId']}' == '${brand['id']}').length,
+              'mappedDeviceCount': mappedDevices
+                  .where((id) => '${devicesById[id]?['brandId']}' == '${brand['id']}')
+                  .length,
+            },
+      ];
     }
-  }
 
-  Future<void> _family(Map<String, dynamic> device, String categoryCode) async {
-    final id = '${device['id'] ?? ''}';
-    if (id.isEmpty) return;
-    final key = 'device.$id.$categoryCode';
-    final existing = await sync.commonsPage(key);
-    final body = await get('commons/devices/family', {'deviceId': id, 'categoryCode': categoryCode});
-    await sync.saveCommonsPage(key, {
-      'device': existing?['device'] ?? device,
-      'fits': existing?['fits'] ?? const [],
-      'stock': existing?['stock'] ?? const [],
-      'families': _rows(body),
+    final lists = <String, List<Map<String, dynamic>>>{};
+    final allMapped = fitments.map((fitment) => '${fitment['deviceId']}').toSet();
+    lists[sync.catalogListKey('commons/brands', const {}, groupId: group)] =
+        brandViews(allMapped, mappedOnly: false);
+
+    final details = <String, Map<String, dynamic>>{};
+    for (final category in fitmentCategories) {
+      final componentIds = components
+          .where((component) => '${component['categoryCode']}' == category.code)
+          .map((component) => '${component['id']}')
+          .toSet();
+      final categoryFitments =
+          fitments.where((fitment) => componentIds.contains('${fitment['componentId']}')).toList();
+      final mappedDevices = categoryFitments.map((fitment) => '${fitment['deviceId']}').toSet();
+      final categoryBrands = brandViews(mappedDevices, mappedOnly: true);
+      lists[sync.catalogListKey(
+        'commons/brands',
+        {'categoryCode': category.code},
+        groupId: group,
+      )] = categoryBrands;
+      for (final brand in categoryBrands) {
+        final brandId = '${brand['id']}';
+        lists[sync.catalogListKey(
+          'commons/devices',
+          {'brandId': brandId, 'categoryCode': category.code},
+          groupId: group,
+        )] = allDeviceViews.where((device) => '${device['brandId']}' == brandId).toList();
+      }
+      for (final device in devices) {
+        final deviceId = '${device['id']}';
+        details['catalog.detail.$group.$deviceId.${category.code}'] = _detail(
+          deviceView(device),
+          category.code,
+          category.label,
+          fitmentsByDevice[deviceId] ?? const [],
+          fitmentsByComponent,
+          componentsById,
+          devicesById,
+          brandsById,
+        );
+      }
+    }
+    return _Projection(lists, details);
+  }
+}
+
+Map<String, dynamic> _detail(
+  Map<String, dynamic> device,
+  String categoryCode,
+  String categoryName,
+  List<Map<String, dynamic>> deviceFitments,
+  Map<String, List<Map<String, dynamic>>> fitmentsByComponent,
+  Map<String, Map<String, dynamic>> componentsById,
+  Map<String, Map<String, dynamic>> devicesById,
+  Map<String, Map<String, dynamic>> brandsById,
+) {
+  final fits = <Map<String, dynamic>>[];
+  final families = <Map<String, dynamic>>[];
+  for (final fitment in deviceFitments) {
+    final componentId = '${fitment['componentId']}';
+    final component = componentsById[componentId];
+    if (component == null || '${component['categoryCode']}' != categoryCode) continue;
+    fits.add({
+      'fitmentId': fitment['id'],
+      'componentId': componentId,
+      'componentName': component['name'],
+      'categoryCode': categoryCode,
+      'deviceId': device['id'],
+      'deviceName': device['name'],
+      'fit': fitment['fitQuality'],
+      'confirmations': fitment['confirmations'],
+      'disputes': fitment['disputes'],
+      'disputed': fitment['disputed'],
+      'verified': fitment['verified'],
+      'confirmedByMe': false,
+      'disputedByMe': false,
+    });
+    final members = <Map<String, dynamic>>[];
+    for (final memberFitment in fitmentsByComponent[componentId] ?? const []) {
+      final member = devicesById['${memberFitment['deviceId']}'];
+      if (member == null) continue;
+      members.add({
+        'id': member['id'],
+        'brandName': brandsById['${member['brandId']}']?['name'],
+        'name': member['name'],
+        'variant': member['variant'],
+        'modelCode': member['modelCode'],
+        'fit': memberFitment['fitQuality'],
+        'verified': memberFitment['verified'],
+        'disputed': memberFitment['disputed'],
+        'fitmentId': memberFitment['id'],
+      });
+    }
+    families.add({
+      'id': componentId,
+      'categoryCode': categoryCode,
+      'categoryName': categoryName,
+      'name': component['name'],
+      'description': component['description'],
+      'members': members,
     });
   }
+  return {'device': device, 'fits': fits, 'families': families};
+}
 
-  Future<List<Map<String, dynamic>>> _brands(Map<String, dynamic> query) {
-    return _pages('commons/brands', query);
-  }
+class _Projection {
+  const _Projection(this.lists, this.details);
 
-  Future<List<Map<String, dynamic>>> _pages(String path, Map<String, dynamic> query) async {
-    final rows = <Map<String, dynamic>>[];
-    for (var page = 0; page < 40; page++) {
-      if (!online()) break;
-      final body = await get(path, {...query, 'page': page, 'size': 100});
-      final batch = _rows(body);
-      rows.addAll(batch);
-      final last = body is Map && body['last'] == true;
-      if (last || batch.length < 100) {
-        await sync.saveCatalogList(path, query, rows);
-        return rows;
-      }
-    }
-    final saved = await sync.readCatalogList(path, query);
-    return saved ?? rows;
-  }
+  final Map<String, List<Map<String, dynamic>>> lists;
+  final Map<String, Map<String, dynamic>> details;
 }
 
 List<Map<String, dynamic>> _rows(dynamic data) {

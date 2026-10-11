@@ -52,7 +52,9 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final id = context.read<AppState>().fitmentGroupId ?? '';
+    // Establishes the provider dependency so selecting another group reloads that group's
+    // independently installed offline snapshot.
+    final id = context.watch<AppState>().fitmentGroupId ?? '';
     if (id != _requestedGroup) {
       _requestedGroup = id;
       _loadCatalog(id);
