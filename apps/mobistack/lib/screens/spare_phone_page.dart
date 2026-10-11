@@ -195,7 +195,7 @@ class _SparePhonePageState extends State<SparePhonePage> {
                       Text(_sharedError!, style: Theme.of(context).textTheme.bodyMedium)
                     else if (_shared.isEmpty)
                       Text(
-                        'Nothing shared for this phone in this union yet.',
+                        'Model-specific for now. This phone remains listed, but no shared models are confirmed for this spare yet.',
                         style: Theme.of(context).textTheme.bodyMedium,
                       )
                     else
