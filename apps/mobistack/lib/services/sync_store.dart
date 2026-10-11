@@ -157,9 +157,15 @@ class SyncStore {
     Map<String, dynamic> query, {
     String? groupId,
   }) async {
-    final raw = await _get(catalogListKey(path, query, groupId: groupId));
-    if (raw is! List) return null;
-    return raw.whereType<Map>().map((row) => Map<String, dynamic>.from(row)).toList();
+    try {
+      final raw = await _get(catalogListKey(path, query, groupId: groupId));
+      if (raw is! List) return null;
+      return raw.whereType<Map>().map((row) => Map<String, dynamic>.from(row)).toList();
+    } catch (e) {
+      // No saved catalog yet, including a widget test where the database is not opened.
+      debugPrint('catalog list unreadable: $e');
+      return null;
+    }
   }
 
   Future<void> saveCatalogList(
@@ -177,8 +183,13 @@ class SyncStore {
   }
 
   Future<Map<String, dynamic>?> catalogDetail(String groupId, String deviceId, String categoryCode) async {
-    final raw = await _get('catalog.detail.$groupId.$deviceId.$categoryCode');
-    return raw is Map ? Map<String, dynamic>.from(raw) : null;
+    try {
+      final raw = await _get('catalog.detail.$groupId.$deviceId.$categoryCode');
+      return raw is Map ? Map<String, dynamic>.from(raw) : null;
+    } catch (e) {
+      debugPrint('catalog detail unreadable: $e');
+      return null;
+    }
   }
 
   /// Replaces one group's complete offline catalog in one SQLite transaction.
