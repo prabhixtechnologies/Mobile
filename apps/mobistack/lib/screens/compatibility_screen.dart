@@ -14,8 +14,14 @@ import '../widgets/chrome.dart';
 import '../widgets/shop_ui.dart';
 
 /// Shared parts catalog: pick a part type, then a brand, then search models.
+///
+/// `/commons?category=CODE&brands=ID` opens straight on that step, the same address the web uses.
+/// A brand without a part type has no phone list here, so it opens on the part-type grid.
 class CompatibilityScreen extends StatefulWidget {
-  const CompatibilityScreen({super.key});
+  const CompatibilityScreen({super.key, this.initialCategory, this.initialBrandId});
+
+  final String? initialCategory;
+  final String? initialBrandId;
 
   @override
   State<CompatibilityScreen> createState() => _CompatibilityScreenState();
@@ -32,6 +38,8 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
   List<Map<String, dynamic>> _categoryBrands = const [];
   List<Map<String, dynamic>> _models = const [];
   String? _requestedGroup;
+  String? _pendingBrandId;
+  bool _routeApplied = false;
   bool _loadingCatalog = false;
   String? _catalogError;
 
@@ -45,9 +53,66 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final id = context.read<AppState>().fitmentGroupId ?? '';
-    if (id == _requestedGroup) return;
-    _requestedGroup = id;
-    _loadCatalog(id);
+    if (id != _requestedGroup) {
+      _requestedGroup = id;
+      _loadCatalog(id);
+    }
+    if (!_routeApplied) {
+      _routeApplied = true;
+      _applyRoute(widget.initialCategory, widget.initialBrandId);
+    }
+  }
+
+  @override
+  void didUpdateWidget(CompatibilityScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialCategory != widget.initialCategory ||
+        oldWidget.initialBrandId != widget.initialBrandId) {
+      _applyRoute(widget.initialCategory, widget.initialBrandId);
+    }
+  }
+
+  void _applyRoute(String? categoryCode, String? brandId) {
+    final code = categoryCode?.trim().toUpperCase() ?? '';
+    final brand = brandId?.trim() ?? '';
+    FitmentCategory? picked;
+    for (final category in fitmentCategories) {
+      if (category.code.toUpperCase() == code) picked = category;
+    }
+    if (picked == null) {
+      if (_category == null) return;
+      setState(() {
+        _category = null;
+        _brand = null;
+        _brandId = null;
+        _models = const [];
+        _pendingBrandId = null;
+        _query.clear();
+      });
+      return;
+    }
+    if (picked.code == _category?.code && (brand.isEmpty || brand == _brandId)) return;
+    setState(() {
+      _category = picked;
+      _brand = null;
+      _brandId = null;
+      _models = const [];
+      _categoryBrands = const [];
+      _pendingBrandId = brand.isEmpty ? null : brand;
+      _query.clear();
+      _catalogError = null;
+    });
+    _loadCategoryBrands(picked.code);
+  }
+
+  void _pickBrand(Map<String, dynamic> brand) {
+    final id = '${brand['id'] ?? ''}';
+    setState(() {
+      _brand = '${brand['name'] ?? ''}';
+      _brandId = id;
+      _query.clear();
+    });
+    if (id.isNotEmpty) _loadModels(id);
   }
 
   Future<void> _loadCatalog(String groupId) async {
@@ -74,7 +139,8 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
       if (!mounted || _requestedGroup != groupId) return;
       setState(() {
         _brands = brands;
-        _loadingCatalog = false;
+        // A part type opened from the address is loading its own brands; that load ends the spinner.
+        if (_category == null) _loadingCatalog = false;
       });
     } catch (_) {
       if (!mounted || _requestedGroup != groupId) return;
@@ -94,6 +160,16 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
         _categoryBrands = brands;
         _loadingCatalog = false;
       });
+      final pending = _pendingBrandId;
+      _pendingBrandId = null;
+      if (pending != null) {
+        for (final brand in brands) {
+          if ('${brand['id'] ?? ''}' == pending) {
+            _pickBrand(brand);
+            break;
+          }
+        }
+      }
     } catch (_) {
       if (!mounted || _category?.code != code) return;
       setState(() {
@@ -391,15 +467,7 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
                                 ? _BrandList(
                                     brands: _categoryBrands,
                                     query: _query.text,
-                                    onPick: (brand) {
-                                      final id = '${brand['id'] ?? ''}';
-                                      setState(() {
-                                        _brand = '${brand['name'] ?? ''}';
-                                        _brandId = id;
-                                        _query.clear();
-                                      });
-                                      if (id.isNotEmpty) _loadModels(id);
-                                    },
+                                    onPick: _pickBrand,
                                   )
                                 : _PhoneList(
                                     phones: _visibleModels(),

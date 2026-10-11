@@ -136,8 +136,13 @@ class _MobiStackAppState extends State<MobiStackApp> {
             ),
             GoRoute(
               path: '/commons',
-              pageBuilder: (_, page) =>
-                  NoTransitionPage(key: page.pageKey, child: const CompatibilityScreen()),
+              pageBuilder: (_, page) => NoTransitionPage(
+                key: page.pageKey,
+                child: CompatibilityScreen(
+                  initialCategory: page.uri.queryParameters['category'],
+                  initialBrandId: page.uri.queryParameters['brands'],
+                ),
+              ),
             ),
             GoRoute(
               path: '/billing',
