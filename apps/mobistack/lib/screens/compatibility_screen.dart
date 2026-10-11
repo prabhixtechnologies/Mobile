@@ -637,8 +637,11 @@ class _BrandList extends StatelessWidget {
       itemBuilder: (context, index) {
         final brand = shown[index];
         final name = '${brand['name'] ?? ''}';
+        final phones = (brand['deviceCount'] as num?)?.toInt() ?? 0;
+        final mapped = (brand['mappedDeviceCount'] as num?)?.toInt() ?? 0;
         return ShopListTile(
           title: name,
+          subtitle: '$phones phones · $mapped compatibility mapped',
           leading: _Mark(letter: name.isEmpty ? '?' : name[0].toUpperCase()),
           trailing: Icon(Icons.chevron_right_rounded, color: Px.faint),
           onTap: () => onPick(brand),
@@ -672,7 +675,7 @@ class _PhoneList extends StatelessWidget {
           return Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
             child: Text(
-              category.blurb,
+              '${category.blurb} Every phone is listed; an unmapped phone is treated as model-specific until shared compatibility is confirmed.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           );

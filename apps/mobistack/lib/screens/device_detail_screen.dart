@@ -296,10 +296,12 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                     if (families.isEmpty)
                       ShopEmpty(
                         title: category == null
-                            ? 'Nothing linked yet'
-                            : 'No ${category.label.toLowerCase()} linked',
-                        subtitle: 'This phone has no shared catalog fitment in the selected group.',
-                        icon: Icons.link_off_rounded,
+                            ? 'No compatibility data yet'
+                            : '${category.label} is model-specific for now',
+                        subtitle: category == null
+                            ? 'The phone is listed, but no shared spare families have been confirmed yet.'
+                            : 'No shared models are confirmed for this spare yet. The phone remains available in the catalog.',
+                        icon: Icons.phone_android_rounded,
                       )
                     else
                       for (var index = 0; index < families.length; index++) ...[
@@ -504,6 +506,8 @@ class _FitmentFamilyCard extends StatelessWidget {
     final own = self.isEmpty ? null : self.first;
     final others = members.where((member) => '${member['id'] ?? ''}' != deviceId).toList();
     final fitmentId = '${fit?['fitmentId'] ?? own?['fitmentId'] ?? ''}';
+    final confirmedByMe = fit?['confirmedByMe'] == true;
+    final disputedByMe = fit?['disputedByMe'] == true;
     final quality = '${fit?['fit'] ?? own?['fit'] ?? 'COMPATIBLE'}'.replaceAll('_', ' ');
     final disputed = fit?['disputed'] == true || own?['disputed'] == true;
     final verified = fit?['verified'] == true || own?['verified'] == true;
@@ -602,14 +606,14 @@ class _FitmentFamilyCard extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Confirm this fitment',
-                  icon: const Icon(Icons.check_circle_outline_rounded),
-                  onPressed: busy || fitmentId.isEmpty ? null : () => onConfirm(fitmentId),
+                  tooltip: confirmedByMe ? 'You confirmed this fitment' : 'Confirm this fitment',
+                  icon: Icon(confirmedByMe ? Icons.check_circle_rounded : Icons.check_circle_outline_rounded),
+                  onPressed: busy || fitmentId.isEmpty || confirmedByMe ? null : () => onConfirm(fitmentId),
                 ),
                 IconButton(
-                  tooltip: 'Report an issue',
-                  icon: const Icon(Icons.flag_outlined),
-                  onPressed: busy || fitmentId.isEmpty ? null : () => onDispute(fitmentId),
+                  tooltip: disputedByMe ? 'You reported this fitment' : 'Report an issue',
+                  icon: Icon(disputedByMe ? Icons.flag_rounded : Icons.flag_outlined),
+                  onPressed: busy || fitmentId.isEmpty || disputedByMe ? null : () => onDispute(fitmentId),
                 ),
               ],
             ),
