@@ -100,7 +100,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
       setState(() {
         _loading = false;
         _refreshing = false;
-        _error = _device == null ? 'Offline · this phone is not cached yet' : null;
+        _error = _device == null ? 'Offline · this phone has not been saved yet' : null;
       });
       return;
     }

@@ -142,6 +142,54 @@ class SyncStore {
     'compatibility-groups',
   ];
 
+  String catalogListKey(String path, Map<String, dynamic> query) {
+    final names = query.keys.toList()..sort();
+    final parts = [
+      for (final name in names)
+        if (query[name] != null && '${query[name]}'.isNotEmpty) '$name=${query[name]}',
+    ];
+    return 'catalog.list.$path?${parts.join('&')}';
+  }
+
+  Future<List<Map<String, dynamic>>?> readCatalogList(String path, Map<String, dynamic> query) async {
+    final raw = await _get(catalogListKey(path, query));
+    if (raw is! List) return null;
+    return raw.whereType<Map>().map((row) => Map<String, dynamic>.from(row)).toList();
+  }
+
+  Future<void> saveCatalogList(String path, Map<String, dynamic> query, List<Map<String, dynamic>> rows) async {
+    await _put(catalogListKey(path, query), rows);
+  }
+
+  Future<Map<String, dynamic>?> catalogWarmCursor() async {
+    return readJson('catalog.warm');
+  }
+
+  Future<void> saveCatalogWarmCursor(Map<String, dynamic> cursor) async {
+    await saveJson('catalog.warm', cursor);
+  }
+
+  Future<void> saveFitmentGroups(List<Map<String, dynamic>> groups, String? selectedId) async {
+    await _put('fitment.groups', {
+      'selectedId': selectedId,
+      'groups': groups,
+    });
+  }
+
+  /// The last groups this phone loaded. A failed Identity refresh must not look like an empty catalog.
+  Future<({List<Map<String, dynamic>> groups, String? selectedId})?> fitmentGroups() async {
+    final raw = await _get('fitment.groups');
+    if (raw is! Map) return null;
+    final rows = raw['groups'];
+    if (rows is! List) return null;
+    final groups = [
+      for (final row in rows)
+        if (row is Map) Map<String, dynamic>.from(row),
+    ];
+    final selected = raw['selectedId'];
+    return (groups: groups, selectedId: selected == null || '$selected'.isEmpty ? null : '$selected');
+  }
+
   Future<void> saveSession(Map<String, dynamic> me) async {
     await _put('session.me', me);
   }

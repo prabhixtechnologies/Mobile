@@ -8,6 +8,7 @@ import 'package:prabhix_offline/prabhix_offline.dart';
 
 import '../config.dart';
 import '../models/shop_models.dart';
+import '../services/catalog_mirror.dart';
 import '../services/counter_payloads.dart';
 import '../services/open_bill.dart';
 import '../services/push_registration.dart';
@@ -39,6 +40,15 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     attachRecoveryToApi(api, recovery);
     api.onSessionLost = _onSessionLost;
     sync = SyncStore(api);
+    catalogMirror = CatalogMirror(
+      sync: sync,
+      get: (path, query) async {
+        final response = await api.dio.get<dynamic>(path, queryParameters: query);
+        return response.data;
+      },
+      online: () => connectivity.online,
+      groupId: () => api.fitmentGroupId,
+    );
     api.traceRequests((message) => debugPrint('mobistack $message'));
     WidgetsBinding.instance.addObserver(this);
   }
@@ -48,6 +58,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   late final ClientRecoveryController recovery;
   late final ApiClient api;
   late final SyncStore sync;
+  late final CatalogMirror catalogMirror;
   final ConnectivityMonitor connectivity = ConnectivityMonitor();
   final SyncNotifier syncNotifier = SyncNotifier();
 
@@ -145,6 +156,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   void _onNet() {
     notifyListeners();
     if (online && phase == AuthPhase.ready) {
+      unawaited(_extendSessionIfDue());
       unawaited(refreshAll());
     } else if (!online && pendingOps > 0) {
       unawaited(syncNotifier.showPendingOutbox(pendingOps));
@@ -205,6 +217,12 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     final failures = <String>[];
     final beforePending = await sync.pendingCount();
     if (online) {
+      await _extendSessionIfDue();
+      if (phase != AuthPhase.ready) {
+        busy = false;
+        notifyListeners();
+        return;
+      }
       try {
         await sync.flush();
       } catch (e, st) {
@@ -246,6 +264,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
     if (online && !catalogOnlyMode) {
       unawaited(sync.pullOfflineLists());
+    }
+    if (online && fitmentGroupId != null) {
+      final session = await identity.tokenStore.session();
+      unawaited(catalogMirror.warm(session?.leaseExtendedAtEpochMs ?? 0));
     }
   }
 
@@ -587,6 +609,18 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     devices = await sync.devices();
     commonsDevices = await sync.commonsDevices();
     pendingOps = await sync.pendingCount();
+    final savedGroups = await sync.fitmentGroups();
+    if (savedGroups != null) {
+      fitmentGroups = [
+        for (final row in savedGroups.groups) FitmentGroup.fromJson(row),
+      ];
+      final selected = savedGroups.selectedId;
+      final stillThere = selected != null && fitmentGroups.any((group) => group.id == selected);
+      fitmentGroupId = stillThere
+          ? selected
+          : (fitmentGroups.isEmpty ? null : fitmentGroups.first.id);
+      api.fitmentGroupId = fitmentGroupId;
+    }
   }
 
   Future<bool> _showCachedShop() async {
@@ -600,17 +634,58 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     return true;
   }
 
+  /// Rotates the refresh token when this phone has been online long enough that
+  /// another 30 days should start. A failed attempt keeps the previous lease.
+  Future<void> _extendSessionIfDue() async {
+    if (!online) return;
+    final session = await identity.tokenStore.session();
+    if (session == null || !session.dueForExtension()) return;
+    try {
+      final token = await identity.refreshIfNeeded(force: true);
+      if (token == null) {
+        _requireSignIn('Your session has ended. Sign in again.');
+      }
+    } catch (e, st) {
+      debugPrint('session extend deferred: $e\n$st');
+      final current = await identity.tokenStore.session();
+      if (current != null && !current.coversLease()) {
+        await identity.tokenStore.clearAuthSecrets();
+        _requireSignIn('Sign in to continue. The 30-day offline window has ended.');
+      }
+    }
+  }
+
+  void _requireSignIn(String message) {
+    me = null;
+    fitmentGroups = const [];
+    fitmentGroupId = null;
+    api.fitmentGroupId = null;
+    error = message;
+    phase = AuthPhase.signedOut;
+    servingFromCache = false;
+    notifyListeners();
+  }
+
   Future<void> _refreshLive() async {
     try {
-      await identity.refreshIfNeeded();
+      final existing = await identity.tokenStore.session();
+      final token = await identity.refreshIfNeeded(force: existing?.dueForExtension() ?? false);
+      if (token == null) {
+        _requireSignIn('Your session has ended. Sign in again.');
+        return;
+      }
       await _loadSession();
     } catch (e, st) {
       debugPrint('live session failed: $e\n$st');
       if (e is ApiException && e.statusCode == 401) {
         await recovery.handleApiException(e);
-        error = 'Your session has ended. Sign in again.';
-        phase = AuthPhase.signedOut;
-        notifyListeners();
+        _requireSignIn('Your session has ended. Sign in again.');
+        return;
+      }
+      final session = await identity.tokenStore.session();
+      if (session != null && !session.coversLease()) {
+        await identity.tokenStore.clearAuthSecrets();
+        _requireSignIn('Sign in to continue. The 30-day offline window has ended.');
         return;
       }
       if (me != null) {
@@ -796,6 +871,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
           ? fitmentGroupId
           : (loaded.isEmpty ? null : loaded.first.id);
       api.fitmentGroupId = fitmentGroupId;
+      await sync.saveFitmentGroups(
+        [for (final group in fitmentGroups) group.toJson()],
+        fitmentGroupId,
+      );
     } catch (e, st) {
       debugPrint('fitment groups unavailable: $e\n$st');
     }
@@ -806,6 +885,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     fitmentGroupId = id;
     api.fitmentGroupId = id;
     notifyListeners();
+    unawaited(sync.saveFitmentGroups(
+      [for (final group in fitmentGroups) group.toJson()],
+      id,
+    ));
   }
 
   String? issuedJoinCode;
@@ -854,4 +937,10 @@ class FitmentGroup {
       callerRole: '${json['callerRole'] ?? 'MEMBER'}',
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'callerRole': callerRole,
+      };
 }
