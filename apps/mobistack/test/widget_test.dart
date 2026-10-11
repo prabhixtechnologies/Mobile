@@ -119,6 +119,24 @@ void main() {
     state.dispose();
   });
 
+  testWidgets('fitment catalog opens on the part type from the address', (tester) async {
+    final state = readyState();
+    await tester.pumpWidget(wrap(
+      state,
+      const CompatibilityScreen(
+        initialCategory: 'DISPLAY_CONNECTOR',
+        initialBrandId: '692f18b7-d045-4fd0-9755-d3ba68183c8f',
+      ),
+    ));
+    await tester.pump();
+    expect(find.text('Display connector'), findsOneWidget);
+    expect(find.text('Saved spares'), findsNothing);
+    // The brand list request has no server here; let its timeout run out before teardown.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(minutes: 2));
+    state.dispose();
+  });
+
   testWidgets('inventory stock', (tester) async {
     final state = readyState();
     await tester.pumpWidget(wrap(state, const InventoryScreen()));
