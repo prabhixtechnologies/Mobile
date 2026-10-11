@@ -81,13 +81,27 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
 
   Future<void> _applyCache(AppState state) async {
     final cached = await state.sync.commonsPage(_cacheKey);
-    if (!mounted || cached == null) return;
-    final device = cached['device'];
+    if (!mounted) return;
+    if (cached != null) {
+      final device = cached['device'];
+      setState(() {
+        _device = device is Map ? Map<String, dynamic>.from(device) : _device;
+        _fits = pageRows(cached['fits']);
+        _stock = pageRows(cached['stock']);
+        _families = pageRows(cached['families']);
+        _loading = false;
+      });
+    }
+    final groupId = state.fitmentGroupId;
+    final category = _categoryCode;
+    if (groupId == null || category == null) return;
+    final snapshot = await state.sync.catalogDetail(groupId, widget.deviceId, category);
+    if (!mounted || snapshot == null) return;
+    final device = snapshot['device'];
     setState(() {
       _device = device is Map ? Map<String, dynamic>.from(device) : _device;
-      _fits = pageRows(cached['fits']);
-      _stock = pageRows(cached['stock']);
-      _families = pageRows(cached['families']);
+      _fits = pageRows(snapshot['fits']);
+      _families = pageRows(snapshot['families']);
       _loading = false;
     });
   }

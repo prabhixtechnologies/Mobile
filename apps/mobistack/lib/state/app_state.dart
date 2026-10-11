@@ -266,8 +266,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       unawaited(sync.pullOfflineLists());
     }
     if (online && fitmentGroupId != null) {
-      final session = await identity.tokenStore.session();
-      unawaited(catalogMirror.warm(session?.leaseExtendedAtEpochMs ?? 0));
+      unawaited(catalogMirror.warm());
     }
   }
 
@@ -889,6 +888,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       [for (final group in fitmentGroups) group.toJson()],
       id,
     ));
+    if (online) unawaited(catalogMirror.warm());
   }
 
   String? issuedJoinCode;

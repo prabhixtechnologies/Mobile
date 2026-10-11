@@ -142,31 +142,81 @@ class SyncStore {
     'compatibility-groups',
   ];
 
-  String catalogListKey(String path, Map<String, dynamic> query) {
+  String catalogListKey(String path, Map<String, dynamic> query, {String? groupId}) {
+    final group = groupId ?? api.fitmentGroupId ?? 'unselected';
     final names = query.keys.toList()..sort();
     final parts = [
       for (final name in names)
         if (query[name] != null && '${query[name]}'.isNotEmpty) '$name=${query[name]}',
     ];
-    return 'catalog.list.$path?${parts.join('&')}';
+    return 'catalog.list.$group.$path?${parts.join('&')}';
   }
 
-  Future<List<Map<String, dynamic>>?> readCatalogList(String path, Map<String, dynamic> query) async {
-    final raw = await _get(catalogListKey(path, query));
+  Future<List<Map<String, dynamic>>?> readCatalogList(
+    String path,
+    Map<String, dynamic> query, {
+    String? groupId,
+  }) async {
+    final raw = await _get(catalogListKey(path, query, groupId: groupId));
     if (raw is! List) return null;
     return raw.whereType<Map>().map((row) => Map<String, dynamic>.from(row)).toList();
   }
 
-  Future<void> saveCatalogList(String path, Map<String, dynamic> query, List<Map<String, dynamic>> rows) async {
-    await _put(catalogListKey(path, query), rows);
+  Future<void> saveCatalogList(
+    String path,
+    Map<String, dynamic> query,
+    List<Map<String, dynamic>> rows, {
+    String? groupId,
+  }) async {
+    await _put(catalogListKey(path, query, groupId: groupId), rows);
   }
 
-  Future<Map<String, dynamic>?> catalogWarmCursor() async {
-    return readJson('catalog.warm');
+  Future<String?> catalogVersion(String groupId) async {
+    final raw = await _get('catalog.snapshot.version.$groupId');
+    return raw is String && raw.isNotEmpty ? raw : null;
   }
 
-  Future<void> saveCatalogWarmCursor(Map<String, dynamic> cursor) async {
-    await saveJson('catalog.warm', cursor);
+  Future<Map<String, dynamic>?> catalogDetail(String groupId, String deviceId, String categoryCode) async {
+    final raw = await _get('catalog.detail.$groupId.$deviceId.$categoryCode');
+    return raw is Map ? Map<String, dynamic>.from(raw) : null;
+  }
+
+  /// Replaces one group's complete offline catalog in one SQLite transaction.
+  ///
+  /// Readers see either the previous version or the new one. A killed process, full disk, or malformed
+  /// download cannot leave half the brands on one version and half the fitments on another.
+  Future<void> installCatalogSnapshot({
+    required String groupId,
+    required String version,
+    required Map<String, List<Map<String, dynamic>>> lists,
+    required Map<String, Map<String, dynamic>> details,
+  }) async {
+    final db = await _open();
+    await db.transaction((txn) async {
+      await txn.delete('kv', where: 'key LIKE ?', whereArgs: ['catalog.list.$groupId.%']);
+      await txn.delete('kv', where: 'key LIKE ?', whereArgs: ['catalog.detail.$groupId.%']);
+      final batch = txn.batch();
+      for (final entry in lists.entries) {
+        batch.insert(
+          'kv',
+          {'key': entry.key, 'value': jsonEncode(entry.value)},
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      for (final entry in details.entries) {
+        batch.insert(
+          'kv',
+          {'key': entry.key, 'value': jsonEncode(entry.value)},
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      batch.insert(
+        'kv',
+        {'key': 'catalog.snapshot.version.$groupId', 'value': jsonEncode(version)},
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      await batch.commit(noResult: true);
+    });
   }
 
   Future<void> saveFitmentGroups(List<Map<String, dynamic>> groups, String? selectedId) async {
