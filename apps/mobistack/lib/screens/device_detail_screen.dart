@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../catalog/fitment_library.dart';
 import '../state/app_state.dart';
 import '../theme/prabhix_theme.dart';
 import '../widgets/chrome.dart';
@@ -11,9 +12,12 @@ import '../widgets/live_api_list.dart';
 import '../widgets/shop_ui.dart';
 
 class DeviceDetailScreen extends StatefulWidget {
-  const DeviceDetailScreen({super.key, required this.deviceId});
+  const DeviceDetailScreen({super.key, required this.deviceId, this.categoryCode});
 
   final String deviceId;
+
+  /// Part type chosen before this phone. When set, this screen stays on that spare.
+  final String? categoryCode;
 
   @override
   State<DeviceDetailScreen> createState() => _DeviceDetailScreenState();
@@ -23,12 +27,18 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
   Map<String, dynamic>? _device;
   List<Map<String, dynamic>> _fits = const [];
   List<Map<String, dynamic>> _stock = const [];
-  List<Map<String, dynamic>> _companions = const [];
+  List<Map<String, dynamic>> _families = const [];
   String? _error;
   bool _loading = true;
   bool _refreshing = false;
 
-  String get _cacheKey => 'device.${widget.deviceId}';
+  String get _cacheKey => 'device.${widget.deviceId}.${widget.categoryCode ?? 'all'}';
+
+  String? get _categoryCode {
+    final code = widget.categoryCode?.trim();
+    if (code == null || code.isEmpty) return null;
+    return code;
+  }
 
   @override
   void initState() {
@@ -44,7 +54,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
       _device = device is Map ? Map<String, dynamic>.from(device) : _device;
       _fits = pageRows(cached['fits']);
       _stock = pageRows(cached['stock']);
-      _companions = pageRows(cached['companions']);
+      _families = pageRows(cached['families']);
       _loading = false;
     });
   }
@@ -75,9 +85,12 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
         'commons/devices/fits',
         queryParameters: {'deviceId': widget.deviceId},
       );
-      final companionsFuture = state.api.dio.get<dynamic>(
-        'commons/devices/companions',
-        queryParameters: {'deviceId': widget.deviceId},
+      final familyQuery = <String, dynamic>{'deviceId': widget.deviceId};
+      final categoryCode = _categoryCode;
+      if (categoryCode != null) familyQuery['categoryCode'] = categoryCode;
+      final familyFuture = state.api.dio.get<dynamic>(
+        'commons/devices/family',
+        queryParameters: familyQuery,
       );
       final usesInventory = state.hasFeature('INVENTORY');
       final stockFuture = () async {
@@ -94,25 +107,25 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
       final deviceRes = await deviceFuture;
       final fitsRes = await fitsFuture;
       final stockRes = await stockFuture;
-      final companionsRes = await companionsFuture;
+      final familyRes = await familyFuture;
       final device = deviceRes.data is Map
           ? Map<String, dynamic>.from(deviceRes.data as Map)
           : null;
       final fits = pageRows(fitsRes.data);
       final stock = !usesInventory ? const <Map<String, dynamic>>[] : stockRes == null ? _stock : pageRows(stockRes.data);
-      final companions = pageRows(companionsRes.data);
+      final families = pageRows(familyRes.data);
       await state.sync.saveCommonsPage(_cacheKey, {
         'device': device,
         'fits': fits,
         'stock': stock,
-        'companions': companions,
+        'families': families,
       });
       if (!mounted) return;
       setState(() {
         _device = device;
         _fits = fits;
         _stock = stock;
-        _companions = companions;
+        _families = families;
         _loading = false;
         _refreshing = false;
       });
@@ -141,6 +154,21 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
     final fallback = cached.isEmpty ? null : cached.first;
     final name = '${_device?['name'] ?? fallback?.name ?? 'Device'}';
     final brand = '${_device?['brandName'] ?? fallback?.brandName ?? ''}';
+    final categoryCode = _categoryCode;
+    final category = categoryCode == null ? null : categoryByCode(categoryCode);
+    final families = categoryCode == null
+        ? _families
+        : _families.where((group) {
+            final code = '${group['categoryCode'] ?? ''}'.toUpperCase();
+            return code.isEmpty || code == categoryCode.toUpperCase();
+          }).toList();
+    final partIds = families.map((group) => '${group['id'] ?? ''}').where((id) => id.isNotEmpty).toSet();
+    final fits = categoryCode == null
+        ? _fits
+        : _fits.where((fit) => '${fit['categoryCode'] ?? ''}'.toUpperCase() == categoryCode.toUpperCase()).toList();
+    final stock = categoryCode == null
+        ? _stock
+        : _stock.where((row) => partIds.contains('${row['componentId'] ?? ''}')).toList();
 
     return Atmosphere(
       child: Scaffold(
@@ -196,6 +224,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                           Text(
                             [
                               if (brand.isNotEmpty) brand,
+                              if (category != null) category.label,
                               if (_device?['modelCode'] != null) '${_device!['modelCode']}',
                             ].join(' · '),
                             style: TextStyle(color: Px.accentInk, fontSize: 15),
@@ -203,10 +232,10 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                         ],
                       ),
                     ),
-                    for (final group in _companions) ...[
+                    for (final group in families) ...[
                       const SizedBox(height: 18),
                       Text(
-                        '${group['name'] ?? 'Same part'}'.toUpperCase(),
+                        '${group['name'] ?? category?.label ?? 'Same part'}'.toUpperCase(),
                         style: Theme.of(context).textTheme.labelLarge,
                       ),
                       const SizedBox(height: 8),
@@ -217,7 +246,10 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                           onTap: () {
                             final id = '${member['id'] ?? ''}';
                             if (id.isNotEmpty && id != widget.deviceId) {
-                              context.push('/commons/devices/$id');
+                              final scope = categoryCode == null
+                                  ? ''
+                                  : '?category=${Uri.encodeQueryComponent(categoryCode)}';
+                              context.push('/commons/devices/$id$scope');
                             }
                           },
                         ),
@@ -227,10 +259,12 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                       const SizedBox(height: 18),
                       Text('THIS SHOP’S STOCK', style: Theme.of(context).textTheme.labelLarge),
                       const SizedBox(height: 8),
-                      if (_stock.isEmpty)
-                        const Text('No linked stock for this phone or the models that share its parts.')
+                      if (stock.isEmpty)
+                        Text(category == null
+                            ? 'No linked stock for this phone or the models that share its parts.'
+                            : 'No linked stock for this ${category.label.toLowerCase()}.')
                       else
-                        ..._stock.map(
+                        ...stock.map(
                           (row) => ShopListTile(
                             title: '${row['name'] ?? row['sku']}',
                             subtitle: '${row['sku'] ?? ''} · ${row['available'] ?? 0} on hand',
@@ -238,12 +272,17 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                         ),
                     ],
                     const SizedBox(height: 18),
-                    Text('WHAT FITS', style: Theme.of(context).textTheme.labelLarge),
+                    Text(
+                      category == null ? 'WHAT FITS' : category.label.toUpperCase(),
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
                     const SizedBox(height: 8),
-                    if (_fits.isEmpty)
-                      const Text('Nothing linked in the shared catalog yet.')
+                    if (fits.isEmpty)
+                      Text(category == null
+                          ? 'Nothing linked in the shared catalog yet.'
+                          : 'No ${category.label.toLowerCase()} linked for this phone yet.')
                     else
-                      ..._fits.map((fit) {
+                      ...fits.map((fit) {
                         final id = '${fit['fitmentId'] ?? ''}';
                         return ShopListTile(
                           title: '${fit['componentName'] ?? 'Part'}',

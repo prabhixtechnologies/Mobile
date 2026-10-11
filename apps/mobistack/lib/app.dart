@@ -201,13 +201,17 @@ class _MobiStackAppState extends State<MobiStackApp> {
         ),
         GoRoute(
           path: '/devices/:id',
-          builder: (_, state) =>
-              DeviceDetailScreen(deviceId: state.pathParameters['id']!),
+          builder: (_, state) => DeviceDetailScreen(
+            deviceId: state.pathParameters['id']!,
+            categoryCode: state.uri.queryParameters['category'],
+          ),
         ),
         GoRoute(
           path: '/commons/devices/:id',
-          builder: (_, state) =>
-              DeviceDetailScreen(deviceId: state.pathParameters['id']!),
+          builder: (_, state) => DeviceDetailScreen(
+            deviceId: state.pathParameters['id']!,
+            categoryCode: state.uri.queryParameters['category'],
+          ),
         ),
         GoRoute(
           path: '/commons/components/:id',

@@ -170,6 +170,22 @@ function Save-Versions {
     }
 }
 
+function Get-QuickReleaseVersions {
+    param([string[]]$Selected, $Map)
+    foreach ($app in $Selected) {
+        if (-not $Map.ContainsKey($app)) { throw "No next version supplied for $app." }
+        $current = Get-Version $app
+        # A fresh dialog already proposes this value. An older open dialog may submit the
+        # current value; treat that as "automatic next release" rather than reusing a Play code.
+        if ($Map[$app] -eq $current.Text) {
+            $parts = $current.Name.Split(".")
+            $Map[$app] = "$($parts[0]).$($parts[1]).$([int]$parts[2] + 1)+$($current.Code + 1)"
+            Write-Host "${app}: automatically selected $($Map[$app])"
+        }
+    }
+    $Map
+}
+
 function Assert-Tools {
     param([string[]]$Names)
     foreach ($name in $Names) {
@@ -396,7 +412,8 @@ switch ($Action) {
     "Upload" { Start-PlayUpload $selectedApps }
     "QuickRelease" {
         Assert-MainReady $selectedApps
-        Save-Versions $selectedApps (Get-VersionMap)
+        $quickVersions = Get-QuickReleaseVersions $selectedApps (Get-VersionMap)
+        Save-Versions $selectedApps $quickVersions
         Commit-Push $selectedApps
         Start-PlayUpload $selectedApps
     }
