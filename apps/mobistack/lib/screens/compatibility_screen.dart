@@ -41,6 +41,7 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
   String? _pendingBrandId;
   bool _routeApplied = false;
   bool _loadingCatalog = false;
+  bool _brandsLoaded = false;
   String? _catalogError;
 
   @override
@@ -52,9 +53,9 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Establishes the provider dependency so selecting another group reloads that group's
-    // independently installed offline snapshot.
-    final id = context.watch<AppState>().fitmentGroupId ?? '';
+    // build() already listens to AppState, so a group change reaches this method. watch()
+    // is only legal during build and fails the catalog widget tests.
+    final id = context.read<AppState>().fitmentGroupId ?? '';
     if (id != _requestedGroup) {
       _requestedGroup = id;
       _loadCatalog(id);
@@ -122,12 +123,13 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
       if (!mounted) return;
       setState(() {
         _brands = const [];
+        _brandsLoaded = false;
         _categoryBrands = const [];
         _models = const [];
         _loadingCatalog = false;
-        // No group is not an empty catalog. Drawing "0 brands" here is what a failed
-        // sign-in refresh used to look like.
-        _catalogError = 'Your fitment group has not loaded.';
+        // The part types are on the phone. A missing group is not an empty catalog,
+        // so the grid stays and does not claim "0 brands".
+        _catalogError = null;
       });
       return;
     }
@@ -136,6 +138,7 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
     if (cached != null) {
       setState(() {
         _brands = cached;
+        _brandsLoaded = true;
         _loadingCatalog = false;
         _catalogError = null;
       });
@@ -153,6 +156,7 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
       if (!mounted || _requestedGroup != groupId) return;
       setState(() {
         _brands = brands;
+        _brandsLoaded = true;
         // A part type opened from the address is loading its own brands; that load ends the spinner.
         if (_category == null) _loadingCatalog = false;
         _catalogError = null;
@@ -487,12 +491,8 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
                 ),
               Expanded(
                 child: category == null
-                    ? (_loadingCatalog
-                        ? Center(child: CircularProgressIndicator(color: Px.accent))
-                        : _catalogError != null
-                            ? ShopEmpty(title: _catalogError!, icon: Icons.cloud_off_rounded)
-                            : _CategoryGrid(
-                        count: _brands.length,
+                    ? _CategoryGrid(
+                        count: _brandsLoaded ? _brands.length : null,
                         saved: _book.groups.length,
                         onPick: (picked) {
                           setState(() {
@@ -514,7 +514,7 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
                           ));
                           await _loadBook();
                         },
-                      ))
+                      )
                     : _loadingCatalog
                         ? Center(child: CircularProgressIndicator(color: Px.accent))
                         : _catalogError != null
