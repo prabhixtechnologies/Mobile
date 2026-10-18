@@ -576,11 +576,6 @@ class _FitmentFamilyCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                IconButton(
-                  tooltip: 'Spare details',
-                  icon: const Icon(Icons.arrow_forward_rounded),
-                  onPressed: () => context.push('/commons/components/${family['id']}'),
-                ),
               ],
             ),
           ),
@@ -638,35 +633,32 @@ class _FitmentFamilyCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('COMPATIBLE PHONE MODELS', style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Px.muted)),
-                const SizedBox(height: 9),
-                if (others.isEmpty)
-                  Row(
-                    children: [
-                      Icon(Icons.verified_user_outlined, size: 18, color: Px.accent),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text('Only this phone uses the spare in the current catalog group.')),
-                    ],
+                const SizedBox(height: 4),
+                if (members.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Row(
+                      children: [
+                        Icon(Icons.verified_user_outlined, size: 18, color: Px.accent),
+                        const SizedBox(width: 8),
+                        const Expanded(child: Text('Only this phone uses the spare in the current catalog group.')),
+                      ],
+                    ),
                   )
                 else
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final member in others)
-                        ActionChip(
-                          avatar: const Icon(Icons.phone_android_rounded, size: 16),
-                          label: Text('${member['brandName'] ?? ''} ${member['name'] ?? ''}'.trim()),
-                          onPressed: () {
-                            final memberId = '${member['id'] ?? ''}';
-                            if (memberId.isEmpty) return;
-                            final scope = categoryCode == null
-                                ? ''
-                                : '?category=${Uri.encodeQueryComponent(categoryCode!)}';
-                            context.push('/commons/devices/$memberId$scope');
-                          },
-                        ),
-                    ],
-                  ),
+                  for (final member in members)
+                    _CompatiblePhoneRow(
+                      member: member,
+                      current: '${member['id'] ?? ''}' == deviceId,
+                      onOpen: () {
+                        final memberId = '${member['id'] ?? ''}';
+                        if (memberId.isEmpty || memberId == deviceId) return;
+                        final scope = categoryCode == null
+                            ? ''
+                            : '?category=${Uri.encodeQueryComponent(categoryCode!)}';
+                        context.push('/commons/devices/$memberId$scope');
+                      },
+                    ),
               ],
             ),
           ),
@@ -699,6 +691,54 @@ class _FitmentFamilyCard extends StatelessWidget {
                     ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _CompatiblePhoneRow extends StatelessWidget {
+  const _CompatiblePhoneRow({
+    required this.member,
+    required this.current,
+    required this.onOpen,
+  });
+
+  final Map<String, dynamic> member;
+  final bool current;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = '${member['brandName'] ?? ''} ${member['name'] ?? ''}'.trim();
+    final modelCode = '${member['modelCode'] ?? ''}'.trim();
+    final subtitle = [
+      if (modelCode.isNotEmpty) modelCode,
+      if (current) 'This phone',
+    ].join(' · ');
+    return InkWell(
+      onTap: current ? null : onOpen,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          children: [
+            Icon(Icons.phone_android_rounded, size: 18, color: current ? Px.accent : Px.muted),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name.isEmpty ? 'Phone' : name,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  if (subtitle.isNotEmpty)
+                    Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+                ],
+              ),
+            ),
+            if (!current) Icon(Icons.chevron_right_rounded, size: 20, color: Px.faint),
+          ],
+        ),
       ),
     );
   }
