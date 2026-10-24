@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:prabhix_api_core/prabhix_api_core.dart' show describeError;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -79,9 +81,11 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
-  Future<void> _applyCache(AppState state) async {
+  /// True when the installed snapshot already has this phone, so the screen can paint without waiting.
+  Future<bool> _applyCache(AppState state) async {
+    var fromSnapshot = false;
     final cached = await state.sync.commonsPage(_cacheKey);
-    if (!mounted) return;
+    if (!mounted) return false;
     if (cached != null) {
       final device = cached['device'];
       setState(() {
@@ -94,9 +98,10 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
     }
     final groupId = state.fitmentGroupId;
     final category = _categoryCode;
-    if (groupId == null || category == null) return;
+    if (groupId == null || category == null) return false;
     final snapshot = await state.sync.catalogDetail(groupId, widget.deviceId, category);
-    if (!mounted || snapshot == null) return;
+    if (!mounted || snapshot == null) return false;
+    fromSnapshot = true;
     final device = snapshot['device'];
     setState(() {
       _device = device is Map ? Map<String, dynamic>.from(device) : _device;
@@ -104,11 +109,12 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
       _families = pageRows(snapshot['families']);
       _loading = false;
     });
+    return fromSnapshot;
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool forceNetwork = false}) async {
     final state = context.read<AppState>();
-    await _applyCache(state);
+    final fromSnapshot = await _applyCache(state);
     if (!mounted) return;
     if (!state.online) {
       setState(() {
@@ -116,6 +122,15 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
         _refreshing = false;
         _error = _device == null ? 'Offline · this phone has not been saved yet' : null;
       });
+      return;
+    }
+    if (!forceNetwork && fromSnapshot) {
+      setState(() {
+        _loading = false;
+        _refreshing = false;
+        _error = null;
+      });
+      if (state.hasFeature('INVENTORY')) unawaited(_refreshStock(state));
       return;
     }
     setState(() {
@@ -186,13 +201,24 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
     }
   }
 
+  Future<void> _refreshStock(AppState state) async {
+    try {
+      final stockRes = await state.api.dio.get<dynamic>(
+        'inventory/catalog-links/devices/stock',
+        queryParameters: {'catalogDeviceId': widget.deviceId},
+      );
+      if (!mounted) return;
+      setState(() => _stock = pageRows(stockRes.data));
+    } catch (_) {}
+  }
+
   Future<void> _confirm(String fitmentId) async {
     final state = context.read<AppState>();
     await state.api.dio.post<dynamic>(
       'commons/contributions',
       data: {'kind': 'CONFIRM_FITMENT', 'targetId': fitmentId},
     );
-    await _load();
+    await _load(forceNetwork: true);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Fitment confirmed for the community catalog.')),
@@ -228,7 +254,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
       'commons/contributions',
       data: {'kind': 'DISPUTE_FITMENT', 'targetId': fitmentId, 'reason': note},
     );
-    await _load();
+    await _load(forceNetwork: true);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Fitment issue submitted for review.')),

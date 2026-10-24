@@ -160,6 +160,20 @@ class ApiClient {
 
   Dio get dio => _dio;
 
+  /// JSON body as text, so a large catalog can be decoded off the UI isolate.
+  Future<String> getPlain(String path, [Map<String, dynamic>? query]) async {
+    try {
+      final response = await _dio.get<String>(
+        path,
+        queryParameters: query,
+        options: Options(responseType: ResponseType.plain),
+      );
+      return response.data ?? '';
+    } on DioException catch (e) {
+      throw _map(e);
+    }
+  }
+
   /// Logs method, URL, status, and elapsed time. Safe for a release build:
   /// no headers, no body.
   void traceRequests(void Function(String message) log) {
