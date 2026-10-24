@@ -42,6 +42,7 @@ class LiveApiListScreen extends StatefulWidget {
     this.emptyIcon = Icons.inbox_outlined,
     this.onTap,
     this.floatingActionButton,
+    this.headerBuilder,
   });
 
   final String title;
@@ -54,6 +55,9 @@ class LiveApiListScreen extends StatefulWidget {
   final void Function(Map<String, dynamic> row)? onTap;
   final Widget? floatingActionButton;
 
+  /// Drawn above the rows. [generation] changes after each pull-to-refresh.
+  final Widget Function(int generation)? headerBuilder;
+
   @override
   State<LiveApiListScreen> createState() => _LiveApiListScreenState();
 }
@@ -63,6 +67,7 @@ class _LiveApiListScreenState extends State<LiveApiListScreen> {
   bool _refreshing = false;
   String? _error;
   List<Map<String, dynamic>> _rows = const [];
+  int _generation = 0;
 
   @override
   void initState() {
@@ -96,6 +101,7 @@ class _LiveApiListScreenState extends State<LiveApiListScreen> {
         _loading = false;
         _refreshing = false;
         _error = _rows.isEmpty ? 'Offline · nothing saved for this list yet' : null;
+        _generation++;
       });
       return;
     }
@@ -113,6 +119,7 @@ class _LiveApiListScreenState extends State<LiveApiListScreen> {
         _rows = rows;
         _loading = false;
         _refreshing = false;
+        _generation++;
       });
     } catch (e) {
       if (!mounted) return;
@@ -124,8 +131,11 @@ class _LiveApiListScreenState extends State<LiveApiListScreen> {
     }
   }
 
+  Widget? get _header => widget.headerBuilder?.call(_generation);
+
   @override
   Widget build(BuildContext context) {
+    final header = _header;
     return ShopPage(
       title: widget.title,
       floatingActionButton: widget.floatingActionButton,
@@ -137,6 +147,7 @@ class _LiveApiListScreenState extends State<LiveApiListScreen> {
                   ? ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       children: [
+                        if (header != null) header,
                         ShopEmpty(
                           title: 'Could not load',
                           subtitle: _error!,
@@ -148,6 +159,7 @@ class _LiveApiListScreenState extends State<LiveApiListScreen> {
                       ? ListView(
                           physics: const AlwaysScrollableScrollPhysics(),
                           children: [
+                            if (header != null) header,
                             ShopEmpty(
                               title: widget.emptyTitle,
                               subtitle: widget.emptySubtitle,
@@ -157,13 +169,19 @@ class _LiveApiListScreenState extends State<LiveApiListScreen> {
                         )
                       : ListView.separated(
                           physics: const AlwaysScrollableScrollPhysics(),
-                          itemCount: _rows.length + (_refreshing ? 1 : 0),
+                          itemCount: _rows.length + (_refreshing ? 1 : 0) + (header == null ? 0 : 1),
                           separatorBuilder: (_, __) => const Divider(height: 1),
                           itemBuilder: (context, i) {
-                            if (_refreshing && i == 0) {
-                              return const LinearProgressIndicator(minHeight: 2);
+                            var index = i;
+                            if (_refreshing) {
+                              if (index == 0) return const LinearProgressIndicator(minHeight: 2);
+                              index--;
                             }
-                            final row = _rows[_refreshing ? i - 1 : i];
+                            if (header != null) {
+                              if (index == 0) return header;
+                              index--;
+                            }
+                            final row = _rows[index];
                             return ShopListTile(
                               title: widget.titleOf(row),
                               subtitle: widget.subtitleOf?.call(row),

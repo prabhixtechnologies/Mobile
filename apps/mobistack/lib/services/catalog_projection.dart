@@ -14,6 +14,24 @@ String catalogListStorageKey(String path, Map<String, dynamic> query, {String? g
   return 'catalog.list.$group.$path?${parts.join('&')}';
 }
 
+/// Pulls the graph out of a snapshot download. List pages are not built here,
+/// so the phone can show the one list on screen before the rest are saved.
+Map<String, String>? stageCatalogSnapshot(Map<String, String> message) {
+  final staged = _stagedSnapshot(message);
+  if (staged == null) return null;
+  return {'version': staged.version, 'graph': jsonEncode(staged.catalog)};
+}
+
+/// Encodes every brand and phone list for the offline database.
+Map<String, String> encodeCatalogLists(Map<String, String> message) {
+  final group = message['group'] ?? '';
+  final graph = message['graph'] ?? '';
+  final decoded = jsonDecode(graph);
+  if (group.isEmpty || decoded is! Map) return const {};
+  final lists = projectCatalogLists(group, Map<String, dynamic>.from(decoded));
+  return {for (final entry in lists.entries) entry.key: jsonEncode(entry.value)};
+}
+
 /// Decodes a snapshot download and builds the brand and phone lists.
 ///
 /// Runs in a background isolate. It does not build a page for every phone:
@@ -22,8 +40,19 @@ String catalogListStorageKey(String path, Map<String, dynamic> query, {String? g
 /// One phone's page is built later, when that phone is opened.
 Map<String, String>? prepareCatalogInstall(Map<String, String> message) {
   final group = message['group'] ?? '';
+  final staged = _stagedSnapshot(message);
+  if (staged == null) return null;
+  final lists = projectCatalogLists(group, staged.catalog);
+  return {
+    'version': staged.version,
+    'graph': jsonEncode(staged.catalog),
+    for (final entry in lists.entries) entry.key: jsonEncode(entry.value),
+  };
+}
+
+({String version, Map<String, dynamic> catalog})? _stagedSnapshot(Map<String, String> message) {
   final raw = message['raw'] ?? '';
-  if (group.isEmpty || raw.isEmpty) return null;
+  if ((message['group'] ?? '').isEmpty || raw.isEmpty) return null;
   final decoded = jsonDecode(raw);
   if (decoded is! Map) return null;
   final body = Map<String, dynamic>.from(decoded);
@@ -33,13 +62,7 @@ Map<String, String>? prepareCatalogInstall(Map<String, String> message) {
   if (version.isEmpty || catalogRaw is! Map) {
     throw const FormatException('Catalog snapshot is incomplete');
   }
-  final catalog = Map<String, dynamic>.from(catalogRaw);
-  final lists = projectCatalogLists(group, catalog);
-  return {
-    'version': version,
-    'graph': jsonEncode(catalog),
-    for (final entry in lists.entries) entry.key: jsonEncode(entry.value),
-  };
+  return (version: version, catalog: Map<String, dynamic>.from(catalogRaw));
 }
 
 /// Brand grids and per-brand phone lists, in the same shape the catalog screen already reads.
@@ -129,20 +152,91 @@ Map<String, List<Map<String, dynamic>>> projectCatalogLists(String group, Map<St
 /// One group's catalog kept in memory so opening a phone does not decode it again.
 class CatalogIndex {
   CatalogIndex(Map<String, dynamic> catalog)
-      : brandsById = {for (final row in catalogRows(catalog['brands'])) '${row['id']}': row},
+      : brands = catalogRows(catalog['brands']),
+        brandsById = {for (final row in catalogRows(catalog['brands'])) '${row['id']}': row},
         devicesById = {for (final row in catalogRows(catalog['devices'])) '${row['id']}': row},
         componentsById = {for (final row in catalogRows(catalog['components'])) '${row['id']}': row} {
+    final deviceCount = <String, int>{};
+    for (final device in devicesById.values) {
+      final view = {
+        ...device,
+        'brandName': brandsById['${device['brandId']}']?['name'],
+      };
+      final brandId = '${device['brandId']}';
+      deviceCount[brandId] = (deviceCount[brandId] ?? 0) + 1;
+      (devicesByBrand[brandId] ??= []).add(view);
+    }
+    _deviceCount = deviceCount;
+    for (final component in componentsById.values) {
+      (componentsByCategory['${component['categoryCode']}'] ??= []).add('${component['id']}');
+    }
+    final mappedDevices = <String>{};
     for (final fitment in catalogRows(catalog['fitments'])) {
       (fitmentsByComponent['${fitment['componentId']}'] ??= []).add(fitment);
       (fitmentsByDevice['${fitment['deviceId']}'] ??= []).add(fitment);
+      final deviceId = '${fitment['deviceId']}';
+      if (!mappedDevices.add(deviceId)) continue;
+      final brandId = '${devicesById[deviceId]?['brandId'] ?? ''}';
+      if (brandId.isEmpty) continue;
+      _allMappedCounts[brandId] = (_allMappedCounts[brandId] ?? 0) + 1;
     }
   }
 
+  final List<Map<String, dynamic>> brands;
   final Map<String, Map<String, dynamic>> brandsById;
   final Map<String, Map<String, dynamic>> devicesById;
   final Map<String, Map<String, dynamic>> componentsById;
+  final devicesByBrand = <String, List<Map<String, dynamic>>>{};
+  final componentsByCategory = <String, List<String>>{};
   final fitmentsByComponent = <String, List<Map<String, dynamic>>>{};
   final fitmentsByDevice = <String, List<Map<String, dynamic>>>{};
+  final _categoryBrandCounts = <String, Map<String, int>>{};
+  final _allMappedCounts = <String, int>{};
+  late final Map<String, int> _deviceCount;
+
+  /// The one list the screen is asking for. Other categories stay unbuilt until opened.
+  List<Map<String, dynamic>>? list(String path, Map<String, dynamic> query) {
+    if (path == 'commons/brands') {
+      final code = '${query['categoryCode'] ?? ''}';
+      return code.isEmpty ? _brandViews(_allMappedCounts, mappedOnly: false) : _brandViews(_countsFor(code), mappedOnly: true);
+    }
+    if (path == 'commons/devices') {
+      final brandId = '${query['brandId'] ?? ''}';
+      if (brandId.isEmpty) return null;
+      return devicesByBrand[brandId] ?? const [];
+    }
+    return null;
+  }
+
+  Map<String, int> _countsFor(String categoryCode) {
+    final cached = _categoryBrandCounts[categoryCode];
+    if (cached != null) return cached;
+    final counts = <String, int>{};
+    final seen = <String>{};
+    for (final componentId in componentsByCategory[categoryCode] ?? const []) {
+      for (final fitment in fitmentsByComponent[componentId] ?? const []) {
+        final deviceId = '${fitment['deviceId']}';
+        if (!seen.add(deviceId)) continue;
+        final brandId = '${devicesById[deviceId]?['brandId'] ?? ''}';
+        if (brandId.isEmpty) continue;
+        counts[brandId] = (counts[brandId] ?? 0) + 1;
+      }
+    }
+    _categoryBrandCounts[categoryCode] = counts;
+    return counts;
+  }
+
+  List<Map<String, dynamic>> _brandViews(Map<String, int> mappedCounts, {required bool mappedOnly}) {
+    return [
+      for (final brand in brands)
+        if (!mappedOnly || (mappedCounts['${brand['id']}'] ?? 0) > 0)
+          {
+            ...brand,
+            'deviceCount': _deviceCount['${brand['id']}'] ?? 0,
+            'mappedDeviceCount': mappedCounts['${brand['id']}'] ?? 0,
+          },
+    ];
+  }
 
   Map<String, dynamic>? detail(String deviceId, String categoryCode, {required String categoryLabel}) {
     final device = devicesById[deviceId];

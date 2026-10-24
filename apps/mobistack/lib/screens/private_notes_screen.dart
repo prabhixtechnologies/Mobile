@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../state/app_state.dart';
 import '../widgets/counter_sheet.dart';
 import '../widgets/live_api_list.dart';
+import '../widgets/pending_compatibility_requests.dart';
 
 class PrivateNotesScreen extends StatelessWidget {
   const PrivateNotesScreen({super.key});
@@ -11,6 +12,7 @@ class PrivateNotesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return LiveApiListScreen(
+      headerBuilder: (generation) => PendingCompatibilityRequests(generation: generation),
       title: 'Private fitment notes',
       path: 'compatibility-groups',
       titleOf: (row) => '${row['name'] ?? 'Note'}',
