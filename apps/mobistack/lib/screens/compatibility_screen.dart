@@ -29,6 +29,8 @@ class CompatibilityScreen extends StatefulWidget {
 
 class _CompatibilityScreenState extends State<CompatibilityScreen> {
   final _query = TextEditingController();
+  AppState? _app;
+  int _seenRevision = -1;
   FitmentLibrary? _library;
   FitmentBook _book = const FitmentBook([]);
   FitmentCategory? _category;
@@ -53,9 +55,16 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final state = context.read<AppState>();
+    if (!identical(_app, state)) {
+      _app?.removeListener(_onCatalogInstalled);
+      _app = state;
+      state.addListener(_onCatalogInstalled);
+      _seenRevision = state.catalogRevision;
+    }
     // build() already listens to AppState, so a group change reaches this method. watch()
     // is only legal during build and fails the catalog widget tests.
-    final id = context.read<AppState>().fitmentGroupId ?? '';
+    final id = state.fitmentGroupId ?? '';
     if (id != _requestedGroup) {
       _requestedGroup = id;
       _loadCatalog(id);
@@ -245,10 +254,22 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
   Future<List<Map<String, dynamic>>> _pages(String path, Map<String, dynamic> query) async {
     final state = context.read<AppState>();
     final cached = await state.sync.readCatalogList(path, query);
-    if (!state.online) {
-      if (cached != null) return cached;
-      throw StateError('offline');
+    if (cached != null) return cached;
+    if (!state.online) throw StateError('offline');
+    // The snapshot is one request. Paging the same lists is what made a good
+    // connection feel slower than offline, so try that install before crawling.
+    try {
+      await state.catalogMirror.warm();
+    } catch (e) {
+      debugPrint('catalog warm before list failed: $e');
     }
+    if (!mounted) {
+      final installed = await state.sync.readCatalogList(path, query);
+      if (installed != null) return installed;
+      throw StateError('unmounted');
+    }
+    final installed = await state.sync.readCatalogList(path, query);
+    if (installed != null) return installed;
     try {
       final rows = <Map<String, dynamic>>[];
       for (var page = 0; page < 40; page++) {
@@ -319,8 +340,21 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
 
   @override
   void dispose() {
+    _app?.removeListener(_onCatalogInstalled);
     _query.dispose();
     super.dispose();
+  }
+
+  void _onCatalogInstalled() {
+    final state = _app;
+    if (state == null || state.catalogRevision == _seenRevision) return;
+    _seenRevision = state.catalogRevision;
+    final group = _requestedGroup ?? '';
+    _loadCatalog(group);
+    final code = _category?.code;
+    if (code != null) _loadCategoryBrands(code);
+    final brandId = _brandId;
+    if (brandId != null && brandId.isNotEmpty) _loadModels(brandId);
   }
 
   Future<void> _newGroup(BuildContext context) async {

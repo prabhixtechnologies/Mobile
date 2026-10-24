@@ -42,12 +42,13 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     sync = SyncStore(api);
     catalogMirror = CatalogMirror(
       sync: sync,
-      get: (path, query) async {
-        final response = await api.dio.get<dynamic>(path, queryParameters: query);
-        return response.data;
-      },
+      get: (path, query) => api.getPlain(path, query),
       online: () => connectivity.online,
       groupId: () => api.fitmentGroupId,
+      onInstalled: () {
+        catalogRevision++;
+        notifyListeners();
+      },
     );
     api.traceRequests((message) => debugPrint('mobistack $message'));
     WidgetsBinding.instance.addObserver(this);
@@ -85,6 +86,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   bool servingFromCache = false;
   List<FitmentGroup> fitmentGroups = const [];
   String? fitmentGroupId;
+
+  /// Bumps after a catalog snapshot is stored, so open catalog screens reload from disk.
+  int catalogRevision = 0;
 
   FitmentGroup? get selectedFitmentGroup {
     for (final group in fitmentGroups) {

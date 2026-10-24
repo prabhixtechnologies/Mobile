@@ -6,7 +6,9 @@ import 'package:prabhix_api_core/prabhix_api_core.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 
+import '../catalog/fitment_library.dart';
 import '../models/shop_models.dart';
+import 'catalog_projection.dart';
 
 class SyncStore {
   SyncStore(this.api);
@@ -14,6 +16,9 @@ class SyncStore {
   final ApiClient api;
   Database? _db;
   static const _uuid = Uuid();
+  CatalogIndex? _catalogIndex;
+  String? _catalogIndexGroup;
+  int _catalogEpoch = 0;
 
   Future<Database> _open() async {
     if (_db != null) return _db!;
@@ -48,10 +53,16 @@ class SyncStore {
   }
 
   Future<dynamic> _get(String key) async {
+    final raw = await _getRaw(key);
+    if (raw == null) return null;
+    return jsonDecode(raw);
+  }
+
+  Future<String?> _getRaw(String key) async {
     final db = await _open();
     final rows = await db.query('kv', where: 'key = ?', whereArgs: [key], limit: 1);
     if (rows.isEmpty) return null;
-    return jsonDecode('${rows.first['value']}');
+    return '${rows.first['value']}';
   }
 
   Future<void> pullSnapshot() async {
@@ -143,13 +154,7 @@ class SyncStore {
   ];
 
   String catalogListKey(String path, Map<String, dynamic> query, {String? groupId}) {
-    final group = groupId ?? api.fitmentGroupId ?? 'unselected';
-    final names = query.keys.toList()..sort();
-    final parts = [
-      for (final name in names)
-        if (query[name] != null && '${query[name]}'.isNotEmpty) '$name=${query[name]}',
-    ];
-    return 'catalog.list.$group.$path?${parts.join('&')}';
+    return catalogListStorageKey(path, query, groupId: groupId ?? api.fitmentGroupId);
   }
 
   Future<List<Map<String, dynamic>>?> readCatalogList(
@@ -184,6 +189,15 @@ class SyncStore {
 
   Future<Map<String, dynamic>?> catalogDetail(String groupId, String deviceId, String categoryCode) async {
     try {
+      final index = await _index(groupId);
+      if (index != null) {
+        final category = categoryByCode(categoryCode);
+        return index.detail(
+          deviceId,
+          categoryCode,
+          categoryLabel: category?.label ?? categoryCode,
+        );
+      }
       final raw = await _get('catalog.detail.$groupId.$deviceId.$categoryCode');
       return raw is Map ? Map<String, dynamic>.from(raw) : null;
     } catch (e) {
@@ -192,32 +206,53 @@ class SyncStore {
     }
   }
 
-  /// Replaces one group's complete offline catalog in one SQLite transaction.
+  Future<CatalogIndex?> _index(String groupId) async {
+    if (_catalogIndexGroup == groupId && _catalogIndex != null) return _catalogIndex;
+    final epoch = _catalogEpoch;
+    final raw = await _getRaw('catalog.graph.$groupId');
+    if (raw == null || raw.isEmpty) return null;
+    if (epoch != _catalogEpoch) return _index(groupId);
+    final decoded = await compute(jsonDecode, raw);
+    if (epoch != _catalogEpoch) return _index(groupId);
+    if (decoded is! Map) return null;
+    final index = CatalogIndex(Map<String, dynamic>.from(decoded));
+    _catalogIndex = index;
+    _catalogIndexGroup = groupId;
+    return index;
+  }
+
+  void _dropCatalogIndex() {
+    _catalogEpoch++;
+    _catalogIndex = null;
+    _catalogIndexGroup = null;
+  }
+
+  /// Replaces one group's lists and stores the graph those lists came from.
   ///
-  /// Readers see either the previous version or the new one. A killed process, full disk, or malformed
-  /// download cannot leave half the brands on one version and half the fitments on another.
-  Future<void> installCatalogSnapshot({
+  /// Phone pages are not written here. Readers see either the previous version or the new one.
+  /// A killed process cannot leave half the brands on one version and half on another.
+  /// Already-encoded JSON is inserted as-is so this transaction does not encode the catalog again.
+  Future<void> installEncodedCatalog({
     required String groupId,
     required String version,
-    required Map<String, List<Map<String, dynamic>>> lists,
-    required Map<String, Map<String, dynamic>> details,
+    required String graphJson,
+    required Map<String, String> encodedLists,
   }) async {
+    _dropCatalogIndex();
     final db = await _open();
     await db.transaction((txn) async {
       await txn.delete('kv', where: 'key LIKE ?', whereArgs: ['catalog.list.$groupId.%']);
       await txn.delete('kv', where: 'key LIKE ?', whereArgs: ['catalog.detail.$groupId.%']);
       final batch = txn.batch();
-      for (final entry in lists.entries) {
+      batch.insert(
+        'kv',
+        {'key': 'catalog.graph.$groupId', 'value': graphJson},
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      for (final entry in encodedLists.entries) {
         batch.insert(
           'kv',
-          {'key': entry.key, 'value': jsonEncode(entry.value)},
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
-      }
-      for (final entry in details.entries) {
-        batch.insert(
-          'kv',
-          {'key': entry.key, 'value': jsonEncode(entry.value)},
+          {'key': entry.key, 'value': entry.value},
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
       }
@@ -228,6 +263,7 @@ class SyncStore {
       );
       await batch.commit(noResult: true);
     });
+    _dropCatalogIndex();
   }
 
   Future<void> saveFitmentGroups(List<Map<String, dynamic>> groups, String? selectedId) async {
