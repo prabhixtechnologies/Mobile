@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 
 import 'catalog_projection.dart';
@@ -51,24 +53,34 @@ class CatalogMirror {
         if (installed != null) 'version': installed,
       });
       if (raw.isEmpty) return;
-      final prepared = await compute(prepareCatalogInstall, {
+      final staged = await compute(stageCatalogSnapshot, {
         'group': group,
         'raw': raw,
       });
-      if (prepared == null) return;
-      final version = prepared.remove('version');
-      final graph = prepared.remove('graph');
+      if (staged == null) return;
+      final version = staged['version'];
+      final graph = staged['graph'];
       if (version == null || version.isEmpty || graph == null || graph.isEmpty) {
         throw const FormatException('Catalog snapshot is incomplete');
       }
+      final decoded = await compute(jsonDecode, graph);
+      if (decoded is! Map) {
+        throw const FormatException('Catalog snapshot is incomplete');
+      }
+      // The open list can paint from this graph. Saving every other list happens after.
+      sync.adoptCatalog(group, CatalogIndex(Map<String, dynamic>.from(decoded)));
+      onInstalled?.call();
+      final encoded = await compute(encodeCatalogLists, {
+        'group': group,
+        'graph': graph,
+      });
       await sync.installEncodedCatalog(
         groupId: group,
         version: version,
         graphJson: graph,
-        encodedLists: prepared,
+        encodedLists: encoded,
       );
-      debugPrint('catalog snapshot $version installed lists=${prepared.length}');
-      onInstalled?.call();
+      debugPrint('catalog snapshot $version installed lists=${encoded.length}');
     } catch (e, st) {
       debugPrint('catalog snapshot skipped: $e\n$st');
     }

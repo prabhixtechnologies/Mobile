@@ -157,11 +157,24 @@ class SyncStore {
     return catalogListStorageKey(path, query, groupId: groupId ?? api.fitmentGroupId);
   }
 
+  /// The list already in memory, or null when this phone still has to read disk.
+  List<Map<String, dynamic>>? peekCatalogList(
+    String path,
+    Map<String, dynamic> query, {
+    String? groupId,
+  }) {
+    final group = groupId ?? api.fitmentGroupId ?? '';
+    if (group.isEmpty || _catalogIndexGroup != group || _catalogIndex == null) return null;
+    return _catalogIndex!.list(path, query);
+  }
+
   Future<List<Map<String, dynamic>>?> readCatalogList(
     String path,
     Map<String, dynamic> query, {
     String? groupId,
   }) async {
+    final peeked = peekCatalogList(path, query, groupId: groupId);
+    if (peeked != null) return peeked;
     try {
       final raw = await _get(catalogListKey(path, query, groupId: groupId));
       if (raw is! List) return null;
@@ -227,6 +240,13 @@ class SyncStore {
     _catalogIndexGroup = null;
   }
 
+  /// Makes one decoded graph answer list and phone reads before SQLite has stored it.
+  void adoptCatalog(String groupId, CatalogIndex index) {
+    _catalogEpoch++;
+    _catalogIndex = index;
+    _catalogIndexGroup = groupId;
+  }
+
   /// Replaces one group's lists and stores the graph those lists came from.
   ///
   /// Phone pages are not written here. Readers see either the previous version or the new one.
@@ -238,7 +258,6 @@ class SyncStore {
     required String graphJson,
     required Map<String, String> encodedLists,
   }) async {
-    _dropCatalogIndex();
     final db = await _open();
     await db.transaction((txn) async {
       await txn.delete('kv', where: 'key LIKE ?', whereArgs: ['catalog.list.$groupId.%']);
@@ -263,7 +282,6 @@ class SyncStore {
       );
       await batch.commit(noResult: true);
     });
-    _dropCatalogIndex();
   }
 
   Future<void> saveFitmentGroups(List<Map<String, dynamic>> groups, String? selectedId) async {
@@ -350,6 +368,7 @@ class SyncStore {
   }
 
   Future<void> clearLocal() async {
+    _dropCatalogIndex();
     final theme = await _get('ui.theme');
     final db = await _open();
     await db.delete('kv');

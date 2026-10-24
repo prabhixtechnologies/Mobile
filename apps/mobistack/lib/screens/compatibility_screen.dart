@@ -9,6 +9,7 @@ import 'group_members_sheet.dart';
 import 'spare_phone_page.dart';
 import '../state/app_state.dart';
 import '../widgets/live_api_list.dart';
+import '../widgets/pending_compatibility_requests.dart';
 import '../theme/prabhix_theme.dart';
 import '../widgets/chrome.dart';
 import '../widgets/shop_ui.dart';
@@ -104,13 +105,19 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
       return;
     }
     if (picked.code == _category?.code && (brand.isEmpty || brand == _brandId)) return;
+    _openCategory(picked, pendingBrand: brand.isEmpty ? null : brand);
+  }
+
+  void _openCategory(FitmentCategory picked, {String? pendingBrand}) {
+    final ready = context.read<AppState>().sync.peekCatalogList('commons/brands', {'categoryCode': picked.code});
     setState(() {
       _category = picked;
       _brand = null;
       _brandId = null;
       _models = const [];
-      _categoryBrands = const [];
-      _pendingBrandId = brand.isEmpty ? null : brand;
+      _categoryBrands = ready ?? const [];
+      _loadingCatalog = ready == null;
+      _pendingBrandId = pendingBrand;
       _query.clear();
       _catalogError = null;
     });
@@ -119,10 +126,20 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
 
   void _pickBrand(Map<String, dynamic> brand) {
     final id = '${brand['id'] ?? ''}';
+    final query = <String, dynamic>{'brandId': id};
+    final code = _category?.code;
+    if (code != null) query['categoryCode'] = code;
+    final ready = id.isEmpty ? null : context.read<AppState>().sync.peekCatalogList('commons/devices', query);
     setState(() {
       _brand = '${brand['name'] ?? ''}';
       _brandId = id;
       _query.clear();
+      if (ready != null) {
+        _models = ready;
+        _loadingCatalog = false;
+      } else if (id.isNotEmpty) {
+        _loadingCatalog = true;
+      }
     });
     if (id.isNotEmpty) _loadModels(id);
   }
@@ -498,6 +515,8 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
                     ),
                   ),
                 ),
+              if (category == null)
+                const PendingCompatibilityRequests(generation: 0, bounded: true),
               if (category == null && state.fitmentGroups.length > 1)
                 SizedBox(
                   height: 44,
@@ -528,17 +547,7 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
                     ? _CategoryGrid(
                         count: _brandsLoaded ? _brands.length : null,
                         saved: _book.groups.length,
-                        onPick: (picked) {
-                          setState(() {
-                            _category = picked;
-                            _brand = null;
-                            _brandId = null;
-                            _categoryBrands = const [];
-                            _query.clear();
-                            _catalogError = null;
-                          });
-                          _loadCategoryBrands(picked.code);
-                        },
+                        onPick: _openCategory,
                         onSaved: () async {
                           final library = _library ?? await FitmentLibrary.load();
                           if (!context.mounted) return;

@@ -50,6 +50,12 @@ void main() {
     expect(lists[brandKey]!.single['deviceCount'], phones);
 
     final index = CatalogIndex(catalog);
+    expect(index.list('commons/brands', {'categoryCode': 'DISPLAY_FOLDER'}), hasLength(1));
+    expect(index.list('commons/brands', {'categoryCode': 'BATTERY'}), isEmpty);
+    expect(
+      index.list('commons/devices', {'brandId': 'b1', 'categoryCode': 'DISPLAY_FOLDER'}),
+      hasLength(phones),
+    );
     final page = index.detail('d0', 'DISPLAY_FOLDER', categoryLabel: 'Display');
     final families = page!['families'] as List;
     final members = (families.single as Map)['members'] as List;
