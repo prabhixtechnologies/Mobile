@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../catalog/fitment_library.dart';
@@ -724,22 +723,114 @@ class _BrandList extends StatelessWidget {
         icon: Icons.search_off_rounded,
       );
     }
-    return ListView.builder(
-      padding: const EdgeInsets.only(bottom: 28),
-      itemCount: shown.length,
-      itemBuilder: (context, index) {
-        final brand = shown[index];
-        final name = '${brand['name'] ?? ''}';
-        final phones = (brand['deviceCount'] as num?)?.toInt() ?? 0;
-        final mapped = (brand['mappedDeviceCount'] as num?)?.toInt() ?? 0;
-        return ShopListTile(
-          title: name,
-          subtitle: '$phones phones · $mapped compatibility mapped',
-          leading: _Mark(letter: name.isEmpty ? '?' : name[0].toUpperCase()),
-          trailing: Icon(Icons.chevron_right_rounded, color: Px.faint),
-          onTap: () => onPick(brand),
-        );
-      },
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+      children: [
+        _CatalogSheet(
+          children: [
+            for (var i = 0; i < shown.length; i += 2)
+              _BrandPair(
+                left: shown[i],
+                right: i + 1 < shown.length ? shown[i + 1] : null,
+                divider: i + 2 < shown.length,
+                onPick: onPick,
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _BrandPair extends StatelessWidget {
+  const _BrandPair({
+    required this.left,
+    required this.right,
+    required this.divider,
+    required this.onPick,
+  });
+
+  final Map<String, dynamic> left;
+  final Map<String, dynamic>? right;
+  final bool divider;
+  final ValueChanged<Map<String, dynamic>> onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final other = right;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: divider ? Border(bottom: BorderSide(color: Px.line)) : null,
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: _BrandCell(brand: left, onPick: onPick)),
+            if (other != null) ...[
+              Container(width: 1, color: Px.line),
+              Expanded(child: _BrandCell(brand: other, onPick: onPick)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BrandCell extends StatelessWidget {
+  const _BrandCell({required this.brand, required this.onPick});
+
+  final Map<String, dynamic> brand;
+  final ValueChanged<Map<String, dynamic>> onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = '${brand['name'] ?? ''}';
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => onPick(brand),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              Container(
+                width: 22,
+                height: 22,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [Px.accent, Px.accentStrong]),
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: Text(
+                  _initial(name),
+                  style: TextStyle(
+                    color: Px.accentInk,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
+                    height: 1,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 15,
+                    height: 1.1,
+                    fontWeight: FontWeight.w600,
+                    color: Px.ink,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -760,58 +851,120 @@ class _PhoneList extends StatelessWidget {
     if (phones.isEmpty) {
       return const ShopEmpty(title: 'No model matches', icon: Icons.search_off_rounded);
     }
-    return ListView.builder(
-      padding: const EdgeInsets.only(bottom: 28),
-      itemCount: phones.length + 1,
-      itemBuilder: (context, index) {
-        if (index == 0) {
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-            child: Text(
-              '${category.blurb} Every phone is listed; an unmapped phone is treated as model-specific until shared compatibility is confirmed.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          );
-        }
-        final phone = phones[index - 1];
-        final name = '${phone['name'] ?? ''}';
-        final code = '${phone['modelCode'] ?? ''}'.trim();
-        return ShopListTile(
-          title: name,
-          subtitle: code.isEmpty ? category.label : '$code · ${category.label}',
-          leading: _Mark(letter: name.isEmpty ? '?' : name[0].toUpperCase()),
-          onTap: () => onOpen(phone),
-        );
-      },
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+          child: Text(
+            '${category.blurb} Every phone is listed; an unmapped phone is treated as model-specific until shared compatibility is confirmed.',
+            style: TextStyle(fontSize: 12, height: 1.25, color: Px.muted),
+          ),
+        ),
+        _CatalogSheet(
+          children: [
+            for (var i = 0; i < phones.length; i++)
+              _CatalogLine(
+                title: '${phones[i]['name'] ?? ''}',
+                subtitle: _modelLine(phones[i], category.label),
+                divider: i < phones.length - 1,
+                onTap: () => onOpen(phones[i]),
+              ),
+          ],
+        ),
+      ],
     );
   }
 }
 
-class _Mark extends StatelessWidget {
-  const _Mark({required this.letter});
+/// Same type size as the catalog home: 15px name, 12px detail, one shared sheet.
+class _CatalogSheet extends StatelessWidget {
+  const _CatalogSheet({required this.children});
 
-  final String letter;
+  final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 44,
-      height: 44,
-      alignment: Alignment.center,
+    return DecoratedBox(
       decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [Px.accent, Px.accentStrong]),
-        borderRadius: BorderRadius.circular(14),
+        color: Px.surface.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Px.line),
       ),
-      child: Text(
-        letter,
-        style: GoogleFonts.fraunces(
-          color: Px.accentInk,
-          fontWeight: FontWeight.w700,
-          fontSize: 18,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Column(children: children),
+      ),
+    );
+  }
+}
+
+class _CatalogLine extends StatelessWidget {
+  const _CatalogLine({
+    required this.title,
+    required this.subtitle,
+    required this.divider,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final bool divider;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            border: divider ? Border(bottom: BorderSide(color: Px.line)) : null,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 15,
+                          height: 1.1,
+                          fontWeight: FontWeight.w600,
+                          color: Px.ink,
+                        ),
+                      ),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, height: 1.15, color: Px.muted),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded, color: Px.faint, size: 18),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
+}
+
+String _initial(String name) => name.isEmpty ? '?' : name[0].toUpperCase();
+
+String _modelLine(Map<String, dynamic> phone, String category) {
+  final code = '${phone['modelCode'] ?? ''}'.trim();
+  return code.isEmpty ? category : '$code · $category';
 }
 
 IconData _iconFor(String code) {
