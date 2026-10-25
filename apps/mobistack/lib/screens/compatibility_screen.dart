@@ -345,18 +345,27 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
   Future<void> _addPhone() async {
     final brands = [
       for (final brand in (_categoryBrands.isNotEmpty ? _categoryBrands : _brands))
-        {'id': '${brand['id'] ?? ''}', 'name': '${brand['name'] ?? ''}'},
+        {
+          'id': '${brand['id'] ?? ''}',
+          'name': '${brand['name'] ?? ''}',
+          'logo': _brandLogo(brand) ?? '',
+        },
     ].where((brand) => brand['id']!.isNotEmpty && brand['name']!.isNotEmpty).toList();
     final selectedId = _brandId;
     if (selectedId != null &&
         selectedId.isNotEmpty &&
         _brand != null &&
         brands.every((brand) => brand['id'] != selectedId)) {
-      brands.insert(0, {'id': selectedId, 'name': _brand!});
+      brands.insert(0, {'id': selectedId, 'name': _brand!, 'logo': ''});
     }
-    final draft = await showDialog<_PhoneDraft>(
+    final draft = await showModalBottomSheet<_PhoneDraft>(
       context: context,
-      builder: (dialogContext) => _AddModelDialog(
+      isScrollControlled: true,
+      backgroundColor: Px.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => _AddModelDialog(
         brands: brands,
         selectedBrandId: selectedId,
       ),
@@ -675,7 +684,8 @@ class _AddModelDialog extends StatefulWidget {
 
 class _AddModelDialogState extends State<_AddModelDialog> {
   static const _newBrand = '__new__';
-  late String _choice;
+  String? _choice;
+  bool _pickingBrand = true;
   late final TextEditingController _brand;
   late final TextEditingController _model;
   final _modelFocus = FocusNode();
@@ -684,8 +694,13 @@ class _AddModelDialogState extends State<_AddModelDialog> {
   void initState() {
     super.initState();
     final selected = widget.selectedBrandId;
-    final known = selected != null && widget.brands.any((brand) => brand['id'] == selected);
-    _choice = known ? selected : (widget.brands.isEmpty ? _newBrand : widget.brands.first['id']!);
+    final known = selected != null && selected.isNotEmpty && widget.brands.any((brand) => brand['id'] == selected);
+    if (known) {
+      _choice = selected;
+      _pickingBrand = false;
+    } else if (widget.brands.isEmpty) {
+      _choice = _newBrand;
+    }
     _brand = TextEditingController();
     _model = TextEditingController();
     if (known) {
@@ -703,60 +718,197 @@ class _AddModelDialogState extends State<_AddModelDialog> {
     super.dispose();
   }
 
-  void _save() {
-    final model = _model.text.trim();
-    var brand = _brand.text.trim();
-    if (_choice != _newBrand) {
-      brand = '';
-      for (final row in widget.brands) {
-        if (row['id'] == _choice) brand = row['name'] ?? '';
+  bool get _ready {
+    if (_model.text.trim().isEmpty) return false;
+    if (_choice == null || _choice!.isEmpty) return false;
+    if (_choice == _newBrand) return _brand.text.trim().isNotEmpty;
+    return true;
+  }
+
+  String get _chosenBrandName {
+    for (final row in widget.brands) {
+      if (row['id'] == _choice) return row['name'] ?? '';
+    }
+    return '';
+  }
+
+  String? get _chosenBrandLogo {
+    for (final row in widget.brands) {
+      if (row['id'] == _choice) {
+        final logo = row['logo'] ?? '';
+        return logo.isEmpty ? null : logo;
       }
     }
-    if (brand.isEmpty || model.isEmpty) return;
+    return null;
+  }
+
+  void _save() {
+    if (!_ready) return;
+    final model = _model.text.trim();
+    final brand = _choice == _newBrand ? _brand.text.trim() : _chosenBrandName;
+    if (brand.isEmpty) return;
     Navigator.pop(context, _PhoneDraft(brand: brand, model: model));
   }
+
+  InputDecoration _fieldBox(String hint) {
+    final radius = BorderRadius.circular(14);
+    final side = BorderSide(color: Px.line);
+    return InputDecoration(
+      hintText: hint,
+      isDense: true,
+      filled: true,
+      fillColor: Px.surfaceSunken,
+      visualDensity: VisualDensity.standard,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+      border: OutlineInputBorder(borderRadius: radius, borderSide: side),
+      enabledBorder: OutlineInputBorder(borderRadius: radius, borderSide: side),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: BorderSide(color: Px.accent, width: 1.5),
+      ),
+    );
+  }
+
+  OutlinedBorder get _actionShape => RoundedRectangleBorder(borderRadius: BorderRadius.circular(14));
 
   @override
   Widget build(BuildContext context) {
     final creating = _choice == _newBrand;
-    final onABrand = widget.selectedBrandId != null && widget.selectedBrandId!.isNotEmpty;
-    return AlertDialog(
-      title: Text(onABrand ? 'Add a model' : 'Add a phone'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (widget.brands.isNotEmpty)
-            DropdownButtonFormField<String>(
-              initialValue: _choice,
-              decoration: const InputDecoration(labelText: 'Brand'),
-              items: [
-                for (final brand in widget.brands)
-                  DropdownMenuItem(value: brand['id'], child: Text(brand['name'] ?? '')),
-                const DropdownMenuItem(value: _newBrand, child: Text('New brand')),
+    final lockedBrand = !_pickingBrand && _chosenBrandName.isNotEmpty;
+    final caption = TextStyle(fontSize: 12, height: 1, fontWeight: FontWeight.w600, color: Px.muted);
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(color: Px.line, borderRadius: BorderRadius.circular(99)),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                lockedBrand ? 'Add a model' : 'Add a phone',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Saved in the catalog. It stays model-specific until a spare is shared.',
+                style: TextStyle(fontSize: 13, height: 1.35, color: Px.muted),
+              ),
+              const SizedBox(height: 22),
+              Text('Brand', style: caption),
+              const SizedBox(height: 8),
+              if (lockedBrand)
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Px.surfaceSunken,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Px.line),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
+                    child: Row(
+                      children: [
+                        _BrandGlyph(name: _chosenBrandName, logo: _chosenBrandLogo),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _chosenBrandName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => setState(() => _pickingBrand = true),
+                          child: const Text('Change'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else ...[
+                if (widget.brands.isNotEmpty)
+                  DropdownButtonFormField<String>(
+                    initialValue: _choice,
+                    isExpanded: true,
+                    hint: const Text('Choose a brand'),
+                    decoration: _fieldBox('Choose a brand'),
+                    items: [
+                      for (final brand in widget.brands)
+                        DropdownMenuItem(
+                          value: brand['id'],
+                          child: _BrandChoice(name: brand['name'] ?? '', logo: brand['logo']),
+                        ),
+                      DropdownMenuItem(
+                        value: _newBrand,
+                        child: Row(
+                          children: [
+                            Icon(Icons.add_rounded, size: 22, color: Px.ink),
+                            const SizedBox(width: 10),
+                            const Text('New brand'),
+                          ],
+                        ),
+                      ),
+                    ],
+                    onChanged: (value) => setState(() => _choice = value),
+                  ),
+                if (creating) ...[
+                  if (widget.brands.isNotEmpty) const SizedBox(height: 12),
+                  TextField(
+                    controller: _brand,
+                    autofocus: widget.brands.isEmpty,
+                    textCapitalization: TextCapitalization.words,
+                    textInputAction: TextInputAction.next,
+                    decoration: _fieldBox('Brand name'),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ],
               ],
-              onChanged: (value) => setState(() => _choice = value ?? _newBrand),
-            ),
-          if (creating)
-            TextField(
-              controller: _brand,
-              autofocus: widget.brands.isEmpty,
-              decoration: const InputDecoration(labelText: 'New brand'),
-              textInputAction: TextInputAction.next,
-            ),
-          TextField(
-            controller: _model,
-            focusNode: _modelFocus,
-            autofocus: onABrand,
-            decoration: const InputDecoration(labelText: 'Model'),
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => _save(),
+              const SizedBox(height: 20),
+              Text('Model', style: caption),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _model,
+                focusNode: _modelFocus,
+                autofocus: lockedBrand,
+                textCapitalization: TextCapitalization.words,
+                textInputAction: TextInputAction.done,
+                decoration: _fieldBox('Model name'),
+                onChanged: (_) => setState(() {}),
+                onSubmitted: (_) => _save(),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48), shape: _actionShape),
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48), shape: _actionShape),
+                      onPressed: _ready ? _save : null,
+                      child: const Text('Save'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
+        ),
       ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        FilledButton(onPressed: _save, child: const Text('Save')),
-      ],
     );
   }
 }
@@ -1047,12 +1199,12 @@ class _PhoneList extends StatelessWidget {
         ),
         _CatalogSheet(
           children: [
-            for (var i = 0; i < phones.length; i++)
-              _CatalogLine(
-                title: '${phones[i]['name'] ?? ''}',
-                subtitle: _modelLine(phones[i], category.label),
-                divider: i < phones.length - 1,
-                onTap: () => onOpen(phones[i]),
+            for (var i = 0; i < phones.length; i += 2)
+              _ModelPair(
+                left: phones[i],
+                right: i + 1 < phones.length ? phones[i + 1] : null,
+                divider: i + 2 < phones.length,
+                onOpen: onOpen,
               ),
           ],
         ),
@@ -1083,60 +1235,81 @@ class _CatalogSheet extends StatelessWidget {
   }
 }
 
-class _CatalogLine extends StatelessWidget {
-  const _CatalogLine({
-    required this.title,
-    required this.subtitle,
+class _ModelPair extends StatelessWidget {
+  const _ModelPair({
+    required this.left,
+    required this.right,
     required this.divider,
-    required this.onTap,
+    required this.onOpen,
   });
 
-  final String title;
-  final String subtitle;
+  final Map<String, dynamic> left;
+  final Map<String, dynamic>? right;
   final bool divider;
-  final VoidCallback onTap;
+  final ValueChanged<Map<String, dynamic>> onOpen;
 
   @override
   Widget build(BuildContext context) {
+    final other = right;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: divider ? Border(bottom: BorderSide(color: Px.line)) : null,
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: _ModelCell(phone: left, onOpen: onOpen)),
+            if (other != null) ...[
+              Container(width: 1, color: Px.line),
+              Expanded(child: _ModelCell(phone: other, onOpen: onOpen)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ModelCell extends StatelessWidget {
+  const _ModelCell({required this.phone, required this.onOpen});
+
+  final Map<String, dynamic> phone;
+  final ValueChanged<Map<String, dynamic>> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = '${phone['name'] ?? ''}'.trim();
+    final code = '${phone['modelCode'] ?? ''}'.trim();
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: onTap,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            border: divider ? Border(bottom: BorderSide(color: Px.line)) : null,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 15,
-                          height: 1.1,
-                          fontWeight: FontWeight.w600,
-                          color: Px.ink,
-                        ),
-                      ),
-                      Text(
-                        subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12, height: 1.15, color: Px.muted),
-                      ),
-                    ],
-                  ),
+        onTap: () => onOpen(phone),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                name.isEmpty ? 'Phone' : name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 15,
+                  height: 1.15,
+                  fontWeight: FontWeight.w600,
+                  color: Px.ink,
                 ),
-                Icon(Icons.chevron_right_rounded, color: Px.faint, size: 18),
-              ],
-            ),
+              ),
+              if (code.isNotEmpty && code.toLowerCase() != name.toLowerCase())
+                Text(
+                  code,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12, height: 1.15, color: Px.muted),
+                ),
+            ],
           ),
         ),
       ),
@@ -1151,6 +1324,31 @@ String? _brandLogo(Map<String, dynamic> brand) {
   final logo = '${brand['logo'] ?? ''}'.trim();
   if (!logo.startsWith('<svg') || logo.contains('<script') || logo.length > 4096) return null;
   return logo;
+}
+
+class _BrandChoice extends StatelessWidget {
+  const _BrandChoice({required this.name, required this.logo});
+
+  final String name;
+  final String? logo;
+
+  @override
+  Widget build(BuildContext context) {
+    final mark = logo;
+    return Row(
+      children: [
+        _BrandGlyph(name: name, logo: mark == null || mark.isEmpty ? null : mark),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _BrandGlyph extends StatelessWidget {
@@ -1202,11 +1400,6 @@ class _LetterMark extends StatelessWidget {
       ),
     );
   }
-}
-
-String _modelLine(Map<String, dynamic> phone, String category) {
-  final code = '${phone['modelCode'] ?? ''}'.trim();
-  return code.isEmpty ? category : '$code · $category';
 }
 
 IconData _iconFor(String code) {
