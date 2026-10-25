@@ -42,9 +42,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     sync = SyncStore(api);
     catalogMirror = CatalogMirror(
       sync: sync,
-      get: (path, query) => api.getPlain(path, query),
+      get: (path, query, groupId) => api.getPlain(path, query, groupId),
       online: () => connectivity.online,
       groupId: () => api.fitmentGroupId,
+      groupIds: () => [for (final group in fitmentGroups) group.id],
       onInstalled: () {
         catalogRevision++;
         notifyListeners();
@@ -803,12 +804,20 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       }
     } catch (e, st) {
       debugPrint('journey: $e\n$st');
-      gate = ShopGate.journeyError;
-      recovery.noteJourneyFailure(
-        online
-            ? 'We could not load your shop journey. Check the connection and try again.'
-            : 'You are offline. Connect to load your shop journey.',
-      );
+      final kept = await _restoreFitmentGroupsFromDisk();
+      if (kept) {
+        gate = ShopGate.catalog;
+        waitingTitle = null;
+        waitingShopId = null;
+        recovery.clearJourneyFailure();
+      } else {
+        gate = ShopGate.journeyError;
+        recovery.noteJourneyFailure(
+          online
+              ? 'We could not load your shop journey. Check the connection and try again.'
+              : 'You are offline. Connect to load your shop journey.',
+        );
+      }
     }
     notifyListeners();
   }
@@ -880,8 +889,25 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       );
     } catch (e, st) {
       debugPrint('fitment groups unavailable: $e\n$st');
+      await _restoreFitmentGroupsFromDisk();
     }
     if (notify) notifyListeners();
+  }
+
+  /// Puts the last saved membership back when a journey refresh does not finish.
+  /// Returns false when this phone has never stored a group.
+  Future<bool> _restoreFitmentGroupsFromDisk() async {
+    if (fitmentGroups.isNotEmpty) return true;
+    final saved = await sync.fitmentGroups();
+    if (saved == null || saved.groups.isEmpty) return false;
+    fitmentGroups = [
+      for (final row in saved.groups) FitmentGroup.fromJson(row),
+    ];
+    final selected = saved.selectedId;
+    final stillThere = selected != null && fitmentGroups.any((group) => group.id == selected);
+    fitmentGroupId = stillThere ? selected : fitmentGroups.first.id;
+    api.fitmentGroupId = fitmentGroupId;
+    return true;
   }
 
   void selectFitmentGroup(String id) {

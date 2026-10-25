@@ -4,9 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../catalog/fitment_library.dart';
-import '../catalog/spare_group.dart';
 import 'group_members_sheet.dart';
-import 'spare_phone_page.dart';
 import '../state/app_state.dart';
 import '../widgets/live_api_list.dart';
 import '../widgets/pending_compatibility_requests.dart';
@@ -32,8 +30,6 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
   final _query = TextEditingController();
   AppState? _app;
   int _seenRevision = -1;
-  FitmentLibrary? _library;
-  FitmentBook _book = const FitmentBook([]);
   FitmentCategory? _category;
   String? _brand;
   String? _brandId;
@@ -46,12 +42,6 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
   bool _loadingCatalog = false;
   bool _brandsLoaded = false;
   String? _catalogError;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadBook());
-  }
 
   @override
   void didChangeDependencies() {
@@ -347,14 +337,6 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
     }
   }
 
-  Future<void> _loadBook() async {
-    try {
-      final book = await FitmentBook.load(context.read<AppState>().sync);
-      if (!mounted) return;
-      setState(() => _book = book);
-    } catch (_) {}
-  }
-
   @override
   void dispose() {
     _app?.removeListener(_onCatalogInstalled);
@@ -437,9 +419,7 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
     final title = _brand ?? category?.label ?? 'Parts';
     final subtitle = _brand != null
         ? '${category?.label ?? 'Parts'} · search a model'
-        : category != null
-            ? 'Choose a brand'
-            : '${_brands.length} brands · ${_book.groups.length} saved spares';
+        : 'Choose a brand';
 
     return _StepBack(
       onBack: () {
@@ -544,20 +524,7 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
                 ),
               Expanded(
                 child: category == null
-                    ? _CategoryGrid(
-                        count: _brandsLoaded ? _brands.length : null,
-                        saved: _book.groups.length,
-                        onPick: _openCategory,
-                        onSaved: () async {
-                          final library = _library ?? await FitmentLibrary.load();
-                          if (!context.mounted) return;
-                          _library = library;
-                          await Navigator.of(context).push(MaterialPageRoute<void>(
-                            builder: (_) => SavedSparesPage(library: library),
-                          ));
-                          await _loadBook();
-                        },
-                      )
+                    ? _CategoryList(onPick: _openCategory)
                     : _loadingCatalog
                         ? Center(child: CircularProgressIndicator(color: Px.accent))
                         : _catalogError != null
@@ -613,95 +580,120 @@ class _StepBack extends StatelessWidget {
   }
 }
 
-class _CategoryGrid extends StatelessWidget {
-  const _CategoryGrid({
-    required this.count,
-    required this.saved,
-    required this.onPick,
-    required this.onSaved,
-  });
+/// Every spare type on this screen. The old cards were tall enough that a phone
+/// showed eight of thirteen and hid the rest under the dock.
+class _CategoryList extends StatelessWidget {
+  const _CategoryList({required this.onPick});
 
-  final int? count;
-  final int saved;
   final ValueChanged<FitmentCategory> onPick;
-  final VoidCallback? onSaved;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        ShopListTile(
-          title: 'Saved spares',
-          subtitle: saved == 0 ? 'Groups you record stay on this phone' : '$saved groups',
-          leading: Icon(Icons.bookmark_rounded, color: Px.accent),
-          onTap: onSaved,
-        ),
-        Expanded(
-          child: GridView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.35,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final count = fitmentCategories.length;
+          // A second line needs about 44px. Shorter windows keep the name only.
+          final showBlurb = constraints.maxHeight / count >= 44;
+          return DecoratedBox(
+            decoration: BoxDecoration(
+              color: Px.surface.withValues(alpha: 0.92),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Px.line),
             ),
-            itemCount: fitmentCategories.length,
-            itemBuilder: (context, index) {
-              final category = fitmentCategories[index];
-              return _CategoryCard(
-                category: category,
-                count: count,
-                onTap: () => onPick(category),
-              );
-            },
-          ),
-        ),
-      ],
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: Column(
+                children: [
+                  for (var i = 0; i < count; i++)
+                    Expanded(
+                      child: _CategoryRow(
+                        category: fitmentCategories[i],
+                        showBlurb: showBlurb,
+                        divider: i < count - 1,
+                        onTap: () => onPick(fitmentCategories[i]),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }
 
-class _CategoryCard extends StatelessWidget {
-  const _CategoryCard({
+class _CategoryRow extends StatelessWidget {
+  const _CategoryRow({
     required this.category,
-    required this.count,
+    required this.showBlurb,
+    required this.divider,
     required this.onTap,
   });
 
   final FitmentCategory category;
-  final int? count;
+  final bool showBlurb;
+  final bool divider;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Px.surface.withValues(alpha: 0.92),
-      borderRadius: BorderRadius.circular(20),
+      color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(_iconFor(category.code), color: Px.accent, size: 26),
-              const Spacer(),
-              Text(
-                category.label,
-                style: GoogleFonts.fraunces(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Px.ink,
-                  height: 1.1,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            border: divider ? Border(bottom: BorderSide(color: Px.line)) : null,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                Icon(_iconFor(category.code), color: Px.accent, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: showBlurb
+                      ? Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              category.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 15,
+                                height: 1.1,
+                                fontWeight: FontWeight.w600,
+                                color: Px.ink,
+                              ),
+                            ),
+                            Text(
+                              category.blurb,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 12, height: 1.15, color: Px.muted),
+                            ),
+                          ],
+                        )
+                      : Text(
+                          category.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 15,
+                            height: 1.1,
+                            fontWeight: FontWeight.w600,
+                            color: Px.ink,
+                          ),
+                        ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                count == null ? 'This group' : '$count brands',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
+                Icon(Icons.chevron_right_rounded, color: Px.faint, size: 18),
+              ],
+            ),
           ),
         ),
       ),

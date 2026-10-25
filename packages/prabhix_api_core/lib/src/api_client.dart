@@ -46,7 +46,8 @@ class ApiClient {
                 await identity.tokenStore.deviceId();
             options.headers['X-Correlation-Id'] = const Uuid().v4();
             options.headers['X-Prabhix-Device-Label'] = config.deviceHeader;
-            final group = fitmentGroupId;
+            final override = options.extra['fitmentGroupId'];
+            final group = override is String && override.isNotEmpty ? override : fitmentGroupId;
             if (group != null && group.isNotEmpty) {
               options.headers['X-Fitment-Group'] = group;
             } else {
@@ -161,12 +162,25 @@ class ApiClient {
   Dio get dio => _dio;
 
   /// JSON body as text, so a large catalog can be decoded off the UI isolate.
-  Future<String> getPlain(String path, [Map<String, dynamic>? query]) async {
+  ///
+  /// [fitmentGroupId] pins this request to one group. Other requests keep the
+  /// group the catalog screen has open.
+  Future<String> getPlain(
+    String path, [
+    Map<String, dynamic>? query,
+    String? fitmentGroupId,
+  ]) async {
     try {
       final response = await _dio.get<String>(
         path,
         queryParameters: query,
-        options: Options(responseType: ResponseType.plain),
+        options: Options(
+          responseType: ResponseType.plain,
+          extra: {
+            if (fitmentGroupId != null && fitmentGroupId.isNotEmpty)
+              'fitmentGroupId': fitmentGroupId,
+          },
+        ),
       );
       return response.data ?? '';
     } on DioException catch (e) {
