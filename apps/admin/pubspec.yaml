@@ -1,7 +1,7 @@
 name: admin
 description: Prabhix Admin — platform overview (Identity OIDC).
 publish_to: none
-version: 1.1.7+11
+version: 1.1.8+12
 environment:
   sdk: ^3.5.0
 
