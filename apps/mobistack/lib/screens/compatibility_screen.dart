@@ -1634,7 +1634,7 @@ class _LetterMark extends StatelessWidget {
       child: Text(
         _initial(name),
         style: TextStyle(
-          color: color.computeLuminance() > 0.55 ? Px.ink : Colors.white,
+          color: color.computeLuminance() > 0.55 ? Px.ink : _markColor(_markLight),
           fontWeight: FontWeight.w700,
           fontSize: 11,
           height: 1,
@@ -1644,54 +1644,62 @@ class _LetterMark extends StatelessWidget {
   }
 }
 
+/// Light ink for a letter sitting on a saturated brand tile.
+const _markLight = 0xFFFFFFFF;
+
+Color _markColor(int argb) => Color(argb);
+
 /// A tint for the mark we already ship. Known brands use their usual color.
 /// The others each keep one color from the palette, so the letters are not all orange.
 Color _brandMarkColor(String name, Brightness brightness) {
-  const known = <String, Color>{
-    'apple': Color(0xFF111111),
-    'samsung': Color(0xFF1428A0),
-    'xiaomi': Color(0xFFE85D04),
-    'oppo': Color(0xFF1F7A4D),
-    'vivo': Color(0xFF415FFF),
-    'oneplus': Color(0xFFF5010C),
-    'motorola': Color(0xFF3B6FD8),
-    'nokia': Color(0xFF005AFF),
-    'google': Color(0xFF4285F4),
-    'honor': Color(0xFF111111),
-    'huawei': Color(0xFFCF0A2C),
-    'sony': Color(0xFF111111),
-    'asus': Color(0xFF00539B),
-    'lenovo': Color(0xFFE2231A),
-    'lg': Color(0xFFA50034),
-    'htc': Color(0xFF6FBE44),
-    'blackberry': Color(0xFF111111),
-    'meizu': Color(0xFF0082C8),
-    'sharp': Color(0xFFE2231A),
-    'fairphone': Color(0xFF4495D1),
+  const known = <String, int>{
+    'apple': 0xFF111111,
+    'samsung': 0xFF1428A0,
+    'xiaomi': 0xFFE85D04,
+    'oppo': 0xFF1F7A4D,
+    'vivo': 0xFF415FFF,
+    'oneplus': 0xFFF5010C,
+    'motorola': 0xFF3B6FD8,
+    'nokia': 0xFF005AFF,
+    'google': 0xFF4285F4,
+    'honor': 0xFF111111,
+    'huawei': 0xFFCF0A2C,
+    'sony': 0xFF111111,
+    'asus': 0xFF00539B,
+    'lenovo': 0xFFE2231A,
+    'lg': 0xFFA50034,
+    'htc': 0xFF6FBE44,
+    'blackberry': 0xFF111111,
+    'meizu': 0xFF0082C8,
+    'sharp': 0xFFE2231A,
+    'fairphone': 0xFF4495D1,
   };
+  const palette = <int>[
+    0xFF1F7A4D,
+    0xFF1D4E89,
+    0xFF8C3A1E,
+    0xFF5B4B8A,
+    0xFFB42318,
+    0xFF0E7490,
+    0xFF9A3412,
+    0xFF3F6212,
+    0xFF9D174D,
+    0xFF1E3A8A,
+  ];
   final key = _brandKey(name);
-  var color = known[key];
-  if (color == null) {
-    const palette = <Color>[
-      Color(0xFF1F7A4D),
-      Color(0xFF1D4E89),
-      Color(0xFF8C3A1E),
-      Color(0xFF5B4B8A),
-      Color(0xFFB42318),
-      Color(0xFF0E7490),
-      Color(0xFF9A3412),
-      Color(0xFF3F6212),
-      Color(0xFF9D174D),
-      Color(0xFF1E3A8A),
-    ];
+  final packed = known[key];
+  final Color color;
+  if (packed != null) {
+    color = _markColor(packed);
+  } else {
     var hash = 0;
     for (final unit in key.codeUnits) {
       hash = (hash * 31 + unit) & 0x7fffffff;
     }
-    color = palette[hash % palette.length];
+    color = _markColor(palette[hash % palette.length]);
   }
   if (brightness == Brightness.dark && color.computeLuminance() < 0.18) {
-    return Color.lerp(color, Colors.white, 0.72)!;
+    return Color.lerp(color, _markColor(_markLight), 0.72)!;
   }
   return color;
 }
