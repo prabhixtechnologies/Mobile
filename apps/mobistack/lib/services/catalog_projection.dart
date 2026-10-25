@@ -2,6 +2,21 @@ import 'dart:convert';
 
 import '../catalog/fitment_library.dart';
 
+/// Android reads one database value through a 2MB window. A whole fitment graph
+/// is larger than that, so it is stored in pieces this size.
+const catalogGraphChunkChars = 350000;
+
+/// Splits a catalog graph into pieces a phone can read back.
+List<String> splitCatalogGraph(String graph) {
+  if (graph.isEmpty) return const [];
+  final chunks = <String>[];
+  for (var start = 0; start < graph.length; start += catalogGraphChunkChars) {
+    final end = start + catalogGraphChunkChars > graph.length ? graph.length : start + catalogGraphChunkChars;
+    chunks.add(graph.substring(start, end));
+  }
+  return chunks;
+}
+
 /// Storage key for one catalog list. Sorted query names keep the same address
 /// for the same arguments no matter which map order the caller used.
 String catalogListStorageKey(String path, Map<String, dynamic> query, {String? groupId}) {
@@ -121,8 +136,9 @@ Map<String, List<Map<String, dynamic>>> projectCatalogLists(String group, Map<St
     (fitmentsByComponent['${fitment['componentId']}'] ??= []).add(fitment);
   }
   for (final category in fitmentCategories) {
+    final wanted = category.code.trim().toUpperCase();
     final componentIds = components
-        .where((component) => '${component['categoryCode']}' == category.code)
+        .where((component) => '${component['categoryCode']}'.trim().toUpperCase() == wanted)
         .map((component) => '${component['id']}')
         .toSet();
     final mappedDevices = <String>{};
@@ -131,7 +147,8 @@ Map<String, List<Map<String, dynamic>>> projectCatalogLists(String group, Map<St
       final members = <String>{};
       for (final fitment in fitmentsByComponent[componentId] ?? const []) {
         final id = '${fitment['deviceId']}';
-        if (id.isEmpty) continue;
+        // A fitment that points at no phone cannot be opened, so it is not compatibility.
+        if (id.isEmpty || !devicesById.containsKey(id)) continue;
         members.add(id);
         mappedDevices.add(id);
       }
@@ -181,7 +198,9 @@ class CatalogIndex {
     }
     _deviceCount = deviceCount;
     for (final component in componentsById.values) {
-      (componentsByCategory['${component['categoryCode']}'] ??= []).add('${component['id']}');
+      final code = '${component['categoryCode']}'.trim().toUpperCase();
+      if (code.isEmpty) continue;
+      (componentsByCategory[code] ??= []).add('${component['id']}');
     }
     final mappedDevices = <String>{};
     for (final fitment in catalogRows(catalog['fitments'])) {
@@ -212,14 +231,14 @@ class CatalogIndex {
   /// The one list the screen is asking for. Other categories stay unbuilt until opened.
   List<Map<String, dynamic>>? list(String path, Map<String, dynamic> query) {
     if (path == 'commons/brands') {
-      final code = '${query['categoryCode'] ?? ''}';
+      final code = '${query['categoryCode'] ?? ''}'.trim().toUpperCase();
       return code.isEmpty ? _brandViews(_allMappedCounts, mappedOnly: false) : _brandViews(_countsFor(code), mappedOnly: true);
     }
     if (path == 'commons/devices') {
       final brandId = '${query['brandId'] ?? ''}';
       if (brandId.isEmpty) return null;
       final phones = devicesByBrand[brandId] ?? const <Map<String, dynamic>>[];
-      final code = '${query['categoryCode'] ?? ''}';
+      final code = '${query['categoryCode'] ?? ''}'.trim().toUpperCase();
       if (code.isEmpty) return phones;
       final shared = _sharedDevices(code);
       return [
@@ -234,45 +253,48 @@ class CatalogIndex {
   }
 
   Set<String> _mappedDevices(String categoryCode) {
-    final cached = _mappedDeviceIds[categoryCode];
+    final code = categoryCode.trim().toUpperCase();
+    final cached = _mappedDeviceIds[code];
     if (cached != null) return cached;
     final ids = <String>{};
-    for (final componentId in componentsByCategory[categoryCode] ?? const []) {
+    for (final componentId in componentsByCategory[code] ?? const []) {
       for (final fitment in fitmentsByComponent[componentId] ?? const []) {
         final id = '${fitment['deviceId']}';
-        if (id.isNotEmpty) ids.add(id);
+        if (id.isNotEmpty && devicesById.containsKey(id)) ids.add(id);
       }
     }
-    _mappedDeviceIds[categoryCode] = ids;
+    _mappedDeviceIds[code] = ids;
     return ids;
   }
 
-  /// Phones that share this spare with at least one other model.
+  /// Phones that share this spare with at least one other phone the page can open.
   Set<String> _sharedDevices(String categoryCode) {
-    final cached = _sharedDeviceIds[categoryCode];
+    final code = categoryCode.trim().toUpperCase();
+    final cached = _sharedDeviceIds[code];
     if (cached != null) return cached;
     final ids = <String>{};
-    for (final componentId in componentsByCategory[categoryCode] ?? const []) {
+    for (final componentId in componentsByCategory[code] ?? const []) {
       final members = <String>{
         for (final fitment in fitmentsByComponent[componentId] ?? const [])
-          if ('${fitment['deviceId']}'.isNotEmpty) '${fitment['deviceId']}',
+          if (devicesById.containsKey('${fitment['deviceId']}')) '${fitment['deviceId']}',
       };
       if (members.length > 1) ids.addAll(members);
     }
-    _sharedDeviceIds[categoryCode] = ids;
+    _sharedDeviceIds[code] = ids;
     return ids;
   }
 
   Map<String, int> _countsFor(String categoryCode) {
-    final cached = _categoryBrandCounts[categoryCode];
+    final code = categoryCode.trim().toUpperCase();
+    final cached = _categoryBrandCounts[code];
     if (cached != null) return cached;
     final counts = <String, int>{};
-    for (final deviceId in _mappedDevices(categoryCode)) {
+    for (final deviceId in _mappedDevices(code)) {
       final brandId = '${devicesById[deviceId]?['brandId'] ?? ''}';
       if (brandId.isEmpty) continue;
       counts[brandId] = (counts[brandId] ?? 0) + 1;
     }
-    _categoryBrandCounts[categoryCode] = counts;
+    _categoryBrandCounts[code] = counts;
     return counts;
   }
 
@@ -300,12 +322,15 @@ class CatalogIndex {
     for (final fitment in fitmentsByDevice[deviceId] ?? const []) {
       final componentId = '${fitment['componentId']}';
       final component = componentsById[componentId];
-      if (component == null || '${component['categoryCode']}' != categoryCode) continue;
+      if (component == null) continue;
+      final code = '${component['categoryCode']}'.toUpperCase();
+      final wanted = categoryCode.trim().toUpperCase();
+      if (wanted.isNotEmpty && code != wanted) continue;
       fits.add({
         'fitmentId': fitment['id'],
         'componentId': componentId,
         'componentName': component['name'],
-        'categoryCode': categoryCode,
+        'categoryCode': code,
         'deviceId': device['id'],
         'deviceName': device['name'],
         'fit': fitment['fitQuality'],
@@ -317,9 +342,11 @@ class CatalogIndex {
         'disputedByMe': false,
       });
       final members = <Map<String, dynamic>>[];
+      final seenMembers = <String>{};
       for (final memberFitment in fitmentsByComponent[componentId] ?? const []) {
-        final member = devicesById['${memberFitment['deviceId']}'];
-        if (member == null) continue;
+        final memberId = '${memberFitment['deviceId']}';
+        final member = devicesById[memberId];
+        if (member == null || !seenMembers.add('${member['id']}')) continue;
         members.add({
           'id': member['id'],
           'brandName': brandsById['${member['brandId']}']?['name'],
@@ -334,8 +361,8 @@ class CatalogIndex {
       }
       families.add({
         'id': componentId,
-        'categoryCode': categoryCode,
-        'categoryName': categoryLabel,
+        'categoryCode': code,
+        'categoryName': categoryLabel.isEmpty ? code : categoryLabel,
         'name': component['name'],
         'description': component['description'],
         'members': members,
@@ -343,6 +370,88 @@ class CatalogIndex {
     }
     return {'device': deviceView, 'fits': fits, 'families': families};
   }
+
+  /// Brands whose name contains every word, and phones matched by brand, name, or code.
+  ///
+  /// "m20" can hit a brand and a phone. "samsung m20" hits the phone, because one
+  /// word has to land on the phone itself or a brand name would list every model.
+  CatalogSearch search(String categoryCode, String query) {
+    final code = categoryCode.trim().toUpperCase();
+    final brands = _brandViews(_countsFor(code), mappedOnly: true);
+    if (catalogSearchTokens(query).isEmpty) {
+      return CatalogSearch(brands: brands, phones: const []);
+    }
+    final brandHits = [
+      for (final brand in brands)
+        if (catalogSearchHits(query, ['${brand['name']}'])) brand,
+    ];
+    final shared = _sharedDevices(code);
+    final phones = <Map<String, dynamic>>[];
+    for (final brand in brands) {
+      final brandName = '${brand['name'] ?? ''}';
+      for (final device in devicesByBrand['${brand['id']}'] ?? const <Map<String, dynamic>>[]) {
+        final name = '${device['name'] ?? ''}';
+        final modelCode = '${device['modelCode'] ?? ''}';
+        final variant = '${device['variant'] ?? ''}';
+        if (!catalogPhoneSearchHits(
+          query,
+          fields: [brandName, name, modelCode, variant],
+          phoneFields: [name, modelCode, variant],
+        )) {
+          continue;
+        }
+        phones.add({
+          ...device,
+          'brandName': brandName,
+          'logo': brand['logo'],
+          'shared': shared.contains('${device['id']}'),
+        });
+      }
+    }
+    phones.sort((a, b) {
+      final byBrand = '${a['brandName']}'.toLowerCase().compareTo('${b['brandName']}'.toLowerCase());
+      if (byBrand != 0) return byBrand;
+      return '${a['name']}'.toLowerCase().compareTo('${b['name']}'.toLowerCase());
+    });
+    return CatalogSearch(brands: brandHits, phones: phones);
+  }
+}
+
+class CatalogSearch {
+  const CatalogSearch({required this.brands, required this.phones});
+
+  final List<Map<String, dynamic>> brands;
+  final List<Map<String, dynamic>> phones;
+}
+
+List<String> catalogSearchTokens(String query) {
+  return [
+    for (final word in query.toLowerCase().split(RegExp(r'\s+')))
+      if (word.isNotEmpty) _catalogCompact(word),
+  ].where((token) => token.isNotEmpty).toList();
+}
+
+String _catalogCompact(String value) => value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+
+/// Every word appears somewhere in [fields]. An empty query matches everything.
+bool catalogSearchHits(String query, Iterable<String> fields) {
+  final tokens = catalogSearchTokens(query);
+  if (tokens.isEmpty) return true;
+  final haystack = _catalogCompact(fields.join(' '));
+  return tokens.every(haystack.contains);
+}
+
+/// Every word matches the brand or the phone, and one word matches the phone.
+bool catalogPhoneSearchHits(
+  String query, {
+  required Iterable<String> fields,
+  required Iterable<String> phoneFields,
+}) {
+  final tokens = catalogSearchTokens(query);
+  if (tokens.isEmpty) return false;
+  if (!catalogSearchHits(query, fields)) return false;
+  final phone = _catalogCompact(phoneFields.join(' '));
+  return tokens.any(phone.contains);
 }
 
 List<Map<String, dynamic>> catalogRows(dynamic data) {

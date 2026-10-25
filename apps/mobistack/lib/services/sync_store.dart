@@ -168,6 +168,17 @@ class SyncStore {
     return _catalogIndex!.list(path, query);
   }
 
+  Future<CatalogSearch?> searchCatalog({
+    required String groupId,
+    required String categoryCode,
+    required String query,
+  }) async {
+    if (groupId.isEmpty || query.trim().isEmpty) return null;
+    final index = await _index(groupId);
+    if (index == null) return null;
+    return index.search(categoryCode, query);
+  }
+
   Future<List<Map<String, dynamic>>?> readCatalogList(
     String path,
     Map<String, dynamic> query, {
@@ -219,10 +230,38 @@ class SyncStore {
     }
   }
 
+  /// True when this group's graph can be read. A version alone is not enough:
+  /// an older install stored the graph as one value Android cannot read back.
+  Future<bool> catalogGraphReadable(String groupId) async {
+    if (_catalogIndexGroup == groupId && _catalogIndex != null) return true;
+    final raw = await readCatalogGraph(groupId);
+    return raw != null && raw.isNotEmpty;
+  }
+
+  Future<String?> readCatalogGraph(String groupId) async {
+    try {
+      final count = int.tryParse(await _getRaw('catalog.graph.$groupId.parts') ?? '');
+      if (count != null && count > 0) {
+        final parts = <String>[];
+        for (var i = 0; i < count; i++) {
+          final chunk = await _getRaw('catalog.graph.$groupId.$i');
+          if (chunk == null) return null;
+          parts.add(chunk);
+        }
+        final graph = parts.join();
+        return graph.isEmpty ? null : graph;
+      }
+      return await _getRaw('catalog.graph.$groupId');
+    } catch (e) {
+      debugPrint('catalog graph unreadable: $e');
+      return null;
+    }
+  }
+
   Future<CatalogIndex?> _index(String groupId) async {
     if (_catalogIndexGroup == groupId && _catalogIndex != null) return _catalogIndex;
     final epoch = _catalogEpoch;
-    final raw = await _getRaw('catalog.graph.$groupId');
+    final raw = await readCatalogGraph(groupId);
     if (raw == null || raw.isEmpty) return null;
     if (epoch != _catalogEpoch) return _index(groupId);
     final decoded = await compute(jsonDecode, raw);
@@ -262,12 +301,25 @@ class SyncStore {
     await db.transaction((txn) async {
       await txn.delete('kv', where: 'key LIKE ?', whereArgs: ['catalog.list.$groupId.%']);
       await txn.delete('kv', where: 'key LIKE ?', whereArgs: ['catalog.detail.$groupId.%']);
+      await txn.delete(
+        'kv',
+        where: 'key = ? OR key LIKE ?',
+        whereArgs: ['catalog.graph.$groupId', 'catalog.graph.$groupId.%'],
+      );
+      final chunks = splitCatalogGraph(graphJson);
       final batch = txn.batch();
       batch.insert(
         'kv',
-        {'key': 'catalog.graph.$groupId', 'value': graphJson},
+        {'key': 'catalog.graph.$groupId.parts', 'value': '${chunks.length}'},
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
+      for (var i = 0; i < chunks.length; i++) {
+        batch.insert(
+          'kv',
+          {'key': 'catalog.graph.$groupId.$i', 'value': chunks[i]},
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
       for (final entry in encodedLists.entries) {
         batch.insert(
           'kv',

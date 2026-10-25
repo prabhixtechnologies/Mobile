@@ -24,6 +24,9 @@ class ConnectivityMonitor extends ChangeNotifier {
   }
 
   void _apply(List<ConnectivityResult> results) {
+    // An empty reading is "not known yet", not a lost connection. Treating it as
+    // offline kept the catalog from saving while the phone was on the internet.
+    if (results.isEmpty) return;
     final next = results.any((r) => r != ConnectivityResult.none);
     if (next == _online) return;
     _online = next;

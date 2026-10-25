@@ -270,7 +270,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     if (online && !catalogOnlyMode) {
       unawaited(sync.pullOfflineLists());
     }
-    if (online && fitmentGroupId != null) {
+    if (fitmentGroupId != null) {
       unawaited(catalogMirror.warm());
     }
   }
@@ -918,7 +918,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       [for (final group in fitmentGroups) group.toJson()],
       id,
     ));
-    if (online) unawaited(catalogMirror.warm());
+    unawaited(catalogMirror.warm());
   }
 
   String? issuedJoinCode;

@@ -113,6 +113,132 @@ void main() {
     expect(storedApple!.single['shared'], isFalse);
   });
 
+  test('the ticked list and the opened phone agree', () {
+    final catalog = {
+      'brands': [
+        {'id': 'b1', 'name': 'Samsung'},
+      ],
+      'devices': [
+        {'id': 'a', 'brandId': 'b1', 'name': 'A10'},
+        {'id': 'b', 'brandId': 'b1', 'name': 'A20'},
+        {'id': 'solo', 'brandId': 'b1', 'name': 'A30'},
+      ],
+      'components': [
+        {'id': 'combo', 'categoryCode': 'display_folder', 'name': 'Combo'},
+        {'id': 'dangling', 'categoryCode': 'DISPLAY_FOLDER', 'name': 'Broken'},
+      ],
+      'fitments': [
+        {'id': 'f1', 'componentId': 'combo', 'deviceId': 'a'},
+        {'id': 'f2', 'componentId': 'combo', 'deviceId': 'b'},
+        {'id': 'f3', 'componentId': 'dangling', 'deviceId': 'solo'},
+        {'id': 'f4', 'componentId': 'dangling', 'deviceId': 'missing-phone'},
+      ],
+    };
+    final index = CatalogIndex(catalog);
+    final rows = index.list('commons/devices', {
+      'brandId': 'b1',
+      'categoryCode': 'DISPLAY_FOLDER',
+    })!;
+    expect(rows.firstWhere((row) => row['id'] == 'a')['shared'], isTrue);
+    expect(rows.firstWhere((row) => row['id'] == 'solo')['shared'], isFalse);
+
+    final page = index.detail('a', 'display_folder', categoryLabel: 'Display')!;
+    final members = ((page['families'] as List).single as Map)['members'] as List;
+    expect(members.map((member) => (member as Map)['id']), ['a', 'b']);
+
+    final stored = projectCatalogLists('g1', catalog);
+    final storedRows = stored[catalogListStorageKey(
+      'commons/devices',
+      {'brandId': 'b1', 'categoryCode': 'DISPLAY_FOLDER'},
+      groupId: 'g1',
+    )]!;
+    expect(storedRows.firstWhere((row) => row['id'] == 'a')['shared'], isTrue);
+    expect(storedRows.firstWhere((row) => row['id'] == 'solo')['shared'], isFalse);
+  });
+
+  test('a graph larger than one database value splits and joins', () {
+    final graph = 'x' * (catalogGraphChunkChars + 10);
+    final chunks = splitCatalogGraph(graph);
+    expect(chunks, hasLength(2));
+    expect(chunks.join(), graph);
+    expect(splitCatalogGraph(''), isEmpty);
+  });
+
+  test('a phone page is built for every phone in the snapshot', () {
+    final catalog = {
+      'brands': [
+        {'id': 'b1', 'name': 'Samsung'},
+      ],
+      'devices': [
+        {'id': 'd1', 'brandId': 'b1', 'name': 'A10'},
+      ],
+      'components': [
+        {'id': 'c1', 'categoryCode': 'display_folder', 'name': 'Combo', 'description': ''},
+      ],
+      'fitments': [
+        {
+          'id': 'f1',
+          'componentId': 'c1',
+          'deviceId': 'd1',
+          'fitQuality': 'EXACT',
+          'confirmations': 1,
+          'disputes': 0,
+          'disputed': false,
+          'verified': true,
+        },
+      ],
+    };
+    final page = CatalogIndex(catalog).detail('d1', 'DISPLAY_FOLDER', categoryLabel: 'Display');
+    expect(page, isNotNull);
+    expect((page!['families'] as List), hasLength(1));
+  });
+
+  test('search finds a brand, a phone, or both words together', () {
+    final catalog = {
+      'brands': [
+        {'id': 'samsung', 'name': 'Samsung'},
+        {'id': 'apple', 'name': 'Apple'},
+      ],
+      'devices': [
+        {'id': 'm20', 'brandId': 'samsung', 'name': 'Galaxy M20', 'modelCode': 'SM-M205F'},
+        {'id': 'a12', 'brandId': 'samsung', 'name': 'Galaxy A12', 'modelCode': ''},
+        {'id': 'se', 'brandId': 'apple', 'name': 'iPhone SE (2022)', 'modelCode': 'A2595'},
+      ],
+      'components': [
+        {'id': 'shared', 'categoryCode': 'DISPLAY_FOLDER', 'name': 'Shared combo'},
+      ],
+      'fitments': [
+        {'id': 'f1', 'componentId': 'shared', 'deviceId': 'm20', 'fitQuality': 'EXACT'},
+        {'id': 'f2', 'componentId': 'shared', 'deviceId': 'a12', 'fitQuality': 'EXACT'},
+        {'id': 'f3', 'componentId': 'shared', 'deviceId': 'se', 'fitQuality': 'EXACT'},
+      ],
+    };
+
+    final index = CatalogIndex(catalog);
+    final model = index.search('DISPLAY_FOLDER', 'm20');
+    expect(model.brands, isEmpty);
+    expect(model.phones.map((row) => row['id']), ['m20']);
+    expect(model.phones.single['brandName'], 'Samsung');
+
+    final brand = index.search('DISPLAY_FOLDER', 'samsung');
+    expect(brand.brands.map((row) => row['id']), ['samsung']);
+    expect(brand.phones, isEmpty);
+
+    final both = index.search('DISPLAY_FOLDER', 'samsung m20');
+    expect(both.brands, isEmpty);
+    expect(both.phones.map((row) => row['id']), ['m20']);
+
+    final code = index.search('DISPLAY_FOLDER', 'sm-m205f');
+    expect(code.phones.map((row) => row['id']), ['m20']);
+
+    final spaced = index.search('display_folder', 'se 2022');
+    expect(spaced.phones.map((row) => row['id']), ['se']);
+    expect(index.search('DISPLAY_FOLDER', 'apple se').phones.map((row) => row['id']), ['se']);
+
+    expect(catalogSearchHits('galaxy a12', ['Samsung', 'Galaxy A12']), isTrue);
+    expect(catalogPhoneSearchHits('samsung', fields: ['Samsung', 'Galaxy M20'], phoneFields: ['Galaxy M20']), isFalse);
+  });
+
   test('every membership is downloaded, open group first', () {
     expect(
       catalogWarmOrder('b', ['a', 'b', 'c'], {}),
