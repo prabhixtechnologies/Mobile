@@ -113,9 +113,10 @@ void main() {
     await tester.pumpWidget(wrap(state, const CompatibilityScreen()));
     await tester.pump();
     expect(find.text('Fitment catalog'), findsOneWidget);
-    expect(find.text('Saved spares'), findsOneWidget);
+    expect(find.text('Saved spares'), findsNothing);
     expect(find.text('Display'), findsOneWidget);
     expect(find.text('Battery'), findsOneWidget);
+    expect(find.text('IC / chip'), findsOneWidget);
     state.dispose();
   });
 

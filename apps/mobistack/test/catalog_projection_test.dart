@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobistack/services/catalog_mirror.dart';
 import 'package:mobistack/services/catalog_projection.dart';
 
 void main() {
@@ -61,6 +62,18 @@ void main() {
     final members = (families.single as Map)['members'] as List;
     expect(members, hasLength(phones));
     expect(index.detail('missing', 'DISPLAY_FOLDER', categoryLabel: 'Display'), isNull);
+  });
+
+  test('every membership is downloaded, open group first', () {
+    expect(
+      catalogWarmOrder('b', ['a', 'b', 'c'], {}),
+      ['b', 'a', 'c'],
+    );
+    expect(
+      catalogWarmOrder('b', ['a', 'b', ''], {'a'}),
+      ['b'],
+    );
+    expect(catalogWarmOrder(null, const [], {}), isEmpty);
   });
 
   test('an unchanged snapshot installs nothing', () {

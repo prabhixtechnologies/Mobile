@@ -5,11 +5,31 @@ import 'package:flutter/foundation.dart';
 import 'catalog_projection.dart';
 import 'sync_store.dart';
 
-typedef CatalogGet = Future<String> Function(String path, Map<String, dynamic> query);
+typedef CatalogGet = Future<String> Function(
+  String path,
+  Map<String, dynamic> query,
+  String groupId,
+);
 
-/// Installs the backend's one immutable catalog snapshot on the phone.
+/// Selected group first, then every other group not already handled this pass.
+List<String> catalogWarmOrder(String? selected, Iterable<String> groups, Set<String> done) {
+  final ordered = <String>[];
+  final seen = <String>{};
+  void add(String? id) {
+    if (id == null || id.isEmpty || done.contains(id) || !seen.add(id)) return;
+    ordered.add(id);
+  }
+
+  add(selected);
+  for (final id in groups) {
+    add(id);
+  }
+  return ordered;
+}
+
+/// Installs each group's catalog snapshot on the phone.
 ///
-/// One HTTP request, one SQLite transaction. The raw graph is stored once.
+/// One HTTP request and one SQLite transaction per group. The raw graph is stored once.
 /// Brand and phone lists are indexed for the catalog screen. A phone's spare
 /// page is built from that graph when the phone is opened, so a part shared by
 /// many phones is not copied once per phone while the UI is trying to draw.
@@ -19,6 +39,7 @@ class CatalogMirror {
     required this.get,
     required this.online,
     required this.groupId,
+    required this.groupIds,
     this.onInstalled,
   });
 
@@ -26,13 +47,15 @@ class CatalogMirror {
   final CatalogGet get;
   final bool Function() online;
   final String? Function() groupId;
+  final List<String> Function() groupIds;
   final void Function()? onInstalled;
   Future<void>? _inFlight;
 
-  /// Downloads the snapshot when this phone is online.
+  /// Downloads every group this phone belongs to. The open group goes first.
   ///
   /// Callers that arrive while a download is already running share that same
-  /// download instead of starting another one.
+  /// download. A group switch during the run is picked up on the next group,
+  /// so the newly opened catalog is not left waiting on the previous one.
   Future<void> warm() {
     final current = _inFlight;
     if (current != null) return current;
@@ -44,14 +67,22 @@ class CatalogMirror {
   }
 
   Future<void> _warm() async {
-    if (!online()) return;
-    final group = groupId();
-    if (group == null || group.isEmpty) return;
+    final done = <String>{};
+    while (online()) {
+      final pending = catalogWarmOrder(groupId(), groupIds(), done);
+      if (pending.isEmpty) return;
+      final group = pending.first;
+      done.add(group);
+      await _install(group);
+    }
+  }
+
+  Future<void> _install(String group) async {
     try {
       final installed = await sync.catalogVersion(group);
       final raw = await get('commons/snapshot', {
         if (installed != null) 'version': installed,
-      });
+      }, group);
       if (raw.isEmpty) return;
       final staged = await compute(stageCatalogSnapshot, {
         'group': group,
@@ -67,9 +98,14 @@ class CatalogMirror {
       if (decoded is! Map) {
         throw const FormatException('Catalog snapshot is incomplete');
       }
-      // The open list can paint from this graph. Saving every other list happens after.
-      sync.adoptCatalog(group, CatalogIndex(Map<String, dynamic>.from(decoded)));
-      onInstalled?.call();
+      final index = CatalogIndex(Map<String, dynamic>.from(decoded));
+      // Only the open group paints from memory. Another group's graph stays on disk
+      // so a background save cannot replace the list the person is looking at.
+      final openNow = groupId() == group;
+      if (openNow) {
+        sync.adoptCatalog(group, index);
+        onInstalled?.call();
+      }
       final encoded = await compute(encodeCatalogLists, {
         'group': group,
         'graph': graph,
@@ -80,9 +116,13 @@ class CatalogMirror {
         graphJson: graph,
         encodedLists: encoded,
       );
-      debugPrint('catalog snapshot $version installed lists=${encoded.length}');
+      if (!openNow && groupId() == group) {
+        sync.adoptCatalog(group, index);
+        onInstalled?.call();
+      }
+      debugPrint('catalog snapshot $version installed for $group lists=${encoded.length}');
     } catch (e, st) {
-      debugPrint('catalog snapshot skipped: $e\n$st');
+      debugPrint('catalog snapshot $group skipped: $e\n$st');
     }
   }
 }
