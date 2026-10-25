@@ -1599,6 +1599,7 @@ class _BrandGlyph extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final color = _brandMarkColor(name, Theme.of(context).brightness);
     final mark = logo;
     if (mark != null) {
       return SvgPicture.string(
@@ -1606,18 +1607,19 @@ class _BrandGlyph extends StatelessWidget {
         width: 22,
         height: 22,
         fit: BoxFit.contain,
-        colorFilter: ColorFilter.mode(Px.ink, BlendMode.srcIn),
-        errorBuilder: (context, error, stackTrace) => _LetterMark(name: name),
+        colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+        errorBuilder: (context, error, stackTrace) => _LetterMark(name: name, color: color),
       );
     }
-    return _LetterMark(name: name);
+    return _LetterMark(name: name, color: color);
   }
 }
 
 class _LetterMark extends StatelessWidget {
-  const _LetterMark({required this.name});
+  const _LetterMark({required this.name, required this.color});
 
   final String name;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -1626,13 +1628,13 @@ class _LetterMark extends StatelessWidget {
       height: 22,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [Px.accent, Px.accentStrong]),
+        color: color,
         borderRadius: BorderRadius.circular(7),
       ),
       child: Text(
         _initial(name),
         style: TextStyle(
-          color: Px.accentInk,
+          color: color.computeLuminance() > 0.55 ? Px.ink : Colors.white,
           fontWeight: FontWeight.w700,
           fontSize: 11,
           height: 1,
@@ -1640,6 +1642,68 @@ class _LetterMark extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A tint for the mark we already ship. Known brands use their usual color.
+/// The others each keep one color from the palette, so the letters are not all orange.
+Color _brandMarkColor(String name, Brightness brightness) {
+  const known = <String, Color>{
+    'apple': Color(0xFF111111),
+    'samsung': Color(0xFF1428A0),
+    'xiaomi': Color(0xFFE85D04),
+    'oppo': Color(0xFF1F7A4D),
+    'vivo': Color(0xFF415FFF),
+    'oneplus': Color(0xFFF5010C),
+    'motorola': Color(0xFF3B6FD8),
+    'nokia': Color(0xFF005AFF),
+    'google': Color(0xFF4285F4),
+    'honor': Color(0xFF111111),
+    'huawei': Color(0xFFCF0A2C),
+    'sony': Color(0xFF111111),
+    'asus': Color(0xFF00539B),
+    'lenovo': Color(0xFFE2231A),
+    'lg': Color(0xFFA50034),
+    'htc': Color(0xFF6FBE44),
+    'blackberry': Color(0xFF111111),
+    'meizu': Color(0xFF0082C8),
+    'sharp': Color(0xFFE2231A),
+    'fairphone': Color(0xFF4495D1),
+  };
+  final key = _brandKey(name);
+  var color = known[key];
+  if (color == null) {
+    const palette = <Color>[
+      Color(0xFF1F7A4D),
+      Color(0xFF1D4E89),
+      Color(0xFF8C3A1E),
+      Color(0xFF5B4B8A),
+      Color(0xFFB42318),
+      Color(0xFF0E7490),
+      Color(0xFF9A3412),
+      Color(0xFF3F6212),
+      Color(0xFF9D174D),
+      Color(0xFF1E3A8A),
+    ];
+    var hash = 0;
+    for (final unit in key.codeUnits) {
+      hash = (hash * 31 + unit) & 0x7fffffff;
+    }
+    color = palette[hash % palette.length];
+  }
+  if (brightness == Brightness.dark && color.computeLuminance() < 0.18) {
+    return Color.lerp(color, Colors.white, 0.72)!;
+  }
+  return color;
+}
+
+String _brandKey(String name) {
+  final buffer = StringBuffer();
+  for (final unit in name.toLowerCase().codeUnits) {
+    final digit = unit >= 48 && unit <= 57;
+    final letter = unit >= 97 && unit <= 122;
+    if (digit || letter) buffer.writeCharCode(unit);
+  }
+  return buffer.toString();
 }
 
 IconData _iconFor(String code) {
