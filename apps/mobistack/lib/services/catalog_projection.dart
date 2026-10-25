@@ -126,10 +126,17 @@ Map<String, List<Map<String, dynamic>>> projectCatalogLists(String group, Map<St
         .map((component) => '${component['id']}')
         .toSet();
     final mappedDevices = <String>{};
+    final sharedDevices = <String>{};
     for (final componentId in componentIds) {
+      final members = <String>{};
       for (final fitment in fitmentsByComponent[componentId] ?? const []) {
-        mappedDevices.add('${fitment['deviceId']}');
+        final id = '${fitment['deviceId']}';
+        if (id.isEmpty) continue;
+        members.add(id);
+        mappedDevices.add(id);
       }
+      // A spare that names only its own phone is model-specific, not shared.
+      if (members.length > 1) sharedDevices.addAll(members);
     }
     final categoryBrands = brandViews(mappedBrandCounts(mappedDevices), mappedOnly: true);
     lists[catalogListStorageKey(
@@ -147,7 +154,7 @@ Map<String, List<Map<String, dynamic>>> projectCatalogLists(String group, Map<St
         for (final device in devicesByBrand[brandId] ?? const <Map<String, dynamic>>[])
           {
             ...device,
-            'shared': mappedDevices.contains('${device['id']}'),
+            'shared': sharedDevices.contains('${device['id']}'),
           },
       ];
     }
@@ -198,6 +205,7 @@ class CatalogIndex {
   final fitmentsByDevice = <String, List<Map<String, dynamic>>>{};
   final _categoryBrandCounts = <String, Map<String, int>>{};
   final _mappedDeviceIds = <String, Set<String>>{};
+  final _sharedDeviceIds = <String, Set<String>>{};
   final _allMappedCounts = <String, int>{};
   late final Map<String, int> _deviceCount;
 
@@ -213,12 +221,12 @@ class CatalogIndex {
       final phones = devicesByBrand[brandId] ?? const <Map<String, dynamic>>[];
       final code = '${query['categoryCode'] ?? ''}';
       if (code.isEmpty) return phones;
-      final mapped = _mappedDevices(code);
+      final shared = _sharedDevices(code);
       return [
         for (final phone in phones)
           {
             ...phone,
-            'shared': mapped.contains('${phone['id']}'),
+            'shared': shared.contains('${phone['id']}'),
           },
       ];
     }
@@ -231,10 +239,27 @@ class CatalogIndex {
     final ids = <String>{};
     for (final componentId in componentsByCategory[categoryCode] ?? const []) {
       for (final fitment in fitmentsByComponent[componentId] ?? const []) {
-        ids.add('${fitment['deviceId']}');
+        final id = '${fitment['deviceId']}';
+        if (id.isNotEmpty) ids.add(id);
       }
     }
     _mappedDeviceIds[categoryCode] = ids;
+    return ids;
+  }
+
+  /// Phones that share this spare with at least one other model.
+  Set<String> _sharedDevices(String categoryCode) {
+    final cached = _sharedDeviceIds[categoryCode];
+    if (cached != null) return cached;
+    final ids = <String>{};
+    for (final componentId in componentsByCategory[categoryCode] ?? const []) {
+      final members = <String>{
+        for (final fitment in fitmentsByComponent[componentId] ?? const [])
+          if ('${fitment['deviceId']}'.isNotEmpty) '${fitment['deviceId']}',
+      };
+      if (members.length > 1) ids.addAll(members);
+    }
+    _sharedDeviceIds[categoryCode] = ids;
     return ids;
   }
 

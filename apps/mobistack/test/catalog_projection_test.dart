@@ -63,30 +63,54 @@ void main() {
     expect(index.detail('missing', 'DISPLAY_FOLDER', categoryLabel: 'Display'), isNull);
   });
 
-  test('a phone with no fitment for this spare is model-specific', () {
+  test('a spare that lists only its own phone is model-specific', () {
     final catalog = {
       'brands': [
         {'id': 'b1', 'name': 'Honor'},
+        {'id': 'b2', 'name': 'Apple'},
       ],
       'devices': [
-        {'id': 'mapped', 'brandId': 'b1', 'name': 'Honor 8'},
+        {'id': 'honor8', 'brandId': 'b1', 'name': 'Honor 8'},
+        {'id': 'honor9', 'brandId': 'b1', 'name': 'Honor 9'},
         {'id': 'bare', 'brandId': 'b1', 'name': 'Device'},
+        {'id': 'se', 'brandId': 'b2', 'name': 'iPhone SE (2022)'},
       ],
       'components': [
-        {'id': 'c1', 'categoryCode': 'DISPLAY_FOLDER', 'name': 'Combo'},
+        {'id': 'shared', 'categoryCode': 'DISPLAY_FOLDER', 'name': 'Shared combo'},
+        {'id': 'solo', 'categoryCode': 'DISPLAY_FOLDER', 'name': 'Apple iPhone SE (2022) Folder'},
       ],
       'fitments': [
-        {'id': 'f1', 'componentId': 'c1', 'deviceId': 'mapped', 'fitQuality': 'EXACT'},
+        {'id': 'f1', 'componentId': 'shared', 'deviceId': 'honor8', 'fitQuality': 'EXACT'},
+        {'id': 'f2', 'componentId': 'shared', 'deviceId': 'honor9', 'fitQuality': 'EXACT'},
+        {'id': 'f3', 'componentId': 'solo', 'deviceId': 'se', 'fitQuality': 'EXACT'},
       ],
     };
 
-    final rows = CatalogIndex(catalog).list('commons/devices', {
+    final index = CatalogIndex(catalog);
+    final honor = index.list('commons/devices', {
       'brandId': 'b1',
       'categoryCode': 'DISPLAY_FOLDER',
     });
+    expect(honor!.firstWhere((row) => row['id'] == 'honor8')['shared'], isTrue);
+    expect(honor.firstWhere((row) => row['id'] == 'honor9')['shared'], isTrue);
+    expect(honor.firstWhere((row) => row['id'] == 'bare')['shared'], isFalse);
 
-    expect(rows!.firstWhere((row) => row['id'] == 'mapped')['shared'], isTrue);
-    expect(rows.firstWhere((row) => row['id'] == 'bare')['shared'], isFalse);
+    final apple = index.list('commons/devices', {
+      'brandId': 'b2',
+      'categoryCode': 'DISPLAY_FOLDER',
+    });
+    expect(apple!.single['shared'], isFalse);
+
+    final brands = index.list('commons/brands', {'categoryCode': 'DISPLAY_FOLDER'});
+    expect(brands!.map((row) => row['id']), containsAll(['b1', 'b2']));
+
+    final stored = projectCatalogLists('g1', catalog);
+    final storedApple = stored[catalogListStorageKey(
+      'commons/devices',
+      {'brandId': 'b2', 'categoryCode': 'DISPLAY_FOLDER'},
+      groupId: 'g1',
+    )];
+    expect(storedApple!.single['shared'], isFalse);
   });
 
   test('every membership is downloaded, open group first', () {

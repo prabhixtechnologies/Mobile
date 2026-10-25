@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:prabhix_api_core/prabhix_api_core.dart' show describeError;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
@@ -66,6 +67,9 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
   String? _error;
   bool _loading = true;
   bool _refreshing = false;
+  Map<String, dynamic>? _proposal;
+  final Map<String, String> _myVotes = {};
+  String? _brandLogo;
 
   String get _cacheKey => 'device.${widget.deviceId}.${widget.categoryCode ?? 'all'}';
 
@@ -75,10 +79,29 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
     return code;
   }
 
+  bool _listsAnotherPhone(Map<String, dynamic> family) {
+    for (final member in pageRows(family['members'])) {
+      final id = '${member['id'] ?? ''}';
+      if (id.isNotEmpty && id != widget.deviceId) return true;
+    }
+    return false;
+  }
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _load();
+      _loadProposal();
+    });
+  }
+
+  String get _proposalKey => 'catalog.proposal.${widget.deviceId}.${_categoryCode ?? 'all'}';
+
+  Future<void> _loadProposal() async {
+    final saved = await context.read<AppState>().sync.readJson(_proposalKey);
+    if (!mounted || saved == null) return;
+    setState(() => _proposal = saved);
   }
 
   /// True when the installed snapshot already has this phone, so the screen can paint without waiting.
@@ -109,7 +132,29 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
       _families = pageRows(snapshot['families']);
       _loading = false;
     });
+    unawaited(_loadBrandMark(state));
     return fromSnapshot;
+  }
+
+  Future<void> _loadBrandMark(AppState state) async {
+    final brandId = '${_device?['brandId'] ?? ''}';
+    final brandName = '${_device?['brandName'] ?? ''}'.trim().toLowerCase();
+    if (brandId.isEmpty && brandName.isEmpty) return;
+    final rows = await state.sync.readCatalogList('commons/brands', const {});
+    if (!mounted || rows == null) return;
+    Map<String, dynamic>? match;
+    for (final row in rows) {
+      if (brandId.isNotEmpty && '${row['id'] ?? ''}' == brandId) {
+        match = row;
+        break;
+      }
+      if (match == null && brandName.isNotEmpty && '${row['name'] ?? ''}'.trim().toLowerCase() == brandName) {
+        match = row;
+      }
+    }
+    final logo = _brandSvg(match?['logo']);
+    if (logo == _brandLogo) return;
+    setState(() => _brandLogo = logo);
   }
 
   Future<void> _load({bool forceNetwork = false}) async {
@@ -191,6 +236,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
         _loading = false;
         _refreshing = false;
       });
+      unawaited(_loadBrandMark(state));
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -212,25 +258,27 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
     } catch (_) {}
   }
 
-  Future<void> _confirm(String fitmentId) async {
+  Future<void> _confirm(String fitmentId, String label) async {
     final state = context.read<AppState>();
     await state.api.dio.post<dynamic>(
       'commons/contributions',
       data: {'kind': 'CONFIRM_FITMENT', 'targetId': fitmentId},
     );
+    if (!mounted) return;
+    setState(() => _myVotes[fitmentId] = 'confirm');
     await _load(forceNetwork: true);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Fitment confirmed for the community catalog.')),
+      SnackBar(content: Text('Confirmed $label for the community catalog.')),
     );
   }
 
-  Future<void> _dispute(String fitmentId) async {
+  Future<void> _dispute(String fitmentId, String label) async {
     final reason = TextEditingController();
     final submitted = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Report a fitment issue'),
+        title: Text('Report $label'),
         content: TextField(
           controller: reason,
           autofocus: true,
@@ -254,11 +302,115 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
       'commons/contributions',
       data: {'kind': 'DISPUTE_FITMENT', 'targetId': fitmentId, 'reason': note},
     );
+    if (!mounted) return;
+    setState(() => _myVotes[fitmentId] = 'dispute');
     await _load(forceNetwork: true);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Fitment issue submitted for review.')),
+      SnackBar(content: Text('Report for $label is in review.')),
     );
+  }
+
+  Future<void> _propose() async {
+    final code = _categoryCode;
+    final category = code == null ? null : categoryByCode(code);
+    final state = context.read<AppState>();
+    if (code == null || category == null) return;
+    if (!state.online) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Connect to send a proposal.')),
+      );
+      return;
+    }
+    final groupId = state.fitmentGroupId;
+    if (groupId == null || groupId.isEmpty) return;
+    final draft = await showDialog<_ProposalDraft>(
+      context: context,
+      builder: (dialogContext) => _ProposeCompatibilityDialog(
+        spare: category.label,
+        loadBrands: () async {
+          final rows = await state.sync.readCatalogList('commons/brands', {'categoryCode': code});
+          return rows ?? const [];
+        },
+        loadModels: (brandId) async {
+          final rows = await state.sync.readCatalogList('commons/devices', {
+            'brandId': brandId,
+            'categoryCode': code,
+          });
+          final known = rows ?? const <Map<String, dynamic>>[];
+          final flagged = known.any((row) => row.containsKey('shared'));
+          return [
+            for (final row in known)
+              if ('${row['id']}' != widget.deviceId && (!flagged || row['shared'] == true)) row,
+          ];
+        },
+      ),
+    );
+    if (draft == null || !mounted) return;
+    final detail = await state.sync.catalogDetail(groupId, draft.modelId, code);
+    final families = pageRows(detail?['families']);
+    if (!mounted) return;
+    if (families.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('That model has no shared spare for this part.')),
+      );
+      return;
+    }
+    var family = families.first;
+    if (families.length > 1) {
+      final picked = await showDialog<Map<String, dynamic>>(
+        context: context,
+        builder: (dialogContext) => SimpleDialog(
+          title: Text('Which ${category.label}?'),
+          children: [
+            for (final row in families)
+              SimpleDialogOption(
+                onPressed: () => Navigator.pop(dialogContext, row),
+                child: Text('${row['name'] ?? category.label}'),
+              ),
+          ],
+        ),
+      );
+      if (picked == null || !mounted) return;
+      family = picked;
+    }
+    final componentId = '${family['id'] ?? ''}';
+    if (componentId.isEmpty) return;
+    try {
+      final res = await state.api.dio.post<dynamic>(
+        'commons/contributions',
+        data: {
+          'kind': 'ADD_FITMENT',
+          'reason': 'Same ${category.label} as ${draft.brand} ${draft.model}',
+          'payload': {
+            'componentId': componentId,
+            'deviceId': widget.deviceId,
+            'fit': 'COMPATIBLE',
+          },
+        },
+      );
+      final status = res.data is Map ? '${(res.data as Map)['status'] ?? 'PENDING'}' : 'PENDING';
+      final proposal = {
+        'status': status,
+        'label': '${draft.brand} ${draft.model}',
+        'spare': category.label,
+      };
+      await state.sync.saveJson(_proposalKey, proposal);
+      if (!mounted) return;
+      setState(() => _proposal = proposal);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            status == 'APPLIED'
+                ? 'Accepted. Other phones see it when the catalog snapshot refreshes.'
+                : 'Sent for admin review.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(describeError(error))));
+    }
   }
 
   @override
@@ -270,11 +422,13 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
     final categoryCode = _categoryCode;
     final category = categoryCode == null ? null : categoryByCode(categoryCode);
     final families = _canonicalFamilyRows(categoryCode == null
-        ? _families
-        : _families.where((group) {
-            final code = '${group['categoryCode'] ?? ''}'.toUpperCase();
-            return code.isEmpty || code == categoryCode.toUpperCase();
-          }).toList());
+            ? _families
+            : _families.where((group) {
+                final code = '${group['categoryCode'] ?? ''}'.toUpperCase();
+                return code.isEmpty || code == categoryCode.toUpperCase();
+              }).toList())
+        .where((group) => _listsAnotherPhone(group))
+        .toList();
     final partIds = families.map((group) => '${group['id'] ?? ''}').where((id) => id.isNotEmpty).toSet();
     final fits = _fits.where((fit) => partIds.contains('${fit['componentId'] ?? ''}')).toList();
     final fitByComponent = <String, Map<String, dynamic>>{
@@ -333,7 +487,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                           : '${families.length} distinct spare families cover this phone.',
                     ),
                     const SizedBox(height: 12),
-                    if (families.isEmpty)
+                    if (families.isEmpty) ...[
                       ShopEmpty(
                         title: category == null
                             ? 'No compatibility data yet'
@@ -342,7 +496,26 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                             ? 'The phone is listed, but no shared spare families have been confirmed yet.'
                             : 'No shared models are confirmed for this spare yet. The phone remains available in the catalog.',
                         icon: Icons.phone_android_rounded,
-                      )
+                      ),
+                      if (category != null) ...[
+                        const SizedBox(height: 8),
+                        if (_proposal != null)
+                          Text(
+                            _proposal!['status'] == 'APPLIED'
+                                ? 'Accepted. Same ${category.label} as ${_proposal!['label']}. Other phones see it when the catalog snapshot refreshes.'
+                                : 'Pending review. Same ${category.label} as ${_proposal!['label']}.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 14, height: 1.3, color: Px.ink),
+                          )
+                        else
+                          Center(
+                            child: FilledButton(
+                              onPressed: _refreshing ? null : _propose,
+                              child: const Text('Propose a compatibility'),
+                            ),
+                          ),
+                      ],
+                    ]
                     else
                       for (var index = 0; index < families.length; index++) ...[
                         _FitmentFamilyCard(
@@ -356,6 +529,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                               .toList(),
                           showInventory: context.watch<AppState>().hasFeature('INVENTORY'),
                           busy: _refreshing,
+                          myVotes: _myVotes,
                           onConfirm: _confirm,
                           onDispute: _dispute,
                         ),
@@ -524,6 +698,7 @@ class _FitmentFamilyCard extends StatelessWidget {
     required this.stock,
     required this.showInventory,
     required this.busy,
+    required this.myVotes,
     required this.onConfirm,
     required this.onDispute,
   });
@@ -536,21 +711,26 @@ class _FitmentFamilyCard extends StatelessWidget {
   final List<Map<String, dynamic>> stock;
   final bool showInventory;
   final bool busy;
-  final Future<void> Function(String) onConfirm;
-  final Future<void> Function(String) onDispute;
+  final Map<String, String> myVotes;
+  final Future<void> Function(String fitmentId, String label) onConfirm;
+  final Future<void> Function(String fitmentId, String label) onDispute;
+
+  String? _voteFor(Map<String, dynamic> member) {
+    final fitmentId = '${member['fitmentId'] ?? ''}';
+    if (fitmentId.isEmpty) return null;
+    final local = myVotes[fitmentId];
+    if (local != null) return local;
+    if (fit != null && '${fit!['fitmentId'] ?? ''}' == fitmentId) {
+      if (fit!['confirmedByMe'] == true) return 'confirm';
+      if (fit!['disputedByMe'] == true) return 'dispute';
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
     final members = pageRows(family['members']);
-    final self = members.where((member) => '${member['id'] ?? ''}' == deviceId);
-    final own = self.isEmpty ? null : self.first;
     final others = members.where((member) => '${member['id'] ?? ''}' != deviceId).toList();
-    final fitmentId = '${fit?['fitmentId'] ?? own?['fitmentId'] ?? ''}';
-    final confirmedByMe = fit?['confirmedByMe'] == true;
-    final disputedByMe = fit?['disputedByMe'] == true;
-    final quality = '${fit?['fit'] ?? own?['fit'] ?? 'COMPATIBLE'}'.replaceAll('_', ' ');
-    final disputed = fit?['disputed'] == true || own?['disputed'] == true;
-    final verified = fit?['verified'] == true || own?['verified'] == true;
 
     return Container(
       clipBehavior: Clip.antiAlias,
@@ -605,54 +785,6 @@ class _FitmentFamilyCard extends StatelessWidget {
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 10, 10, 10),
-            decoration: BoxDecoration(
-              color: disputed ? Px.warningSubtle : Px.surfaceSunken,
-              border: Border(top: BorderSide(color: Px.line)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: disputed ? Px.warningSubtle : Px.accentSubtle,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                  child: Text(
-                    quality,
-                    style: TextStyle(
-                      color: disputed ? Px.warningSubtleInk : Px.accentSubtleInk,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    [
-                      if (fit != null) '${fit!['confirmations'] ?? 0} confirm',
-                      if (fit != null) '${fit!['disputes'] ?? 0} dispute',
-                      if (verified) 'Verified',
-                      if (disputed) 'Disputed',
-                    ].join(' · '),
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ),
-                IconButton(
-                  tooltip: confirmedByMe ? 'You confirmed this fitment' : 'Confirm this fitment',
-                  icon: Icon(confirmedByMe ? Icons.check_circle_rounded : Icons.check_circle_outline_rounded),
-                  onPressed: busy || fitmentId.isEmpty || confirmedByMe ? null : () => onConfirm(fitmentId),
-                ),
-                IconButton(
-                  tooltip: disputedByMe ? 'You reported this fitment' : 'Report an issue',
-                  icon: Icon(disputedByMe ? Icons.flag_rounded : Icons.flag_outlined),
-                  onPressed: busy || fitmentId.isEmpty || disputedByMe ? null : () => onDispute(fitmentId),
-                ),
-              ],
-            ),
-          ),
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -676,6 +808,8 @@ class _FitmentFamilyCard extends StatelessWidget {
                     _CompatiblePhoneRow(
                       member: member,
                       current: '${member['id'] ?? ''}' == deviceId,
+                      busy: busy,
+                      vote: _voteFor(member),
                       onOpen: () {
                         final memberId = '${member['id'] ?? ''}';
                         if (memberId.isEmpty || memberId == deviceId) return;
@@ -684,6 +818,8 @@ class _FitmentFamilyCard extends StatelessWidget {
                             : '?category=${Uri.encodeQueryComponent(categoryCode!)}';
                         context.push('/commons/devices/$memberId$scope');
                       },
+                      onConfirm: onConfirm,
+                      onDispute: onDispute,
                     ),
               ],
             ),
@@ -726,46 +862,254 @@ class _CompatiblePhoneRow extends StatelessWidget {
   const _CompatiblePhoneRow({
     required this.member,
     required this.current,
+    required this.busy,
+    required this.vote,
     required this.onOpen,
+    required this.onConfirm,
+    required this.onDispute,
   });
 
   final Map<String, dynamic> member;
   final bool current;
+  final bool busy;
+  final String? vote;
   final VoidCallback onOpen;
+  final Future<void> Function(String fitmentId, String label) onConfirm;
+  final Future<void> Function(String fitmentId, String label) onDispute;
 
   @override
   Widget build(BuildContext context) {
     final name = '${member['brandName'] ?? ''} ${member['name'] ?? ''}'.trim();
+    final label = name.isEmpty ? 'Phone' : name;
     final modelCode = '${member['modelCode'] ?? ''}'.trim();
+    final fitmentId = '${member['fitmentId'] ?? ''}';
+    final disputed = member['disputed'] == true || vote == 'dispute';
     final subtitle = [
       if (modelCode.isNotEmpty) modelCode,
       if (current) 'This phone',
+      if (disputed) 'Disputed',
+      if (vote == 'confirm') 'Confirmed by you',
     ].join(' · ');
-    return InkWell(
-      onTap: current ? null : onOpen,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(
-          children: [
-            Icon(Icons.phone_android_rounded, size: 18, color: current ? Px.accent : Px.muted),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name.isEmpty ? 'Phone' : name,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                  if (subtitle.isNotEmpty)
-                    Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-                ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              onTap: current ? null : onOpen,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    Icon(Icons.phone_android_rounded, size: 18, color: current ? Px.accent : Px.muted),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            label,
+                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                          if (subtitle.isNotEmpty)
+                            Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+                        ],
+                      ),
+                    ),
+                    if (!current) Icon(Icons.chevron_right_rounded, size: 20, color: Px.faint),
+                  ],
+                ),
               ),
             ),
-            if (!current) Icon(Icons.chevron_right_rounded, size: 20, color: Px.faint),
+          ),
+          if (fitmentId.isNotEmpty)
+            PopupMenuButton<String>(
+              tooltip: 'Confirm or report',
+              icon: Icon(Icons.more_horiz_rounded, color: Px.faint),
+              onSelected: (value) {
+                if (value == 'confirm') onConfirm(fitmentId, label);
+                if (value == 'report') onDispute(fitmentId, label);
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'confirm',
+                  enabled: !busy && vote != 'confirm',
+                  child: Text(vote == 'confirm' ? 'You confirmed this model' : 'Confirm this model'),
+                ),
+                PopupMenuItem(
+                  value: 'report',
+                  enabled: !busy && vote != 'dispute',
+                  child: Text(vote == 'dispute' ? 'You reported this model' : 'Report this model'),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProposalDraft {
+  const _ProposalDraft({required this.brand, required this.model, required this.modelId});
+
+  final String brand;
+  final String model;
+  final String modelId;
+}
+
+class _ProposeCompatibilityDialog extends StatefulWidget {
+  const _ProposeCompatibilityDialog({
+    required this.spare,
+    required this.loadBrands,
+    required this.loadModels,
+  });
+
+  final String spare;
+  final Future<List<Map<String, dynamic>>> Function() loadBrands;
+  final Future<List<Map<String, dynamic>>> Function(String brandId) loadModels;
+
+  @override
+  State<_ProposeCompatibilityDialog> createState() => _ProposeCompatibilityDialogState();
+}
+
+class _ProposeCompatibilityDialogState extends State<_ProposeCompatibilityDialog> {
+  List<Map<String, dynamic>> _brands = const [];
+  List<Map<String, dynamic>> _models = const [];
+  String? _brandId;
+  String? _modelId;
+  String _query = '';
+  bool _loading = true;
+  String? _problem;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBrands();
+  }
+
+  Future<void> _loadBrands() async {
+    try {
+      final brands = await widget.loadBrands();
+      if (!mounted) return;
+      setState(() {
+        _brands = brands;
+        _loading = false;
+        _problem = brands.isEmpty ? 'No shared ${widget.spare} is in the catalog yet.' : null;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _problem = 'Could not read the saved catalog.';
+      });
+    }
+  }
+
+  Future<void> _pickBrand(String? brandId) async {
+    setState(() {
+      _brandId = brandId;
+      _modelId = null;
+      _models = const [];
+      _query = '';
+      _loading = brandId != null;
+    });
+    if (brandId == null) return;
+    try {
+      final models = await widget.loadModels(brandId);
+      if (!mounted || _brandId != brandId) return;
+      setState(() {
+        _models = models;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final shown = [
+      for (final model in _models)
+        if (_query.isEmpty || '${model['name'] ?? ''} ${model['modelCode'] ?? ''}'.toLowerCase().contains(_query))
+          model,
+    ];
+    final brandName = _brands.cast<Map<String, dynamic>?>().where((row) => '${row?['id']}' == _brandId);
+    return AlertDialog(
+      title: Text('Propose a ${widget.spare}'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_problem != null)
+              Text(_problem!, style: TextStyle(color: Px.muted))
+            else ...[
+              DropdownButtonFormField<String>(
+                initialValue: _brandId,
+                decoration: const InputDecoration(labelText: 'Existing brand'),
+                items: [
+                  for (final brand in _brands)
+                    DropdownMenuItem(value: '${brand['id']}', child: Text('${brand['name'] ?? ''}')),
+                ],
+                onChanged: _pickBrand,
+              ),
+              if (_brandId != null) ...[
+                TextField(
+                  decoration: const InputDecoration(labelText: 'Existing model'),
+                  onChanged: (value) => setState(() => _query = value.trim().toLowerCase()),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 220,
+                  child: _loading
+                      ? const Center(child: CircularProgressIndicator())
+                      : shown.isEmpty
+                          ? const Center(child: Text('No shared model matches'))
+                          : ListView(
+                              children: [
+                                for (final model in shown)
+                                  ListTile(
+                                    dense: true,
+                                    selected: _modelId == '${model['id']}',
+                                    title: Text('${model['name'] ?? ''}'),
+                                    subtitle: '${model['modelCode'] ?? ''}'.trim().isEmpty
+                                        ? null
+                                        : Text('${model['modelCode']}'),
+                                    onTap: () => setState(() => _modelId = '${model['id']}'),
+                                  ),
+                              ],
+                            ),
+                ),
+              ],
+            ],
           ],
         ),
       ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        FilledButton(
+          onPressed: _modelId == null
+              ? null
+              : () {
+                  final model = _models.cast<Map<String, dynamic>?>().firstWhere(
+                        (row) => '${row?['id']}' == _modelId,
+                        orElse: () => null,
+                      );
+                  final brand = brandName.isEmpty ? null : brandName.first;
+                  if (model == null || brand == null) return;
+                  Navigator.pop(
+                    context,
+                    _ProposalDraft(
+                      brand: '${brand['name'] ?? ''}',
+                      model: '${model['name'] ?? ''}',
+                      modelId: _modelId!,
+                    ),
+                  );
+                },
+          child: const Text('Send for review'),
+        ),
+      ],
     );
   }
 }
