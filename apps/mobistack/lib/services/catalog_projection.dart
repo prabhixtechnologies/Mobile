@@ -143,7 +143,13 @@ Map<String, List<Map<String, dynamic>>> projectCatalogLists(String group, Map<St
         'commons/devices',
         {'brandId': brandId, 'categoryCode': category.code},
         groupId: group,
-      )] = devicesByBrand[brandId] ?? const [];
+      )] = [
+        for (final device in devicesByBrand[brandId] ?? const <Map<String, dynamic>>[])
+          {
+            ...device,
+            'shared': mappedDevices.contains('${device['id']}'),
+          },
+      ];
     }
   }
   return lists;
@@ -191,6 +197,7 @@ class CatalogIndex {
   final fitmentsByComponent = <String, List<Map<String, dynamic>>>{};
   final fitmentsByDevice = <String, List<Map<String, dynamic>>>{};
   final _categoryBrandCounts = <String, Map<String, int>>{};
+  final _mappedDeviceIds = <String, Set<String>>{};
   final _allMappedCounts = <String, int>{};
   late final Map<String, int> _deviceCount;
 
@@ -203,24 +210,42 @@ class CatalogIndex {
     if (path == 'commons/devices') {
       final brandId = '${query['brandId'] ?? ''}';
       if (brandId.isEmpty) return null;
-      return devicesByBrand[brandId] ?? const [];
+      final phones = devicesByBrand[brandId] ?? const <Map<String, dynamic>>[];
+      final code = '${query['categoryCode'] ?? ''}';
+      if (code.isEmpty) return phones;
+      final mapped = _mappedDevices(code);
+      return [
+        for (final phone in phones)
+          {
+            ...phone,
+            'shared': mapped.contains('${phone['id']}'),
+          },
+      ];
     }
     return null;
+  }
+
+  Set<String> _mappedDevices(String categoryCode) {
+    final cached = _mappedDeviceIds[categoryCode];
+    if (cached != null) return cached;
+    final ids = <String>{};
+    for (final componentId in componentsByCategory[categoryCode] ?? const []) {
+      for (final fitment in fitmentsByComponent[componentId] ?? const []) {
+        ids.add('${fitment['deviceId']}');
+      }
+    }
+    _mappedDeviceIds[categoryCode] = ids;
+    return ids;
   }
 
   Map<String, int> _countsFor(String categoryCode) {
     final cached = _categoryBrandCounts[categoryCode];
     if (cached != null) return cached;
     final counts = <String, int>{};
-    final seen = <String>{};
-    for (final componentId in componentsByCategory[categoryCode] ?? const []) {
-      for (final fitment in fitmentsByComponent[componentId] ?? const []) {
-        final deviceId = '${fitment['deviceId']}';
-        if (!seen.add(deviceId)) continue;
-        final brandId = '${devicesById[deviceId]?['brandId'] ?? ''}';
-        if (brandId.isEmpty) continue;
-        counts[brandId] = (counts[brandId] ?? 0) + 1;
-      }
+    for (final deviceId in _mappedDevices(categoryCode)) {
+      final brandId = '${devicesById[deviceId]?['brandId'] ?? ''}';
+      if (brandId.isEmpty) continue;
+      counts[brandId] = (counts[brandId] ?? 0) + 1;
     }
     _categoryBrandCounts[categoryCode] = counts;
     return counts;

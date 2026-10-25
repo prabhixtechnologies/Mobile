@@ -41,6 +41,7 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
   bool _routeApplied = false;
   bool _loadingCatalog = false;
   bool _brandsLoaded = false;
+  bool _hideModelSpecific = false;
   String? _catalogError;
 
   @override
@@ -524,6 +525,30 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
                   hint: _brand == null ? 'Filter brands…' : 'Search model or code…',
                   onChanged: (_) => setState(() {}),
                 ),
+              if (category != null && _brand != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 0, 16, 4),
+                  child: InkWell(
+                    onTap: () => setState(() => _hideModelSpecific = !_hideModelSpecific),
+                    child: Row(
+                      children: [
+                        Checkbox(
+                          value: _hideModelSpecific,
+                          visualDensity: VisualDensity.compact,
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          onChanged: (value) => setState(() => _hideModelSpecific = value ?? false),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            'Hide model-specific',
+                            style: TextStyle(fontSize: 14, height: 1.1, color: Px.ink),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               Expanded(
                 child: category == null
                     ? _CategoryList(onPick: _openCategory)
@@ -540,6 +565,9 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
                                 : _PhoneList(
                                     phones: _visibleModels(),
                                     category: category,
+                                    emptyTitle: _hideModelSpecific && _query.text.trim().isEmpty
+                                        ? 'Every phone here is model-specific'
+                                        : 'No model matches',
                                     onOpen: (phone) {
                                       final id = '${phone['id'] ?? ''}';
                                       if (id.isEmpty) return;
@@ -557,10 +585,12 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
 
   List<Map<String, dynamic>> _visibleModels() {
     final q = _query.text.trim().toLowerCase();
-    if (q.isEmpty) return _models;
-    return _models.where((phone) {
-      return '${phone['name'] ?? ''} ${phone['modelCode'] ?? ''}'.toLowerCase().contains(q);
-    }).toList();
+    return [
+      for (final phone in _models)
+        if ((!_hideModelSpecific || phone['shared'] == true) &&
+            (q.isEmpty || '${phone['name'] ?? ''} ${phone['modelCode'] ?? ''}'.toLowerCase().contains(q)))
+          phone,
+    ];
   }
 }
 
@@ -724,21 +754,21 @@ class _BrandList extends StatelessWidget {
         icon: Icons.search_off_rounded,
       );
     }
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-      children: [
-        _CatalogSheet(
-          children: [
-            for (var i = 0; i < shown.length; i += 2)
-              _BrandPair(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: _CatalogSheet(
+        children: [
+          for (var i = 0; i < shown.length; i += 2)
+            Expanded(
+              child: _BrandPair(
                 left: shown[i],
                 right: i + 1 < shown.length ? shown[i + 1] : null,
                 divider: i + 2 < shown.length,
                 onPick: onPick,
               ),
-          ],
-        ),
-      ],
+            ),
+        ],
+      ),
     );
   }
 }
@@ -763,17 +793,15 @@ class _BrandPair extends StatelessWidget {
       decoration: BoxDecoration(
         border: divider ? Border(bottom: BorderSide(color: Px.line)) : null,
       ),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(child: _BrandCell(brand: left, onPick: onPick)),
-            if (other != null) ...[
-              Container(width: 1, color: Px.line),
-              Expanded(child: _BrandCell(brand: other, onPick: onPick)),
-            ],
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(child: _BrandCell(brand: left, onPick: onPick)),
+          if (other != null) ...[
+            Container(width: 1, color: Px.line),
+            Expanded(child: _BrandCell(brand: other, onPick: onPick)),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -792,26 +820,29 @@ class _BrandCell extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: () => onPick(brand),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
-            children: [
-              _BrandGlyph(name: name, logo: _brandLogo(brand)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 15,
-                    height: 1.1,
-                    fontWeight: FontWeight.w600,
-                    color: Px.ink,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                _BrandGlyph(name: name, logo: _brandLogo(brand)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 15,
+                      height: 1.1,
+                      fontWeight: FontWeight.w600,
+                      color: Px.ink,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -824,16 +855,18 @@ class _PhoneList extends StatelessWidget {
     required this.phones,
     required this.category,
     required this.onOpen,
+    required this.emptyTitle,
   });
 
   final List<Map<String, dynamic>> phones;
   final FitmentCategory category;
   final ValueChanged<Map<String, dynamic>> onOpen;
+  final String emptyTitle;
 
   @override
   Widget build(BuildContext context) {
     if (phones.isEmpty) {
-      return const ShopEmpty(title: 'No model matches', icon: Icons.search_off_rounded);
+      return ShopEmpty(title: emptyTitle, icon: Icons.search_off_rounded);
     }
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
