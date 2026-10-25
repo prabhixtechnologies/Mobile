@@ -53,15 +53,40 @@ void main() {
     final index = CatalogIndex(catalog);
     expect(index.list('commons/brands', {'categoryCode': 'DISPLAY_FOLDER'}), hasLength(1));
     expect(index.list('commons/brands', {'categoryCode': 'BATTERY'}), isEmpty);
-    expect(
-      index.list('commons/devices', {'brandId': 'b1', 'categoryCode': 'DISPLAY_FOLDER'}),
-      hasLength(phones),
-    );
+    final models = index.list('commons/devices', {'brandId': 'b1', 'categoryCode': 'DISPLAY_FOLDER'});
+    expect(models, hasLength(phones));
+    expect(models!.every((row) => row['shared'] == true), isTrue);
     final page = index.detail('d0', 'DISPLAY_FOLDER', categoryLabel: 'Display');
     final families = page!['families'] as List;
     final members = (families.single as Map)['members'] as List;
     expect(members, hasLength(phones));
     expect(index.detail('missing', 'DISPLAY_FOLDER', categoryLabel: 'Display'), isNull);
+  });
+
+  test('a phone with no fitment for this spare is model-specific', () {
+    final catalog = {
+      'brands': [
+        {'id': 'b1', 'name': 'Honor'},
+      ],
+      'devices': [
+        {'id': 'mapped', 'brandId': 'b1', 'name': 'Honor 8'},
+        {'id': 'bare', 'brandId': 'b1', 'name': 'Device'},
+      ],
+      'components': [
+        {'id': 'c1', 'categoryCode': 'DISPLAY_FOLDER', 'name': 'Combo'},
+      ],
+      'fitments': [
+        {'id': 'f1', 'componentId': 'c1', 'deviceId': 'mapped', 'fitQuality': 'EXACT'},
+      ],
+    };
+
+    final rows = CatalogIndex(catalog).list('commons/devices', {
+      'brandId': 'b1',
+      'categoryCode': 'DISPLAY_FOLDER',
+    });
+
+    expect(rows!.firstWhere((row) => row['id'] == 'mapped')['shared'], isTrue);
+    expect(rows.firstWhere((row) => row['id'] == 'bare')['shared'], isFalse);
   });
 
   test('every membership is downloaded, open group first', () {
