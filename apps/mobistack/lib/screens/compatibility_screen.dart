@@ -438,7 +438,9 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
                 subtitle: category == null
                     ? (state.selectedFitmentGroup == null
                         ? 'Choose a fitment group'
-                        : '${state.selectedFitmentGroup!.name} · ${_brands.length} brands')
+                        : _brandsLoaded
+                            ? '${state.selectedFitmentGroup!.name} · ${_brands.length} brands'
+                            : state.selectedFitmentGroup!.name)
                     : subtitle,
                 actions: [
                   if (category == null)
