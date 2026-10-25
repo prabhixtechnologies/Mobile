@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -795,24 +796,7 @@ class _BrandCell extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(
             children: [
-              Container(
-                width: 22,
-                height: 22,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [Px.accent, Px.accentStrong]),
-                  borderRadius: BorderRadius.circular(7),
-                ),
-                child: Text(
-                  _initial(name),
-                  style: TextStyle(
-                    color: Px.accentInk,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 11,
-                    height: 1,
-                  ),
-                ),
-              ),
+              _BrandGlyph(name: name, logo: _brandLogo(brand)),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -961,6 +945,64 @@ class _CatalogLine extends StatelessWidget {
 }
 
 String _initial(String name) => name.isEmpty ? '?' : name[0].toUpperCase();
+
+/// SVG carried on the brand row of the catalog snapshot. Anything else stays a letter.
+String? _brandLogo(Map<String, dynamic> brand) {
+  final logo = '${brand['logo'] ?? ''}'.trim();
+  if (!logo.startsWith('<svg') || logo.contains('<script') || logo.length > 4096) return null;
+  return logo;
+}
+
+class _BrandGlyph extends StatelessWidget {
+  const _BrandGlyph({required this.name, required this.logo});
+
+  final String name;
+  final String? logo;
+
+  @override
+  Widget build(BuildContext context) {
+    final mark = logo;
+    if (mark != null) {
+      return SvgPicture.string(
+        mark,
+        width: 22,
+        height: 22,
+        fit: BoxFit.contain,
+        colorFilter: ColorFilter.mode(Px.ink, BlendMode.srcIn),
+        errorBuilder: (context, error, stackTrace) => _LetterMark(name: name),
+      );
+    }
+    return _LetterMark(name: name);
+  }
+}
+
+class _LetterMark extends StatelessWidget {
+  const _LetterMark({required this.name});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 22,
+      height: 22,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [Px.accent, Px.accentStrong]),
+        borderRadius: BorderRadius.circular(7),
+      ),
+      child: Text(
+        _initial(name),
+        style: TextStyle(
+          color: Px.accentInk,
+          fontWeight: FontWeight.w700,
+          fontSize: 11,
+          height: 1,
+        ),
+      ),
+    );
+  }
+}
 
 String _modelLine(Map<String, dynamic> phone, String category) {
   final code = '${phone['modelCode'] ?? ''}'.trim();
