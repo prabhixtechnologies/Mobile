@@ -81,7 +81,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
 
   bool _listsAnotherPhone(Map<String, dynamic> family) {
     for (final member in pageRows(family['members'])) {
-      final id = '${member['id'] ?? ''}';
+      final id = '${member['id'] ?? member['deviceId'] ?? ''}';
       if (id.isNotEmpty && id != widget.deviceId) return true;
     }
     return false;
@@ -120,12 +120,11 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
       });
     }
     final groupId = state.fitmentGroupId;
-    final category = _categoryCode;
-    if (groupId == null || category == null) {
+    if (groupId == null || groupId.isEmpty) {
       unawaited(_loadBrandMark(state));
       return false;
     }
-    final snapshot = await state.sync.catalogDetail(groupId, widget.deviceId, category);
+    final snapshot = await state.sync.catalogDetail(groupId, widget.deviceId, _categoryCode ?? '');
     if (!mounted || snapshot == null) {
       unawaited(_loadBrandMark(state));
       return false;
@@ -167,14 +166,6 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
     final state = context.read<AppState>();
     final fromSnapshot = await _applyCache(state);
     if (!mounted) return;
-    if (!state.online) {
-      setState(() {
-        _loading = false;
-        _refreshing = false;
-        _error = _device == null ? 'Offline · this phone has not been saved yet' : null;
-      });
-      return;
-    }
     if (!forceNetwork && fromSnapshot) {
       setState(() {
         _loading = false;
@@ -189,6 +180,19 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
       _error = null;
       if (_device == null) _loading = true;
     });
+    final failure = await _loadFromNetwork(state);
+    if (!mounted || failure == null) return;
+    setState(() {
+      _loading = false;
+      _refreshing = false;
+      _error = _device == null
+          ? (state.online ? failure : 'Offline · this phone has not been saved yet')
+          : null;
+    });
+  }
+
+  /// Null when the phone page was stored. A thrown request becomes the message.
+  Future<String?> _loadFromNetwork(AppState state) async {
     try {
       final deviceFuture = state.api.dio.get<dynamic>(
         'commons/devices',
@@ -233,7 +237,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
         'stock': stock,
         'families': families,
       });
-      if (!mounted) return;
+      if (!mounted) return null;
       setState(() {
         _device = device;
         _fits = fits;
@@ -243,13 +247,9 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
         _refreshing = false;
       });
       unawaited(_loadBrandMark(state));
+      return null;
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = _device == null ? describeError(e) : null;
-        _loading = false;
-        _refreshing = false;
-      });
+      return describeError(e);
     }
   }
 
@@ -345,9 +345,14 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
           });
           final known = rows ?? const <Map<String, dynamic>>[];
           final flagged = known.any((row) => row.containsKey('shared'));
+          final already = <String>{
+            widget.deviceId,
+            for (final family in _families)
+              for (final member in pageRows(family['members'])) '${member['id'] ?? ''}',
+          }..remove('');
           return [
             for (final row in known)
-              if ('${row['id']}' != widget.deviceId && (!flagged || row['shared'] == true)) row,
+              if (!already.contains('${row['id']}') && (!flagged || row['shared'] == true)) row,
           ];
         },
       ),
@@ -417,6 +422,21 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(describeError(error))));
     }
+  }
+
+  Widget _proposalStatus(String spare) {
+    final proposal = _proposal;
+    if (proposal == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        proposal['status'] == 'APPLIED'
+            ? 'Accepted. Same $spare as ${proposal['label']}. Other phones see it when the catalog snapshot refreshes.'
+            : 'Pending review. Same $spare as ${proposal['label']}.',
+        textAlign: TextAlign.center,
+        style: TextStyle(fontSize: 14, height: 1.3, color: Px.ink),
+      ),
+    );
   }
 
   @override
@@ -493,21 +513,13 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                       ),
                       if (category != null) ...[
                         const SizedBox(height: 8),
-                        if (_proposal != null)
-                          Text(
-                            _proposal!['status'] == 'APPLIED'
-                                ? 'Accepted. Same ${category.label} as ${_proposal!['label']}. Other phones see it when the catalog snapshot refreshes.'
-                                : 'Pending review. Same ${category.label} as ${_proposal!['label']}.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 14, height: 1.3, color: Px.ink),
-                          )
-                        else
-                          Center(
-                            child: FilledButton(
-                              onPressed: _refreshing ? null : _propose,
-                              child: const Text('Propose a compatibility'),
-                            ),
+                        _proposalStatus(category.label),
+                        Center(
+                          child: FilledButton(
+                            onPressed: _refreshing ? null : _propose,
+                            child: const Text('Propose a compatibility'),
                           ),
+                        ),
                       ],
                     ]
                     else ...[
@@ -532,6 +544,13 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                           onDispute: _dispute,
                         ),
                         const SizedBox(height: 14),
+                      ],
+                      if (category != null) ...[
+                        _proposalStatus(category.label),
+                        OutlinedButton(
+                          onPressed: _refreshing ? null : _propose,
+                          child: const Text('Propose another'),
+                        ),
                       ],
                     ],
                   ],

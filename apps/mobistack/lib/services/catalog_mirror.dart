@@ -67,28 +67,33 @@ class CatalogMirror {
   }
 
   Future<void> _warm() async {
+    if (!online()) {
+      debugPrint('catalog refresh starting without an online flag');
+    }
     final done = <String>{};
-    while (online()) {
+    while (true) {
       final pending = catalogWarmOrder(groupId(), groupIds(), done);
       if (pending.isEmpty) return;
       final group = pending.first;
       done.add(group);
-      await _install(group);
+      final saved = await _install(group);
+      if (!saved) return;
     }
   }
 
-  Future<void> _install(String group) async {
+  Future<bool> _install(String group) async {
     try {
-      final installed = await sync.catalogVersion(group);
+      final readable = await sync.catalogGraphReadable(group);
+      final installed = readable ? await sync.catalogVersion(group) : null;
       final raw = await get('commons/snapshot', {
         if (installed != null) 'version': installed,
       }, group);
-      if (raw.isEmpty) return;
+      if (raw.isEmpty) return false;
       final staged = await compute(stageCatalogSnapshot, {
         'group': group,
         'raw': raw,
       });
-      if (staged == null) return;
+      if (staged == null) return true;
       final version = staged['version'];
       final graph = staged['graph'];
       if (version == null || version.isEmpty || graph == null || graph.isEmpty) {
@@ -121,8 +126,10 @@ class CatalogMirror {
         onInstalled?.call();
       }
       debugPrint('catalog snapshot $version installed for $group lists=${encoded.length}');
+      return true;
     } catch (e, st) {
       debugPrint('catalog snapshot $group skipped: $e\n$st');
+      return false;
     }
   }
 }

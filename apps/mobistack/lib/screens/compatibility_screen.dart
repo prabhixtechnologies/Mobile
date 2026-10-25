@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../catalog/fitment_library.dart';
 import 'group_members_sheet.dart';
+import '../services/catalog_projection.dart';
 import '../state/app_state.dart';
 import '../widgets/live_api_list.dart';
 import '../widgets/pending_compatibility_requests.dart';
@@ -36,6 +37,9 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
   List<Map<String, dynamic>> _brands = const [];
   List<Map<String, dynamic>> _categoryBrands = const [];
   List<Map<String, dynamic>> _models = const [];
+  List<Map<String, dynamic>> _foundPhones = const [];
+  int _searchTick = 0;
+  bool _searchingPhones = false;
   String? _requestedGroup;
   String? _pendingBrandId;
   bool _routeApplied = false;
@@ -617,8 +621,11 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
               if (category != null)
                 ShopSearchField(
                   controller: _query,
-                  hint: _brand == null ? 'Filter brands…' : 'Search model or code…',
-                  onChanged: (_) => setState(() {}),
+                  hint: _brand == null ? 'Search brand, phone, or code…' : 'Search model or code…',
+                  onChanged: (_) {
+                    setState(() {});
+                    _searchPhones();
+                  },
                 ),
               Expanded(
                 child: category == null
@@ -628,11 +635,23 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
                         : _catalogError != null
                             ? ShopEmpty(title: _catalogError!, icon: Icons.cloud_off_rounded)
                             : _brand == null
-                                ? _BrandList(
-                                    brands: _categoryBrands,
-                                    query: _query.text,
-                                    onPick: _pickBrand,
-                                  )
+                                ? _query.text.trim().isEmpty
+                                    ? _BrandList(
+                                        brands: _categoryBrands,
+                                        query: '',
+                                        onPick: _pickBrand,
+                                      )
+                                    : _SearchResults(
+                                        brands: _matchingBrands(),
+                                        phones: _foundPhones,
+                                        searching: _searchingPhones,
+                                        onBrand: _pickBrand,
+                                        onPhone: (phone) {
+                                          final id = '${phone['id'] ?? ''}';
+                                          if (id.isEmpty) return;
+                                          context.push('/commons/devices/$id?category=${category.code}');
+                                        },
+                                      )
                                 : _PhoneList(
                                     phones: _visibleModels(),
                                     category: category,
@@ -655,13 +674,78 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
   }
 
   List<Map<String, dynamic>> _visibleModels() {
-    final q = _query.text.trim().toLowerCase();
+    final q = _query.text.trim();
+    final brand = _brand ?? '';
     return [
       for (final phone in _models)
         if ((!_hideModelSpecific || phone['shared'] == true) &&
-            (q.isEmpty || '${phone['name'] ?? ''} ${phone['modelCode'] ?? ''}'.toLowerCase().contains(q)))
+            (q.isEmpty ||
+                catalogSearchHits(q, [
+                  brand,
+                  '${phone['name'] ?? ''}',
+                  '${phone['modelCode'] ?? ''}',
+                  '${phone['variant'] ?? ''}',
+                ])))
           phone,
     ];
+  }
+
+  List<Map<String, dynamic>> _matchingBrands() {
+    final query = _query.text.trim();
+    return [
+      for (final brand in _categoryBrands)
+        if (catalogSearchHits(query, ['${brand['name']}'])) brand,
+    ];
+  }
+
+  Future<void> _searchPhones() async {
+    final query = _query.text.trim();
+    final code = _category?.code;
+    final tick = ++_searchTick;
+    if (_brand != null || code == null || query.isEmpty) {
+      if (_foundPhones.isNotEmpty || _searchingPhones) {
+        setState(() {
+          _foundPhones = const [];
+          _searchingPhones = false;
+        });
+      }
+      return;
+    }
+    setState(() => _searchingPhones = true);
+    final group = _requestedGroup ?? '';
+    final sync = context.read<AppState>().sync;
+    final found = group.isEmpty
+        ? null
+        : await sync.searchCatalog(groupId: group, categoryCode: code, query: query);
+    final phones = <Map<String, dynamic>>[
+      ...?found?.phones,
+    ];
+    if (group.isNotEmpty) {
+      final seen = {for (final row in phones) '${row['id']}'};
+      final brandIds = {for (final brand in _categoryBrands) '${brand['id']}'};
+      final brandNames = {for (final brand in _categoryBrands) '${brand['id']}': '${brand['name'] ?? ''}'};
+      for (final row in await sync.addedCatalogDevices(group)) {
+        final id = '${row['id'] ?? ''}';
+        final brandId = '${row['brandId'] ?? ''}';
+        if (id.isEmpty || seen.contains(id) || !brandIds.contains(brandId)) continue;
+        final name = '${row['name'] ?? ''}';
+        final modelCode = '${row['modelCode'] ?? ''}';
+        final brandName = '${row['brandName'] ?? brandNames[brandId] ?? ''}';
+        if (!catalogPhoneSearchHits(
+          query,
+          fields: [brandName, name, modelCode],
+          phoneFields: [name, modelCode],
+        )) {
+          continue;
+        }
+        phones.add({...row, 'brandName': brandName});
+      }
+    }
+    if (!mounted || tick != _searchTick || _query.text.trim() != query) return;
+    setState(() {
+      _foundPhones = phones;
+      _searchingPhones = false;
+    });
   }
 }
 
@@ -1045,6 +1129,162 @@ class _CategoryRow extends StatelessWidget {
                 Icon(Icons.chevron_right_rounded, color: Px.faint, size: 18),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchResults extends StatelessWidget {
+  const _SearchResults({
+    required this.brands,
+    required this.phones,
+    required this.searching,
+    required this.onBrand,
+    required this.onPhone,
+  });
+
+  final List<Map<String, dynamic>> brands;
+  final List<Map<String, dynamic>> phones;
+  final bool searching;
+  final ValueChanged<Map<String, dynamic>> onBrand;
+  final ValueChanged<Map<String, dynamic>> onPhone;
+
+  @override
+  Widget build(BuildContext context) {
+    if (brands.isEmpty && phones.isEmpty) {
+      if (searching) return Center(child: CircularProgressIndicator(color: Px.accent));
+      return const ShopEmpty(title: 'No brand or phone matches', icon: Icons.search_off_rounded);
+    }
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+      children: [
+        if (brands.isNotEmpty) ...[
+          const _SearchHeading('Brands'),
+          _CatalogSheet(
+            children: [
+              for (var i = 0; i < brands.length; i += 2)
+                _BrandPair(
+                  left: brands[i],
+                  right: i + 1 < brands.length ? brands[i + 1] : null,
+                  divider: i + 2 < brands.length,
+                  onPick: onBrand,
+                ),
+            ],
+          ),
+        ],
+        if (phones.isNotEmpty) ...[
+          if (brands.isNotEmpty) const SizedBox(height: 16),
+          const _SearchHeading('Phones'),
+          _CatalogSheet(
+            children: [
+              for (var i = 0; i < phones.length; i += 2)
+                _SearchPhonePair(
+                  left: phones[i],
+                  right: i + 1 < phones.length ? phones[i + 1] : null,
+                  divider: i + 2 < phones.length,
+                  onOpen: onPhone,
+                ),
+            ],
+          ),
+        ] else if (searching)
+          const Padding(
+            padding: EdgeInsets.only(top: 16),
+            child: LinearProgressIndicator(minHeight: 2),
+          ),
+      ],
+    );
+  }
+}
+
+class _SearchHeading extends StatelessWidget {
+  const _SearchHeading(this.title);
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+      child: Text(
+        title,
+        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: .4, color: Px.muted),
+      ),
+    );
+  }
+}
+
+class _SearchPhonePair extends StatelessWidget {
+  const _SearchPhonePair({
+    required this.left,
+    required this.right,
+    required this.divider,
+    required this.onOpen,
+  });
+
+  final Map<String, dynamic> left;
+  final Map<String, dynamic>? right;
+  final bool divider;
+  final ValueChanged<Map<String, dynamic>> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final other = right;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: divider ? Border(bottom: BorderSide(color: Px.line)) : null,
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: _SearchPhoneCell(phone: left, onOpen: onOpen)),
+            if (other != null) ...[
+              Container(width: 1, color: Px.line),
+              Expanded(child: _SearchPhoneCell(phone: other, onOpen: onOpen)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchPhoneCell extends StatelessWidget {
+  const _SearchPhoneCell({required this.phone, required this.onOpen});
+
+  final Map<String, dynamic> phone;
+  final ValueChanged<Map<String, dynamic>> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = '${phone['name'] ?? ''}'.trim();
+    final brand = '${phone['brandName'] ?? ''}'.trim();
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => onOpen(phone),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                name.isEmpty ? 'Phone' : name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 15, height: 1.15, fontWeight: FontWeight.w600, color: Px.ink),
+              ),
+              if (brand.isNotEmpty)
+                Text(
+                  brand,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12, height: 1.2, color: Px.muted),
+                ),
+            ],
           ),
         ),
       ),
