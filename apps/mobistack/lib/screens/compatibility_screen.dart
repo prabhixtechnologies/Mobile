@@ -41,7 +41,8 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
   bool _routeApplied = false;
   bool _loadingCatalog = false;
   bool _brandsLoaded = false;
-  bool _hideModelSpecific = false;
+  bool _hideModelSpecific = true;
+  bool _hideLoaded = false;
   String? _catalogError;
 
   @override
@@ -65,6 +66,10 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
       _routeApplied = true;
       _applyRoute(widget.initialCategory, widget.initialBrandId);
     }
+    if (!_hideLoaded) {
+      _hideLoaded = true;
+      _loadHidePreference();
+    }
   }
 
   @override
@@ -73,6 +78,25 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
     if (oldWidget.initialCategory != widget.initialCategory ||
         oldWidget.initialBrandId != widget.initialBrandId) {
       _applyRoute(widget.initialCategory, widget.initialBrandId);
+    }
+  }
+
+  Future<void> _loadHidePreference() async {
+    try {
+      final saved = await _app?.sync.hideModelSpecific();
+      if (!mounted || saved == null || saved == _hideModelSpecific) return;
+      setState(() => _hideModelSpecific = saved);
+    } catch (e) {
+      debugPrint('hide model-specific preference unread: $e');
+    }
+  }
+
+  Future<void> _setHideModelSpecific(bool value) async {
+    setState(() => _hideModelSpecific = value);
+    try {
+      await _app?.sync.saveHideModelSpecific(value);
+    } catch (e) {
+      debugPrint('hide model-specific preference unsaved: $e');
     }
   }
 
@@ -237,8 +261,10 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
     final cached = await context.read<AppState>().sync.readCatalogList('commons/devices', query);
     if (!mounted || _brandId != brandId) return;
     if (cached != null) {
+      final models = await _withLocalPhones(brandId, cached);
+      if (!mounted || _brandId != brandId) return;
       setState(() {
-        _models = cached;
+        _models = models;
         _loadingCatalog = false;
         _catalogError = null;
       });
@@ -248,8 +274,10 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
     try {
       final models = await _pages('commons/devices', query);
       if (!mounted || _brandId != brandId) return;
+      final shown = await _withLocalPhones(brandId, models);
+      if (!mounted || _brandId != brandId) return;
       setState(() {
-        _models = models;
+        _models = shown;
         _loadingCatalog = false;
         _catalogError = null;
       });
@@ -257,6 +285,22 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
       if (!mounted) return;
       setState(() => _loadingCatalog = false);
     }
+  }
+
+  /// Keeps a phone this device just saved visible until the shared snapshot includes it.
+  Future<List<Map<String, dynamic>>> _withLocalPhones(String brandId, List<Map<String, dynamic>> rows) async {
+    final group = _requestedGroup ?? '';
+    if (group.isEmpty) return rows;
+    final sync = context.read<AppState>().sync;
+    final added = await sync.addedCatalogDevices(group);
+    if (added.isEmpty) return rows;
+    final present = {for (final row in rows) '${row['id']}'};
+    await sync.forgetAddedCatalogDevices(group, present);
+    return [
+      ...rows,
+      for (final row in added)
+        if (!present.contains('${row['id']}') && '${row['brandId']}' == brandId) row,
+    ];
   }
 
   Future<List<Map<String, dynamic>>> _pages(String path, Map<String, dynamic> query) async {
@@ -299,37 +343,65 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
   }
 
   Future<void> _addPhone() async {
-    final brand = TextEditingController(text: _brand ?? '');
-    final model = TextEditingController();
-    final created = await showDialog<bool>(
+    final brands = [
+      for (final brand in (_categoryBrands.isNotEmpty ? _categoryBrands : _brands))
+        {'id': '${brand['id'] ?? ''}', 'name': '${brand['name'] ?? ''}'},
+    ].where((brand) => brand['id']!.isNotEmpty && brand['name']!.isNotEmpty).toList();
+    final selectedId = _brandId;
+    if (selectedId != null &&
+        selectedId.isNotEmpty &&
+        _brand != null &&
+        brands.every((brand) => brand['id'] != selectedId)) {
+      brands.insert(0, {'id': selectedId, 'name': _brand!});
+    }
+    final draft = await showDialog<_PhoneDraft>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Add a phone'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: brand, decoration: const InputDecoration(labelText: 'Brand')),
-            TextField(controller: model, decoration: const InputDecoration(labelText: 'Model')),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Save')),
-        ],
+      builder: (dialogContext) => _AddModelDialog(
+        brands: brands,
+        selectedBrandId: selectedId,
       ),
     );
-    final brandName = brand.text.trim();
-    final modelName = model.text.trim();
-    brand.dispose();
-    model.dispose();
-    if (created != true || !mounted || brandName.isEmpty || modelName.isEmpty) return;
+    if (draft == null || !mounted) return;
+    final state = context.read<AppState>();
     try {
-      await context.read<AppState>().api.dio.post<dynamic>(
+      final res = await state.api.dio.post<dynamic>(
         'commons/devices',
-        data: {'brand': brandName, 'name': modelName},
+        data: {'brand': draft.brand, 'name': draft.model},
       );
+      final body = res.data;
+      if (body is! Map) return;
+      final phone = <String, dynamic>{
+        'id': '${body['id'] ?? ''}',
+        'brandId': '${body['brandId'] ?? ''}',
+        'brandName': draft.brand,
+        'name': '${body['name'] ?? draft.model}',
+        'modelCode': '${body['modelCode'] ?? ''}',
+        'shared': false,
+      };
       final groupId = _requestedGroup ?? '';
-      await _loadCatalog(groupId);
+      await state.sync.rememberAddedCatalogDevice(groupId, phone);
+      if (!mounted) return;
+      final sameBrand = _brandId != null && _brandId == phone['brandId'];
+      if (sameBrand) {
+        setState(() {
+          _models = [
+            phone,
+            for (final row in _models)
+              if ('${row['id']}' != phone['id']) row,
+          ];
+        });
+      }
+      final hidden = sameBrand && _hideModelSpecific;
+      final where = sameBrand ? '' : ' under ${draft.brand}';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            hidden
+                ? 'Saved$where. It stays hidden while Hide model-specific is on.'
+                : 'Saved$where.',
+          ),
+        ),
+      );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -450,6 +522,20 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
                       onPressed: () => _newGroup(context),
                       icon: Icon(Icons.add_rounded, color: Px.ink),
                     ),
+                  if (_brand != null)
+                    SizedBox(
+                      width: 40,
+                      height: 48,
+                      child: Tooltip(
+                        message: 'Hide model-specific',
+                        child: Checkbox(
+                          value: _hideModelSpecific,
+                          visualDensity: VisualDensity.compact,
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          onChanged: (value) => _setHideModelSpecific(value ?? false),
+                        ),
+                      ),
+                    ),
                   if (category != null && (state.selectedFitmentGroup?.canManage ?? false))
                     IconButton(
                       tooltip: 'Add a phone',
@@ -525,30 +611,6 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
                   hint: _brand == null ? 'Filter brands…' : 'Search model or code…',
                   onChanged: (_) => setState(() {}),
                 ),
-              if (category != null && _brand != null)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 0, 16, 4),
-                  child: InkWell(
-                    onTap: () => setState(() => _hideModelSpecific = !_hideModelSpecific),
-                    child: Row(
-                      children: [
-                        Checkbox(
-                          value: _hideModelSpecific,
-                          visualDensity: VisualDensity.compact,
-                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          onChanged: (value) => setState(() => _hideModelSpecific = value ?? false),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            'Hide model-specific',
-                            style: TextStyle(fontSize: 14, height: 1.1, color: Px.ink),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
               Expanded(
                 child: category == null
                     ? _CategoryList(onPick: _openCategory)
@@ -591,6 +653,111 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
             (q.isEmpty || '${phone['name'] ?? ''} ${phone['modelCode'] ?? ''}'.toLowerCase().contains(q)))
           phone,
     ];
+  }
+}
+
+class _PhoneDraft {
+  const _PhoneDraft({required this.brand, required this.model});
+
+  final String brand;
+  final String model;
+}
+
+class _AddModelDialog extends StatefulWidget {
+  const _AddModelDialog({required this.brands, this.selectedBrandId});
+
+  final List<Map<String, String>> brands;
+  final String? selectedBrandId;
+
+  @override
+  State<_AddModelDialog> createState() => _AddModelDialogState();
+}
+
+class _AddModelDialogState extends State<_AddModelDialog> {
+  static const _newBrand = '__new__';
+  late String _choice;
+  late final TextEditingController _brand;
+  late final TextEditingController _model;
+  final _modelFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    final selected = widget.selectedBrandId;
+    final known = selected != null && widget.brands.any((brand) => brand['id'] == selected);
+    _choice = known ? selected : (widget.brands.isEmpty ? _newBrand : widget.brands.first['id']!);
+    _brand = TextEditingController();
+    _model = TextEditingController();
+    if (known) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _modelFocus.requestFocus();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _brand.dispose();
+    _model.dispose();
+    _modelFocus.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final model = _model.text.trim();
+    var brand = _brand.text.trim();
+    if (_choice != _newBrand) {
+      brand = '';
+      for (final row in widget.brands) {
+        if (row['id'] == _choice) brand = row['name'] ?? '';
+      }
+    }
+    if (brand.isEmpty || model.isEmpty) return;
+    Navigator.pop(context, _PhoneDraft(brand: brand, model: model));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final creating = _choice == _newBrand;
+    final onABrand = widget.selectedBrandId != null && widget.selectedBrandId!.isNotEmpty;
+    return AlertDialog(
+      title: Text(onABrand ? 'Add a model' : 'Add a phone'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (widget.brands.isNotEmpty)
+            DropdownButtonFormField<String>(
+              initialValue: _choice,
+              decoration: const InputDecoration(labelText: 'Brand'),
+              items: [
+                for (final brand in widget.brands)
+                  DropdownMenuItem(value: brand['id'], child: Text(brand['name'] ?? '')),
+                const DropdownMenuItem(value: _newBrand, child: Text('New brand')),
+              ],
+              onChanged: (value) => setState(() => _choice = value ?? _newBrand),
+            ),
+          if (creating)
+            TextField(
+              controller: _brand,
+              autofocus: widget.brands.isEmpty,
+              decoration: const InputDecoration(labelText: 'New brand'),
+              textInputAction: TextInputAction.next,
+            ),
+          TextField(
+            controller: _model,
+            focusNode: _modelFocus,
+            autofocus: onABrand,
+            decoration: const InputDecoration(labelText: 'Model'),
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _save(),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        FilledButton(onPressed: _save, child: const Text('Save')),
+      ],
+    );
   }
 }
 

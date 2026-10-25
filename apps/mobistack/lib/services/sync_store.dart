@@ -370,11 +370,15 @@ class SyncStore {
   Future<void> clearLocal() async {
     _dropCatalogIndex();
     final theme = await _get('ui.theme');
+    final hideModelSpecific = await _get('ui.catalog.hideModelSpecific');
     final db = await _open();
     await db.delete('kv');
     await db.delete('outbox');
     if (theme is String && theme.isNotEmpty) {
       await _put('ui.theme', theme);
+    }
+    if (hideModelSpecific is bool) {
+      await _put('ui.catalog.hideModelSpecific', hideModelSpecific);
     }
   }
 
@@ -384,6 +388,43 @@ class SyncStore {
   }
 
   Future<void> saveAppearance(String mode) => _put('ui.theme', mode);
+
+  /// Missing means hide model-specific phones. A saved false is the user turning that off.
+  Future<bool> hideModelSpecific() async {
+    final raw = await _get('ui.catalog.hideModelSpecific');
+    return raw is bool ? raw : true;
+  }
+
+  Future<void> saveHideModelSpecific(bool hide) => _put('ui.catalog.hideModelSpecific', hide);
+
+  /// Phones this device added before the shared catalog snapshot includes them.
+  Future<List<Map<String, dynamic>>> addedCatalogDevices(String groupId) async {
+    final raw = await _get('catalog.added.$groupId');
+    if (raw is! List) return const [];
+    return raw.whereType<Map>().map((row) => Map<String, dynamic>.from(row)).toList();
+  }
+
+  Future<void> rememberAddedCatalogDevice(String groupId, Map<String, dynamic> device) async {
+    final id = '${device['id'] ?? ''}';
+    if (groupId.isEmpty || id.isEmpty) return;
+    final rows = await addedCatalogDevices(groupId);
+    await _put('catalog.added.$groupId', [
+      for (final row in rows)
+        if ('${row['id']}' != id) row,
+      device,
+    ]);
+  }
+
+  Future<void> forgetAddedCatalogDevices(String groupId, Set<String> present) async {
+    if (groupId.isEmpty || present.isEmpty) return;
+    final rows = await addedCatalogDevices(groupId);
+    final next = [
+      for (final row in rows)
+        if (!present.contains('${row['id']}')) row,
+    ];
+    if (next.length == rows.length) return;
+    await _put('catalog.added.$groupId', next);
+  }
 
   Future<List<CachedDevice>> devices() async {
     final raw = await _get('snapshot.devices');
