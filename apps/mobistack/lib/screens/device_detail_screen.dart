@@ -121,9 +121,15 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
     }
     final groupId = state.fitmentGroupId;
     final category = _categoryCode;
-    if (groupId == null || category == null) return false;
+    if (groupId == null || category == null) {
+      unawaited(_loadBrandMark(state));
+      return false;
+    }
     final snapshot = await state.sync.catalogDetail(groupId, widget.deviceId, category);
-    if (!mounted || snapshot == null) return false;
+    if (!mounted || snapshot == null) {
+      unawaited(_loadBrandMark(state));
+      return false;
+    }
     fromSnapshot = true;
     final device = snapshot['device'];
     setState(() {
@@ -476,25 +482,13 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                       brand: brand,
                       category: category?.label,
                       modelCode: '${_device?['modelCode'] ?? ''}',
-                      familyCount: families.length,
-                      compatibleCount: compatibleIds.length,
+                      logo: _brandLogo,
                     ),
-                    const SizedBox(height: 22),
-                    _SectionLead(
-                      title: category?.label ?? 'Available spares',
-                      subtitle: families.length == 1
-                          ? 'One spare family covers this phone.'
-                          : '${families.length} distinct spare families cover this phone.',
-                    ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     if (families.isEmpty) ...[
                       ShopEmpty(
-                        title: category == null
-                            ? 'No compatibility data yet'
-                            : '${category.label} is model-specific for now',
-                        subtitle: category == null
-                            ? 'The phone is listed, but no shared spare families have been confirmed yet.'
-                            : 'No shared models are confirmed for this spare yet. The phone remains available in the catalog.',
+                        title: category == null ? 'No compatibility data yet' : 'No other model shares this ${category.label}',
+                        subtitle: 'This phone stays in the catalog. A shared spare can be proposed for review.',
                         icon: Icons.phone_android_rounded,
                       ),
                       if (category != null) ...[
@@ -516,16 +510,20 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                           ),
                       ],
                     ]
-                    else
-                      for (var index = 0; index < families.length; index++) ...[
+                    else ...[
+                      Text(
+                        _coverageLine(category?.label, families.length, compatibleIds.length),
+                        style: TextStyle(fontSize: 15, height: 1.3, fontWeight: FontWeight.w600, color: Px.ink),
+                      ),
+                      const SizedBox(height: 12),
+                      for (final family in families) ...[
                         _FitmentFamilyCard(
-                          index: index,
-                          family: families[index],
-                          fit: fitByComponent['${families[index]['id'] ?? ''}'],
+                          family: family,
+                          fit: fitByComponent['${family['id'] ?? ''}'],
                           deviceId: widget.deviceId,
                           categoryCode: categoryCode,
                           stock: stock
-                              .where((row) => '${row['componentId'] ?? ''}' == '${families[index]['id'] ?? ''}')
+                              .where((row) => '${row['componentId'] ?? ''}' == '${family['id'] ?? ''}')
                               .toList(),
                           showInventory: context.watch<AppState>().hasFeature('INVENTORY'),
                           busy: _refreshing,
@@ -535,6 +533,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                         ),
                         const SizedBox(height: 14),
                       ],
+                    ],
                   ],
                 ),
               ),
@@ -543,29 +542,47 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
   }
 }
 
+String? _brandSvg(Object? raw) {
+  final logo = '${raw ?? ''}'.trim();
+  if (!logo.startsWith('<svg') || logo.contains('<script') || logo.length > 4096) return null;
+  return logo;
+}
+
+String _coverageLine(String? spare, int families, int models) {
+  final part = spare == null || spare.isEmpty ? 'spare' : spare;
+  if (families == 0 || models == 0) return '$part is model-specific for now';
+  final modelWord = models == 1 ? 'model shares' : 'models share';
+  final familyWord = families == 1 ? '' : ' · $families families';
+  return '$models $modelWord this $part$familyWord';
+}
+
 class _DeviceCatalogHero extends StatelessWidget {
   const _DeviceCatalogHero({
     required this.name,
     required this.brand,
     required this.category,
     required this.modelCode,
-    required this.familyCount,
-    required this.compatibleCount,
+    required this.logo,
   });
 
   final String name;
   final String brand;
   final String? category;
   final String modelCode;
-  final int familyCount;
-  final int compatibleCount;
+  final String? logo;
 
   @override
   Widget build(BuildContext context) {
+    final code = modelCode.trim();
+    final caption = [
+      if (brand.isNotEmpty) brand,
+      if (category != null) category!,
+      if (code.isNotEmpty && code.toLowerCase() != name.trim().toLowerCase()) code,
+    ].join(' · ');
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(22),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -573,64 +590,35 @@ class _DeviceCatalogHero extends StatelessWidget {
         ),
         boxShadow: Px.lift,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      child: Row(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
-            child: Row(
+          _BrandOrPhoneMark(name: brand.isEmpty ? name : brand, logo: logo),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: Px.accentInk.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(17),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    brand.isEmpty ? 'PH' : brand.substring(0, brand.length >= 2 ? 2 : 1).toUpperCase(),
-                    style: TextStyle(color: Px.accentInk, fontWeight: FontWeight.w800),
+                Text(
+                  name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.fraunces(
+                    color: Px.accentInk,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                    height: 1.1,
                   ),
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        style: GoogleFonts.fraunces(
-                          color: Px.accentInk,
-                          fontSize: 29,
-                          fontWeight: FontWeight.w600,
-                          height: 1.05,
-                        ),
-                      ),
-                      const SizedBox(height: 7),
-                      Text(
-                        [
-                          if (brand.isNotEmpty) brand,
-                          if (category != null) category!,
-                          if (modelCode.isNotEmpty) modelCode,
-                        ].join(' · '),
-                        style: TextStyle(color: Px.accentInk.withValues(alpha: 0.86), fontSize: 14),
-                      ),
-                    ],
+                if (caption.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    caption,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: Px.accentInk.withValues(alpha: 0.86), fontSize: 13),
                   ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            color: Px.scrim.withValues(alpha: 0.12),
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
-            child: Row(
-              children: [
-                Expanded(child: _HeroFact(icon: Icons.inventory_2_outlined, value: '$familyCount', label: 'spares')),
-                Container(width: 1, height: 28, color: Px.accentInk.withValues(alpha: 0.22)),
-                Expanded(child: _HeroFact(icon: Icons.link_rounded, value: '$compatibleCount', label: 'models')),
+                ],
               ],
             ),
           ),
@@ -640,57 +628,41 @@ class _DeviceCatalogHero extends StatelessWidget {
   }
 }
 
-class _HeroFact extends StatelessWidget {
-  const _HeroFact({required this.icon, required this.value, required this.label});
+class _BrandOrPhoneMark extends StatelessWidget {
+  const _BrandOrPhoneMark({required this.name, required this.logo});
 
-  final IconData icon;
-  final String value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(icon, size: 17, color: Px.accentInk),
-        const SizedBox(width: 7),
-        Text('$value $label', style: TextStyle(color: Px.accentInk, fontWeight: FontWeight.w700)),
-      ],
-    );
-  }
-}
-
-class _SectionLead extends StatelessWidget {
-  const _SectionLead({required this.title, required this.subtitle});
-
-  final String title;
-  final String subtitle;
+  final String name;
+  final String? logo;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('COMPATIBILITY RESULTS', style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Px.accent)),
-              const SizedBox(height: 3),
-              Text(title, style: GoogleFonts.fraunces(fontSize: 23, fontWeight: FontWeight.w600, color: Px.ink)),
-              const SizedBox(height: 3),
-              Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-            ],
-          ),
-        ),
-      ],
+    final mark = logo;
+    return Container(
+      width: 48,
+      height: 48,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Px.accentInk.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: mark == null
+          ? Icon(Icons.phone_android_rounded, color: Px.accentInk, size: 24)
+          : SvgPicture.string(
+              mark,
+              width: 26,
+              height: 26,
+              fit: BoxFit.contain,
+              colorFilter: ColorFilter.mode(Px.accentInk, BlendMode.srcIn),
+              errorBuilder: (context, error, stackTrace) =>
+                  Icon(Icons.phone_android_rounded, color: Px.accentInk, size: 24),
+              semanticsLabel: name,
+            ),
     );
   }
 }
 
 class _FitmentFamilyCard extends StatelessWidget {
   const _FitmentFamilyCard({
-    required this.index,
     required this.family,
     required this.fit,
     required this.deviceId,
@@ -703,7 +675,6 @@ class _FitmentFamilyCard extends StatelessWidget {
     required this.onDispute,
   });
 
-  final int index;
   final Map<String, dynamic> family;
   final Map<String, dynamic>? fit;
   final String deviceId;
@@ -744,54 +715,29 @@ class _FitmentFamilyCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: Px.accentSubtle,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Px.accentSubtleBorder),
-                  ),
-                  child: Text(
-                    '${index + 1}'.padLeft(2, '0'),
-                    style: TextStyle(color: Px.accentSubtleInk, fontWeight: FontWeight.w800),
-                  ),
+                Text(
+                  '${family['name'] ?? 'Same part'}',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${family['categoryName'] ?? family['categoryCode'] ?? 'Spare'}'.toUpperCase(),
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Px.accent, letterSpacing: .8),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${family['name'] ?? 'Same part'}',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-                      ),
-                      Text(
-                        others.isEmpty ? 'Dedicated to this phone' : 'Shared with ${others.length} other models',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
+                const SizedBox(height: 2),
+                Text(
+                  others.isEmpty
+                      ? 'Dedicated to this phone'
+                      : 'Shared with ${others.length} ${others.length == 1 ? 'model' : 'models'}',
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('COMPATIBLE PHONE MODELS', style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Px.muted)),
-                const SizedBox(height: 4),
                 if (members.isEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
