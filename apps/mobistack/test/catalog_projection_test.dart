@@ -156,6 +156,46 @@ void main() {
     expect(storedRows.firstWhere((row) => row['id'] == 'solo')['shared'], isFalse);
   });
 
+  test('spares that share a phone become one list', () {
+    final merged = mergeOverlappingFamilies([
+      {
+        'id': 'c1',
+        'categoryCode': 'DISPLAY_FOLDER',
+        'name': 'Vivo V40E',
+        'members': [
+          {'id': 't3', 'name': 'T3 Pro'},
+          {'id': 'z9', 'name': 'Z9s'},
+        ],
+      },
+      {
+        'id': 'c2',
+        'categoryCode': 'DISPLAY_FOLDER',
+        'name': 'Vivo V40E [CSL_77d7d71c24894ba39a6df601]',
+        'members': [
+          {'id': 't3', 'name': 'T3 Pro'},
+          {'id': 'y400', 'name': 'Y400 Pro'},
+        ],
+      },
+      {
+        'id': 'bat',
+        'categoryCode': 'BATTERY',
+        'name': 'Battery',
+        'members': [
+          {'id': 't3', 'name': 'T3 Pro'},
+          {'id': 'other', 'name': 'Other'},
+        ],
+      },
+    ]);
+    expect(merged, hasLength(2));
+    final display = merged.firstWhere((row) => row['categoryCode'] == 'DISPLAY_FOLDER');
+    expect(display['name'], 'Vivo V40E');
+    final ids = [
+      for (final member in display['members'] as List) (member as Map)['id'],
+    ];
+    expect(ids, containsAll(['t3', 'z9', 'y400']));
+    expect(display['componentIds'], ['c1', 'c2']);
+  });
+
   test('a graph larger than one database value splits and joins', () {
     final graph = 'x' * (catalogGraphChunkChars + 10);
     final chunks = splitCatalogGraph(graph);

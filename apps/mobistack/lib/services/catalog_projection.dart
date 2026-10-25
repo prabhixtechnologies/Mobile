@@ -368,7 +368,7 @@ class CatalogIndex {
         'members': members,
       });
     }
-    return {'device': deviceView, 'fits': fits, 'families': families};
+    return {'device': deviceView, 'fits': fits, 'families': mergeOverlappingFamilies(families)};
   }
 
   /// Brands whose name contains every word, and phones matched by brand, name, or code.
@@ -452,6 +452,90 @@ bool catalogPhoneSearchHits(
   if (!catalogSearchHits(query, fields)) return false;
   final phone = _catalogCompact(phoneFields.join(' '));
   return tokens.any(phone.contains);
+}
+
+/// Spares that share a phone are one compatibility list. If A fits with B and B fits
+/// with C, the page shows A, B, and C together.
+List<Map<String, dynamic>> mergeOverlappingFamilies(List<Map<String, dynamic>> families) {
+  if (families.length < 2) return families;
+  final parent = [for (var i = 0; i < families.length; i++) i];
+  int find(int index) {
+    while (parent[index] != index) {
+      parent[index] = parent[parent[index]];
+      index = parent[index];
+    }
+    return index;
+  }
+
+  void unite(int left, int right) {
+    final a = find(left);
+    final b = find(right);
+    if (a != b) parent[b] = a;
+  }
+
+  final memberIds = [
+    for (final family in families) _familyMemberIds(family),
+  ];
+  for (var i = 0; i < families.length; i++) {
+    for (var j = i + 1; j < families.length; j++) {
+      final sameCategory = '${families[i]['categoryCode'] ?? ''}'.toUpperCase() ==
+          '${families[j]['categoryCode'] ?? ''}'.toUpperCase();
+      if (sameCategory && memberIds[i].intersection(memberIds[j]).isNotEmpty) unite(i, j);
+    }
+  }
+  final groups = <int, List<Map<String, dynamic>>>{};
+  for (var i = 0; i < families.length; i++) {
+    (groups[find(i)] ??= []).add(families[i]);
+  }
+  return [for (final group in groups.values) _mergeFamilyGroup(group)];
+}
+
+Set<String> _familyMemberIds(Map<String, dynamic> family) {
+  return {
+    for (final member in catalogRows(family['members']))
+      if ('${member['id'] ?? member['deviceId'] ?? ''}'.isNotEmpty) '${member['id'] ?? member['deviceId']}',
+  };
+}
+
+List<String> familyComponentIds(Map<String, dynamic> family) {
+  final listed = family['componentIds'];
+  if (listed is List) {
+    final ids = [for (final id in listed) '$id'].where((id) => id.isNotEmpty).toList();
+    if (ids.isNotEmpty) return ids;
+  }
+  final id = '${family['id'] ?? ''}';
+  return id.isEmpty ? const [] : [id];
+}
+
+Map<String, dynamic> _mergeFamilyGroup(List<Map<String, dynamic>> families) {
+  if (families.length == 1) return families.single;
+  final members = <String, Map<String, dynamic>>{};
+  final componentIds = <String>[];
+  for (final family in families) {
+    for (final id in familyComponentIds(family)) {
+      if (!componentIds.contains(id)) componentIds.add(id);
+    }
+    for (final member in catalogRows(family['members'])) {
+      final id = '${member['id'] ?? member['deviceId'] ?? ''}';
+      if (id.isEmpty) continue;
+      members.putIfAbsent(id, () => member);
+    }
+  }
+  final names = [
+    for (final family in families)
+      if ('${family['name'] ?? ''}'.trim().isNotEmpty) '${family['name']}'.trim(),
+  ]..sort((a, b) {
+      final aMarked = a.contains('[');
+      final bMarked = b.contains('[');
+      if (aMarked != bMarked) return aMarked ? 1 : -1;
+      return a.length.compareTo(b.length);
+    });
+  return {
+    ...families.first,
+    'name': names.isEmpty ? families.first['name'] : names.first,
+    'members': members.values.toList(),
+    'componentIds': componentIds,
+  };
 }
 
 List<Map<String, dynamic>> catalogRows(dynamic data) {

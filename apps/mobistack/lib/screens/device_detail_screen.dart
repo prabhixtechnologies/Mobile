@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../catalog/fitment_library.dart';
+import '../services/catalog_projection.dart';
 import '../state/app_state.dart';
 import '../theme/prabhix_theme.dart';
 import '../widgets/chrome.dart';
@@ -447,15 +448,18 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
     final brand = '${_device?['brandName'] ?? fallback?.brandName ?? ''}';
     final categoryCode = _categoryCode;
     final category = categoryCode == null ? null : categoryByCode(categoryCode);
-    final families = _canonicalFamilyRows(categoryCode == null
+    final families = mergeOverlappingFamilies(_canonicalFamilyRows(categoryCode == null
             ? _families
             : _families.where((group) {
                 final code = '${group['categoryCode'] ?? ''}'.toUpperCase();
                 return code.isEmpty || code == categoryCode.toUpperCase();
               }).toList())
         .where((group) => _listsAnotherPhone(group))
-        .toList();
-    final partIds = families.map((group) => '${group['id'] ?? ''}').where((id) => id.isNotEmpty).toSet();
+        .toList());
+    final partIds = {
+      for (final family in families)
+        for (final id in familyComponentIds(family)) id,
+    };
     final fits = _fits.where((fit) => partIds.contains('${fit['componentId'] ?? ''}')).toList();
     final fitByComponent = <String, Map<String, dynamic>>{
       for (final fit in fits) '${fit['componentId'] ?? ''}': fit,
@@ -535,7 +539,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                           deviceId: widget.deviceId,
                           categoryCode: categoryCode,
                           stock: stock
-                              .where((row) => '${row['componentId'] ?? ''}' == '${family['id'] ?? ''}')
+                              .where((row) => familyComponentIds(family).contains('${row['componentId'] ?? ''}'))
                               .toList(),
                           showInventory: context.watch<AppState>().hasFeature('INVENTORY'),
                           busy: _refreshing,
