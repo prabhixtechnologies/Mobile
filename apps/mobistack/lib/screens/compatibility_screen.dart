@@ -529,12 +529,18 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
                             : state.selectedFitmentGroup!.name)
                     : subtitle,
                 actions: [
-                  if (category == null)
+                  if (category == null) ...[
+                    IconButton(
+                      tooltip: 'Join another catalog',
+                      onPressed: () => context.push('/union/another'),
+                      icon: Icon(Icons.group_add_outlined, color: Px.ink),
+                    ),
                     IconButton(
                       tooltip: 'New group',
                       onPressed: () => _newGroup(context),
                       icon: Icon(Icons.add_rounded, color: Px.ink),
                     ),
+                  ],
                   if (_brand != null)
                     SizedBox(
                       width: 40,

@@ -166,7 +166,7 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
           Text('Waiting to join', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 4),
           Text(
-            'These shops paid with the group code. The catalog opens for them when you admit them.',
+            'These requests were filed without a completed payment. A captured payment joins the catalog on its own.',
             style: TextStyle(color: Px.muted),
           ),
           for (final request in _requests)

@@ -131,14 +131,19 @@ class JoinShopScreen extends StatelessWidget {
 }
 
 class JoinUnionScreen extends StatelessWidget {
-  const JoinUnionScreen({super.key});
+  const JoinUnionScreen({super.key, this.another = false});
+
+  final bool another;
 
   @override
   Widget build(BuildContext context) {
-    return const _CodeJoin(
-      title: 'Join the union',
-      body: 'Enter the fitment group code, then choose the plan that fits your shop.',
+    return _CodeJoin(
+      title: another ? 'Join another catalog' : 'Join the union',
+      body: another
+          ? 'This shop is already in one catalog. Enter the other code and pay. Payment puts the shop in that catalog.'
+          : 'Enter the fitment group code, then choose the plan. Payment puts this shop in that catalog.',
       group: true,
+      another: another,
     );
   }
 }
@@ -259,8 +264,8 @@ class _WaitingScreenState extends State<WaitingScreen> {
     final title = context.watch<AppState>().waitingTitle;
     final body = widget.union
         ? (title == null
-            ? 'A group admin still has to approve this shop before the catalog opens.'
-            : 'A group admin still has to approve $title before the catalog opens.')
+            ? 'This request has no completed payment. Finish payment from Join the union, or cancel it.'
+            : 'Joining $title is still waiting because payment was not completed. Finish payment, or cancel it.')
         : (title == null
             ? 'Payment is done. The shop owner still has to approve.'
             : 'Payment is done for $title. The shop owner still has to approve.');
@@ -299,7 +304,7 @@ class OutsideUnionScreen extends StatelessWidget {
     final name = context.watch<AppState>().waitingTitle ?? 'This shop';
     return _Gate(
       title: name,
-      body: 'You are in this shop. It is not in a fitment group yet, so compatibility stays closed until a group admin adds it.',
+      body: 'You are in this shop. The owner has not joined a catalog yet, so compatibility stays closed.',
       children: [
         TextButton(
           onPressed: () => context.read<AppState>().signOut(),
@@ -311,11 +316,17 @@ class OutsideUnionScreen extends StatelessWidget {
 }
 
 class _CodeJoin extends StatefulWidget {
-  const _CodeJoin({required this.title, required this.body, required this.group});
+  const _CodeJoin({
+    required this.title,
+    required this.body,
+    required this.group,
+    this.another = false,
+  });
 
   final String title;
   final String body;
   final bool group;
+  final bool another;
 
   @override
   State<_CodeJoin> createState() => _CodeJoinState();
@@ -450,7 +461,12 @@ class _CodeJoinState extends State<_CodeJoin> {
               onPressed: ready ? _submit : null,
             ),
             // Join the union is a gate with nothing behind it, so it needs its own way out.
-            if (widget.group)
+            if (widget.another)
+              TextButton(
+                onPressed: _busy ? null : () => context.go('/commons'),
+                child: const Text('Back to catalog'),
+              )
+            else if (widget.group)
               TextButton(
                 onPressed: _busy ? null : () => context.read<AppState>().signOut(),
                 child: const Text('Sign out'),
