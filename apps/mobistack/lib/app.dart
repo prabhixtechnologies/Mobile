@@ -113,6 +113,7 @@ class _MobiStackAppState extends State<MobiStackApp> {
         GoRoute(path: '/shop/waiting', builder: (_, __) => const WaitingScreen(union: false)),
         GoRoute(path: '/shop/outside', builder: (_, __) => const OutsideUnionScreen()),
         GoRoute(path: '/union/join', builder: (_, __) => const JoinUnionScreen()),
+        GoRoute(path: '/union/another', builder: (_, __) => const JoinUnionScreen(another: true)),
         GoRoute(path: '/union/waiting', builder: (_, __) => const WaitingScreen(union: true)),
         GoRoute(
           path: '/journey/retry',
