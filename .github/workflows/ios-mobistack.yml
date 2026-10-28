@@ -1,0 +1,119 @@
+# Unsigned MobiStack iOS test build.
+#
+# GitHub-hosted macOS is free on this public repository. The job does not sign the app:
+# a free Apple ID cannot be used from Actions, and TestFlight needs the paid Apple
+# Developer Program. Download the IPA from the company store and install it with
+# Sideloadly (or AltStore) and a free Apple ID. It opens for 7 days.
+#
+# Runs when MobiStack or a shared package changes on main, and from Actions → Run workflow.
+
+name: MobiStack iOS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/mobistack/**"
+      - "packages/**"
+      - ".github/workflows/ios-mobistack.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: mobistack-ios
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  ipa:
+    name: Build and publish IPA
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Pub get packages
+        working-directory: packages/prabhix_identity
+        run: flutter pub get
+      - name: Pub get api_core
+        working-directory: packages/prabhix_api_core
+        run: flutter pub get
+      - name: Pub get offline
+        working-directory: packages/prabhix_offline
+        run: flutter pub get
+      - name: Pub get client
+        working-directory: packages/prabhix_client
+        run: flutter pub get
+      - name: Pub get theme
+        working-directory: packages/prabhix_theme
+        run: flutter pub get
+      - name: Pub get ui
+        working-directory: packages/prabhix_ui
+        run: flutter pub get
+      - name: Pub get app
+        working-directory: apps/mobistack
+        run: flutter pub get
+
+      - name: Build iOS release without signing
+        working-directory: apps/mobistack
+        env:
+          IDENTITY_ISSUER: https://api.prabhixtechnologies.com
+          API_BASE_URL: https://mobistack.prabhixtechnologies.com/api/v1
+        run: |
+          set -euo pipefail
+          flutter build ios --release --no-codesign \
+            --dart-define=IDENTITY_ISSUER="$IDENTITY_ISSUER" \
+            --dart-define=API_BASE_URL="$API_BASE_URL"
+
+      - name: Pack unsigned IPA
+        id: ipa
+        run: |
+          set -euo pipefail
+          APP="apps/mobistack/build/ios/iphoneos/Runner.app"
+          test -d "$APP"
+          STAGE="$RUNNER_TEMP/ipa-stage"
+          rm -rf "$STAGE"
+          mkdir -p "$STAGE/Payload"
+          cp -R "$APP" "$STAGE/Payload/Runner.app"
+          # IPA is a zip whose top entry is Payload/<App>.app. ditto keeps the symlinks
+          # Flutter puts inside the bundle; zip -y is the fallback if ditto is unavailable.
+          ditto -c -k --keepParent "$STAGE/Payload" "$RUNNER_TEMP/MobiStack.ipa"
+          unzip -l "$RUNNER_TEMP/MobiStack.ipa" | head -n 20
+          test -s "$RUNNER_TEMP/MobiStack.ipa"
+          echo "path=$RUNNER_TEMP/MobiStack.ipa" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: mobistack-ios
+          path: ${{ steps.ipa.outputs.path }}
+          if-no-files-found: error
+
+      - name: Configure AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_APK_ROLE_ARN != '' && vars.AWS_APK_ROLE_ARN || 'arn:aws:iam::029096972251:role/prabhix-github-ecr-push' }}
+          aws-region: ap-south-1
+
+      - name: Upload IPA to S3 store bucket
+        env:
+          IPA_PATH: ${{ steps.ipa.outputs.path }}
+        run: |
+          set -euo pipefail
+          echo "Uploading unsigned IPA from $IPA_PATH"
+          if ! aws s3 cp "$IPA_PATH" "s3://prabhix-apk-downloads/mobistack/ios.ipa" \
+            --content-type application/octet-stream \
+            --cache-control "no-cache, max-age=60"; then
+            echo "::error::S3 PutObject denied for mobistack/ios.ipa. The CI role needs s3:PutObject on prabhix-apk-downloads/mobistack/*."
+            exit 1
+          fi
+          aws s3 cp "$IPA_PATH" "s3://prabhix-apk-downloads/mobistack/latest.ipa" \
+            --content-type application/octet-stream \
+            --cache-control "no-cache, max-age=60"
+          echo "Published → https://store.prabhixtechnologies.com/mobistack/ios.ipa"
