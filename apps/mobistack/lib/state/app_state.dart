@@ -110,8 +110,11 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   bool get canManageBilling =>
       me == null ? false : me!.hasPermission('WORKSPACE_BILLING') || me!.systemAdmin || me!.platformAdmin;
 
-  bool get catalogOnlyMode =>
-      me?.paymentRequired == true || me?.catalogOnly == true;
+  /// Paid Compatibility plan only — not the same as an unpaid / lapsed shop.
+  bool get catalogOnlyMode => me?.catalogOnly == true && me?.paymentRequired != true;
+
+  /// Shop has no live plan; Billing is the home surface until they pay again.
+  bool get unpaidShop => me?.paymentRequired == true;
 
   Future<void> refreshMe() async {
     me = await api.authMe();

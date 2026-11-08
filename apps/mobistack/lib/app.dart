@@ -79,6 +79,19 @@ class _MobiStackAppState extends State<MobiStackApp> with TelemetryGoRouterTrack
               case ShopGate.journeyError:
                 return loc == '/journey/retry' ? null : '/journey/retry';
               case ShopGate.catalog:
+                if (app.unpaidShop) {
+                  if (loc == '/login' ||
+                      loc == '/splash' ||
+                      loc == '/home' ||
+                      loc == '/commons' ||
+                      loc == '/start' ||
+                      loc.startsWith('/shop') ||
+                      loc.startsWith('/union')) {
+                    return '/billing';
+                  }
+                  final open = loc == '/billing' || loc.startsWith('/more');
+                  return open ? null : '/billing';
+                }
                 if (app.catalogOnlyMode) {
                   if (loc == '/login' ||
                       loc == '/splash' ||

@@ -123,7 +123,8 @@ class _BillingScreenState extends State<BillingScreen> {
       await app.refreshMe();
       if (!mounted) return;
       setState(() {
-        _notice = 'Paid ${formatPaise(order.amount)}. ${_payingPlan ?? 'The plan'} is active.';
+        _notice =
+            'Paid ${formatPaise(order.amount)}. ${_payingPlan ?? 'The plan'} is active — paying again extends the end date.';
         _busy = false;
       });
       await _load();
@@ -141,6 +142,7 @@ class _BillingScreenState extends State<BillingScreen> {
     final state = context.watch<AppState>();
     final me = state.me;
     final overview = _overview;
+    final sub = overview?.subscription;
 
     return Atmosphere(
       child: Scaffold(
@@ -189,7 +191,9 @@ class _BillingScreenState extends State<BillingScreen> {
                         if (me?.paymentRequired == true)
                           _Banner(
                             tone: Px.warning,
-                            text: 'This shop has no active plan yet.',
+                            text: sub == null
+                                ? 'This shop has no active plan yet.'
+                                : '${sub.planName ?? sub.planCode ?? 'Plan'} ended ${_formatDay(sub.periodEnd)}. Renew or choose another plan below.',
                           ),
                         if (_error != null)
                           _Banner(tone: Px.danger, text: _error!),
@@ -201,18 +205,18 @@ class _BillingScreenState extends State<BillingScreen> {
                             text:
                                 'Online payment is not switched on yet. Write to Support and we will activate your plan.',
                           ),
-                        if (overview?.subscription != null) ...[
+                        if (sub != null) ...[
                           _SectionTitle('Current plan'),
                           _PlanCard(
-                            title: overview!.subscription!.planName ??
-                                overview.subscription!.planCode ??
-                                'Plan',
+                            title: sub.planName ?? sub.planCode ?? 'Plan',
                             subtitle: [
-                              if (overview.subscription!.status != null)
-                                overview.subscription!.status!,
-                              if (overview.subscription!.periodEnd != null)
-                                'until ${overview.subscription!.periodEnd!.substring(0, overview.subscription!.periodEnd!.length.clamp(0, 10))}',
-                            ].join(' · '),
+                              if (sub.status != null) _statusLabel(sub.status!),
+                              if (sub.periodEnd != null)
+                                sub.status == 'ACTIVE'
+                                    ? 'paid until ${_formatDay(sub.periodEnd)}'
+                                    : 'ended ${_formatDay(sub.periodEnd)}',
+                              'Pay again while active to add another month from that date.',
+                            ].join('\n'),
                             trailing: null,
                           ),
                         ],
@@ -228,21 +232,23 @@ class _BillingScreenState extends State<BillingScreen> {
                         for (final plan in (overview?.plans ?? const <BillingPlan>[]))
                           _PlanCard(
                             title: plan.name,
-                            subtitle:
-                                '${plan.description ?? ''}\n${formatInr(plan.amount)} / ${(plan.interval ?? 'MONTHLY').toLowerCase()}',
+                            subtitle: [
+                              if ((plan.description ?? '').isNotEmpty) plan.description!,
+                              '${formatInr(plan.amount)} / ${(plan.interval ?? 'MONTHLY').toLowerCase()}',
+                              if (_isRecordedPlan(sub, plan.code) && sub?.periodEnd != null)
+                                sub!.status == 'ACTIVE'
+                                    ? 'Verified until ${_formatDay(sub.periodEnd)}'
+                                    : 'Last verified until ${_formatDay(sub.periodEnd)}',
+                            ].join('\n'),
                             trailing: FilledButton(
-                              onPressed: _busy || _isCurrent(me?.planCode, overview, plan.code)
+                              onPressed: _busy
                                   ? null
                                   : () => _startPay(plan.code, plan.name),
                               style: FilledButton.styleFrom(
                                 backgroundColor: Px.accent,
                                 foregroundColor: Px.accentInk,
                               ),
-                              child: Text(
-                                _isCurrent(me?.planCode, overview, plan.code)
-                                    ? 'Current'
-                                    : 'Activate',
-                              ),
+                              child: Text(_actionLabel(sub, plan.code)),
                             ),
                           ),
                         if ((overview?.recentPayments ?? []).isNotEmpty) ...[
@@ -262,8 +268,8 @@ class _BillingScreenState extends State<BillingScreen> {
                               child: CircularProgressIndicator(color: Px.accent),
                             ),
                           ),
-                        // A catalog-only shop has no More tab, so the account lives here.
-                        if (state.catalogOnlyMode) ...[
+                        // Catalog-only and unpaid docks have no Home; keep sign-out reachable here too.
+                        if (state.catalogOnlyMode || state.unpaidShop) ...[
                           _SectionTitle('Account'),
                           _PlanCard(
                             title: me?.displayName ?? 'Signed in',
@@ -282,10 +288,51 @@ class _BillingScreenState extends State<BillingScreen> {
   }
 }
 
-bool _isCurrent(String? mePlan, BillingOverview? overview, String code) {
-  final sub = overview?.subscription;
-  final live = sub != null && (sub.status == null || sub.status == 'ACTIVE');
-  return mePlan == code || (live && sub.planCode == code);
+bool _isRecordedPlan(BillingSubscription? sub, String code) =>
+    sub != null && sub.planCode == code;
+
+String _actionLabel(BillingSubscription? sub, String code) {
+  if (_isRecordedPlan(sub, code)) {
+    return 'Renew';
+  }
+  if (sub?.status == 'ACTIVE') {
+    return 'Switch';
+  }
+  return 'Activate';
+}
+
+String _statusLabel(String status) {
+  switch (status) {
+    case 'ACTIVE':
+      return 'Active';
+    case 'PAST_DUE':
+      return 'Ended';
+    default:
+      return status;
+  }
+}
+
+String _formatDay(String? iso) {
+  if (iso == null || iso.isEmpty) return '—';
+  final parsed = DateTime.tryParse(iso)?.toLocal();
+  if (parsed == null) {
+    return iso.length >= 10 ? iso.substring(0, 10) : iso;
+  }
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  return '${parsed.day} ${months[parsed.month - 1]} ${parsed.year}';
 }
 
 class _SectionTitle extends StatelessWidget {
