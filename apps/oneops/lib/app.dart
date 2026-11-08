@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:prabhix_client/prabhix_client.dart';
+import 'package:prabhix_telemetry/prabhix_telemetry.dart';
 import 'package:provider/provider.dart';
 
 import 'screens/account_screen.dart';
@@ -27,7 +28,7 @@ class OneOpsApp extends StatefulWidget {
   State<OneOpsApp> createState() => _OneOpsAppState();
 }
 
-class _OneOpsAppState extends State<OneOpsApp> {
+class _OneOpsAppState extends State<OneOpsApp> with TelemetryGoRouterTracking {
   late final GoRouter _router;
 
   @override
@@ -37,9 +38,11 @@ class _OneOpsAppState extends State<OneOpsApp> {
     _router = GoRouter(
       initialLocation: '/login',
       refreshListenable: state,
+      observers: [TelemetryNavigatorObserver()],
       redirect: (context, routerState) {
         final app = context.read<AppState>();
         final loc = routerState.matchedLocation;
+        trackGoRouterPath(loc);
         switch (app.phase) {
           case AuthPhase.loading:
             return loc == '/splash' ? null : '/splash';
