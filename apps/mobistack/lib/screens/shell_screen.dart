@@ -37,7 +37,10 @@ int _selectedTab(List<String> tabs, String location) {
   return -1;
 }
 
-/// Primary shop chrome. Unpaid shops see Catalog + Billing; paid shops get Home + Catalog + More.
+/// Primary shop chrome.
+///
+/// Unpaid / lapsed shops land on Billing (not Catalog). A live Compatibility plan
+/// keeps Catalog + Billing. Full shop gets Home + Catalog + More.
 class ShellScreen extends StatelessWidget {
   const ShellScreen({super.key, required this.child});
 
@@ -46,19 +49,28 @@ class ShellScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
+    final unpaid = state.unpaidShop;
     final catalogOnly = state.catalogOnlyMode;
-    final routes = catalogOnly
-        ? const ['/commons', '/billing']
-        : const ['/home', '/commons', '/more'];
-    final labels = catalogOnly
-        ? const ['Catalog', 'Billing']
-        : const ['Home', 'Catalog', 'More'];
-    final icons = catalogOnly
-        ? const [Icons.public_outlined, Icons.credit_card_outlined]
-        : const [Icons.home_outlined, Icons.public_outlined, Icons.more_horiz_outlined];
-    final activeIcons = catalogOnly
-        ? const [Icons.public_rounded, Icons.credit_card_rounded]
-        : const [Icons.home_rounded, Icons.public_rounded, Icons.more_horiz_rounded];
+    final routes = unpaid
+        ? const ['/billing', '/more']
+        : catalogOnly
+            ? const ['/commons', '/billing']
+            : const ['/home', '/commons', '/more'];
+    final labels = unpaid
+        ? const ['Billing', 'More']
+        : catalogOnly
+            ? const ['Catalog', 'Billing']
+            : const ['Home', 'Catalog', 'More'];
+    final icons = unpaid
+        ? const [Icons.credit_card_outlined, Icons.more_horiz_outlined]
+        : catalogOnly
+            ? const [Icons.public_outlined, Icons.credit_card_outlined]
+            : const [Icons.home_outlined, Icons.public_outlined, Icons.more_horiz_outlined];
+    final activeIcons = unpaid
+        ? const [Icons.credit_card_rounded, Icons.more_horiz_rounded]
+        : catalogOnly
+            ? const [Icons.public_rounded, Icons.credit_card_rounded]
+            : const [Icons.home_rounded, Icons.public_rounded, Icons.more_horiz_rounded];
 
     final loc = GoRouterState.of(context).uri.toString();
     final selected = _selectedTab(routes, loc);

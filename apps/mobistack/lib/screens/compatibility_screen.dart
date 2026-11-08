@@ -592,7 +592,7 @@ class _CompatibilityScreenState extends State<CompatibilityScreen> {
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                'No active plan on this shop. Open Billing.',
+                                'No active plan on this shop. Open Billing to renew.',
                                 style: TextStyle(color: Px.warningSubtleInk),
                               ),
                             ),
