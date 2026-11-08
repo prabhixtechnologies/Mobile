@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:prabhix_client/prabhix_client.dart';
+import 'package:prabhix_telemetry/prabhix_telemetry.dart';
 import 'package:provider/provider.dart';
 
 import 'screens/account_screen.dart';
@@ -22,7 +23,7 @@ class MailroomApp extends StatefulWidget {
   State<MailroomApp> createState() => _MailroomAppState();
 }
 
-class _MailroomAppState extends State<MailroomApp> {
+class _MailroomAppState extends State<MailroomApp> with TelemetryGoRouterTracking {
   late final GoRouter _router;
 
   @override
@@ -32,9 +33,11 @@ class _MailroomAppState extends State<MailroomApp> {
     _router = GoRouter(
       initialLocation: '/login',
       refreshListenable: state,
+      observers: [TelemetryNavigatorObserver()],
       redirect: (context, routerState) {
         final app = context.read<AppState>();
         final loc = routerState.matchedLocation;
+        trackGoRouterPath(loc);
         switch (app.phase) {
           case AuthPhase.loading:
             return loc == '/splash' ? null : '/splash';

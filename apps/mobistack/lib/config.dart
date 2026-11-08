@@ -30,4 +30,9 @@ class AppConfig {
       ),
     );
   }
+
+  /// Product analytics ingest lives on the shared oneOps API, not the MobiStack API.
+  String get telemetryApiHostBase => kReleaseMode
+      ? 'https://api.prabhixtechnologies.com'
+      : 'http://10.0.2.2:8080';
 }

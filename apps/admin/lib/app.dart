@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:prabhix_client/prabhix_client.dart';
+import 'package:prabhix_telemetry/prabhix_telemetry.dart';
 import 'package:provider/provider.dart';
 
 import 'screens/account_screen.dart';
@@ -19,7 +20,7 @@ class AdminApp extends StatefulWidget {
   State<AdminApp> createState() => _AdminAppState();
 }
 
-class _AdminAppState extends State<AdminApp> {
+class _AdminAppState extends State<AdminApp> with TelemetryGoRouterTracking {
   late final GoRouter _router;
 
   @override
@@ -29,9 +30,11 @@ class _AdminAppState extends State<AdminApp> {
     _router = GoRouter(
       initialLocation: '/login',
       refreshListenable: state,
+      observers: [TelemetryNavigatorObserver()],
       redirect: (context, routerState) {
         final app = context.read<AppState>();
         final loc = routerState.matchedLocation;
+        trackGoRouterPath(loc);
         switch (app.phase) {
           case AuthPhase.loading:
             return loc == '/splash' ? null : '/splash';

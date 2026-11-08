@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:prabhix_client/prabhix_client.dart';
+import 'package:prabhix_telemetry/prabhix_telemetry.dart';
 import 'package:provider/provider.dart';
 
 import 'screens/barcode_scanner_screen.dart';
@@ -42,7 +43,7 @@ class MobiStackApp extends StatefulWidget {
   State<MobiStackApp> createState() => _MobiStackAppState();
 }
 
-class _MobiStackAppState extends State<MobiStackApp> {
+class _MobiStackAppState extends State<MobiStackApp> with TelemetryGoRouterTracking {
   late final GoRouter _router;
 
   @override
@@ -52,9 +53,11 @@ class _MobiStackAppState extends State<MobiStackApp> {
     _router = GoRouter(
       initialLocation: '/login',
       refreshListenable: state,
+      observers: [TelemetryNavigatorObserver()],
       redirect: (context, routerState) {
         final app = context.read<AppState>();
         final loc = routerState.matchedLocation;
+        trackGoRouterPath(loc);
         switch (app.phase) {
           case AuthPhase.loading:
             return loc == '/splash' ? null : '/splash';
