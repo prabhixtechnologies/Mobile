@@ -9,6 +9,7 @@ import 'screens/compose_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/mailbox_screen.dart';
 import 'screens/org_select_screen.dart';
+import 'screens/productivity_screen.dart';
 import 'screens/queue_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/shell_screen.dart';
@@ -99,6 +100,21 @@ class _MailroomAppState extends State<MailroomApp> with TelemetryGoRouterTrackin
         ),
         GoRoute(path: '/compose', builder: (_, __) => const ComposeScreen()),
         GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
+        GoRoute(
+          path: '/contacts',
+          builder: (_, __) =>
+              const ProductivityScreen(initial: ProductivityTab.contacts),
+        ),
+        GoRoute(
+          path: '/tasks',
+          builder: (_, __) =>
+              const ProductivityScreen(initial: ProductivityTab.tasks),
+        ),
+        GoRoute(
+          path: '/scheduled',
+          builder: (_, __) =>
+              const ProductivityScreen(initial: ProductivityTab.scheduled),
+        ),
         GoRoute(path: '/account', builder: (_, __) => const AccountScreen()),
       ],
     );

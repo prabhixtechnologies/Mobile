@@ -307,6 +307,7 @@ class MailDraft {
     this.subject,
     this.bodyHtml,
     this.attachmentIds = const [],
+    this.scheduledSendAt,
     this.updatedAt,
   });
 
@@ -319,7 +320,11 @@ class MailDraft {
   final String? subject;
   final String? bodyHtml;
   final List<String> attachmentIds;
+  final String? scheduledSendAt;
   final String? updatedAt;
+
+  bool get isScheduled =>
+      scheduledSendAt != null && scheduledSendAt!.trim().isNotEmpty;
 
   String get preview {
     final html = bodyHtml ?? '';
@@ -346,9 +351,60 @@ class MailDraft {
       subject: json['subject']?.toString(),
       bodyHtml: json['bodyHtml']?.toString(),
       attachmentIds: emails(json['attachmentIds']),
+      scheduledSendAt: json['scheduledSendAt']?.toString(),
       updatedAt: json['updatedAt']?.toString(),
     );
   }
+}
+
+class MailContact {
+  MailContact({
+    required this.id,
+    required this.displayName,
+    this.emails = const [],
+  });
+
+  final String id;
+  final String displayName;
+  final List<String> emails;
+
+  factory MailContact.fromJson(Map<String, dynamic> json) {
+    final raw = json['emails'];
+    final emails = raw is List
+        ? raw
+            .whereType<Map>()
+            .map((e) => '${e['address'] ?? ''}')
+            .where((e) => e.isNotEmpty)
+            .toList()
+        : const <String>[];
+    return MailContact(
+      id: '${json['id']}',
+      displayName:
+          '${json['displayName'] ?? (emails.isEmpty ? 'Contact' : emails.first)}',
+      emails: emails,
+    );
+  }
+}
+
+class MailTaskItem {
+  MailTaskItem({
+    required this.id,
+    required this.title,
+    required this.status,
+    this.priority = 'NORMAL',
+  });
+
+  final String id;
+  final String title;
+  final String status;
+  final String priority;
+
+  factory MailTaskItem.fromJson(Map<String, dynamic> json) => MailTaskItem(
+        id: '${json['id']}',
+        title: '${json['title'] ?? 'Task'}',
+        status: '${json['status'] ?? 'OPEN'}',
+        priority: '${json['priority'] ?? 'NORMAL'}',
+      );
 }
 
 class MailAttachment {

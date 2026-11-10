@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../models/mail_models.dart';
@@ -84,6 +85,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   if (_error != null)
                     Text(_error!, style: TextStyle(color: Px.danger)),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Contacts'),
+                    subtitle: const Text('People and addresses'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => context.push('/contacts'),
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Tasks'),
+                    subtitle: const Text('Open follow-up work'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => context.push('/tasks'),
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Scheduled sends'),
+                    subtitle: const Text('Drafts waiting for the server — not Sent yet'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => context.push('/scheduled'),
+                  ),
+                  const SizedBox(height: 12),
                   if (box == null)
                     const Text('No mailbox yet.')
                   else ...[

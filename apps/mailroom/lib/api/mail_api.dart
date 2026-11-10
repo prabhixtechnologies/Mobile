@@ -208,6 +208,7 @@ class MailApi {
   }
 
   Future<MailDraft> saveDraft({
+    String? draftId,
     String? threadId,
     String? mailboxId,
     List<String> to = const [],
@@ -216,10 +217,13 @@ class MailApi {
     String? subject,
     String? bodyHtml,
     List<String> attachmentIds = const [],
+    String? scheduledSendAt,
+    bool clearSchedule = false,
   }) async {
     final res = await api.dio.put<Map<String, dynamic>>(
       MailboxRoutes.drafts,
       data: {
+        if (draftId != null) 'draftId': draftId,
         if (threadId != null) 'threadId': threadId,
         if (mailboxId != null) 'mailboxId': mailboxId,
         'to': to,
@@ -228,9 +232,67 @@ class MailApi {
         if (subject != null) 'subject': subject,
         if (bodyHtml != null) 'bodyHtml': bodyHtml,
         'attachmentIds': attachmentIds,
+        if (scheduledSendAt != null) 'scheduledSendAt': scheduledSendAt,
+        if (clearSchedule) 'clearSchedule': true,
       },
     );
     return MailDraft.fromJson(res.data ?? {});
+  }
+
+  Future<List<MailDraft>> scheduledDrafts() async {
+    final res = await api.dio.get<dynamic>('mailbox/drafts/scheduled');
+    return _list(res.data).map(MailDraft.fromJson).toList();
+  }
+
+  Future<List<MailContact>> contacts({String? q}) async {
+    final res = await api.dio.get<dynamic>(
+      'mailbox/contacts',
+      queryParameters: {
+        if (q != null && q.trim().isNotEmpty) 'q': q.trim(),
+      },
+    );
+    return _list(res.data).map(MailContact.fromJson).toList();
+  }
+
+  Future<List<String>> contactSuggest(String prefix) async {
+    if (prefix.trim().length < 2) return const [];
+    final res = await api.dio.get<dynamic>(
+      'mailbox/contacts/suggest',
+      queryParameters: {'q': prefix.trim()},
+    );
+    return _list(res.data)
+        .map((e) => '${e['address'] ?? ''}')
+        .where((e) => e.isNotEmpty)
+        .toList();
+  }
+
+  Future<List<MailTaskItem>> tasks({String? status}) async {
+    final res = await api.dio.get<dynamic>(
+      'mailbox/tasks',
+      queryParameters: {
+        if (status != null) 'status': status,
+      },
+    );
+    return _list(res.data).map(MailTaskItem.fromJson).toList();
+  }
+
+  Future<Map<String, dynamic>> preferences() async {
+    final res = await api.dio.get<Map<String, dynamic>>('mailbox/preferences');
+    final raw = res.data?['preferencesJson']?.toString() ?? '{}';
+    try {
+      final decoded = raw;
+      // Preferences are a JSON string field; callers parse as needed.
+      return {'preferencesJson': decoded};
+    } catch (_) {
+      return {'preferencesJson': '{}'};
+    }
+  }
+
+  Future<void> savePreferences(String preferencesJson) async {
+    await api.dio.put<void>(
+      'mailbox/preferences',
+      data: {'preferencesJson': preferencesJson},
+    );
   }
 
   Future<void> discardDraft(String draftId) async {

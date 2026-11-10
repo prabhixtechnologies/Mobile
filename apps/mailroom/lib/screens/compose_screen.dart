@@ -26,7 +26,9 @@ class _ComposeScreenState extends State<ComposeScreen> {
   final _body = TextEditingController();
   String? mailboxId;
   String? draftId;
+  String? scheduledSendAt;
   bool sending = false;
+  bool scheduling = false;
   String? error;
   String? saveStatus;
   final List<PendingAttachment> _files = [];
@@ -58,11 +60,16 @@ class _ComposeScreenState extends State<ComposeScreen> {
       setState(() {
         draftId = draft.id;
         mailboxId = draft.mailboxId ?? mailboxId;
+        scheduledSendAt = draft.scheduledSendAt;
         _to.text = draft.to.join(', ');
         _cc.text = draft.cc.join(', ');
         _bcc.text = draft.bcc.join(', ');
         _subject.text = draft.subject ?? '';
         _body.text = draft.preview;
+        if (draft.isScheduled) {
+          saveStatus =
+              'Scheduled · not sent yet · ${draft.scheduledSendAt}';
+        }
       });
     } catch (e) {
       if (mounted) setState(() => error = '$e');
@@ -81,6 +88,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
     if (_subject.text.trim().isEmpty && _body.text.trim().isEmpty) return;
     try {
       final saved = await context.read<AppState>().mail.saveDraft(
+            draftId: draftId,
             mailboxId: id,
             to: _split(_to.text),
             cc: _split(_cc.text),
@@ -92,10 +100,94 @@ class _ComposeScreenState extends State<ComposeScreen> {
       if (!mounted) return;
       setState(() {
         draftId = saved.id;
-        saveStatus = 'Draft saved';
+        scheduledSendAt = saved.scheduledSendAt;
+        saveStatus = saved.isScheduled
+            ? 'Scheduled · not sent yet'
+            : 'Draft saved';
       });
     } catch (_) {
       if (mounted) setState(() => saveStatus = 'Draft not saved');
+    }
+  }
+
+  Future<void> _schedule() async {
+    final id = mailboxId;
+    if (id == null || sending) return;
+    final recipients = _split(_to.text);
+    if (recipients.isEmpty) {
+      setState(() => error = 'Add at least one recipient before scheduling.');
+      return;
+    }
+    final when = await showDatePicker(
+      context: context,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      initialDate: DateTime.now().add(const Duration(hours: 1)),
+    );
+    if (when == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(DateTime.now().add(const Duration(hours: 1))),
+    );
+    if (time == null || !mounted) return;
+    final scheduled = DateTime(when.year, when.month, when.day, time.hour, time.minute);
+    if (!scheduled.isAfter(DateTime.now())) {
+      setState(() => error = 'Pick a future time to schedule this message.');
+      return;
+    }
+    setState(() {
+      scheduling = true;
+      error = null;
+    });
+    try {
+      final saved = await context.read<AppState>().mail.saveDraft(
+            draftId: draftId,
+            mailboxId: id,
+            to: recipients,
+            cc: _split(_cc.text),
+            bcc: _split(_bcc.text),
+            subject: _subject.text.trim(),
+            bodyHtml: _body.text,
+            attachmentIds: _files.map((f) => f.fileId).toList(),
+            scheduledSendAt: scheduled.toUtc().toIso8601String(),
+          );
+      if (!mounted) return;
+      setState(() {
+        draftId = saved.id;
+        scheduledSendAt = saved.scheduledSendAt;
+        saveStatus =
+            'Scheduled · not sent yet · ${scheduled.toLocal()}';
+      });
+    } catch (e) {
+      if (mounted) setState(() => error = '$e');
+    } finally {
+      if (mounted) setState(() => scheduling = false);
+    }
+  }
+
+  Future<void> _cancelSchedule() async {
+    final id = mailboxId;
+    if (id == null) return;
+    try {
+      final saved = await context.read<AppState>().mail.saveDraft(
+            draftId: draftId,
+            mailboxId: id,
+            to: _split(_to.text),
+            cc: _split(_cc.text),
+            bcc: _split(_bcc.text),
+            subject: _subject.text.trim(),
+            bodyHtml: _body.text,
+            attachmentIds: _files.map((f) => f.fileId).toList(),
+            clearSchedule: true,
+          );
+      if (!mounted) return;
+      setState(() {
+        draftId = saved.id;
+        scheduledSendAt = null;
+        saveStatus = 'Schedule cancelled · draft kept';
+      });
+    } catch (e) {
+      if (mounted) setState(() => error = '$e');
     }
   }
 
@@ -190,12 +282,22 @@ class _ComposeScreenState extends State<ComposeScreen> {
                       ),
                     ),
                     TextButton(
-                      onPressed: sending ? null : _send,
+                      onPressed: sending || scheduledSendAt != null ? null : _send,
                       child: Text(
-                        sending ? 'Sending…' : 'Send',
+                        sending ? 'Sending…' : 'Send now',
                         style: TextStyle(
                           color: Px.accent,
                           fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: scheduling ? null : _schedule,
+                      child: Text(
+                        scheduling ? 'Scheduling…' : 'Schedule',
+                        style: TextStyle(
+                          color: Px.inkMuted,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -211,6 +313,23 @@ class _ComposeScreenState extends State<ComposeScreen> {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: Text(error!, style: TextStyle(color: Px.danger)),
+                    ),
+                  if (scheduledSendAt != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Waiting to send. This is still a draft until the server queues it — not Sent yet.',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                          TextButton(
+                            onPressed: _cancelSchedule,
+                            child: const Text('Cancel schedule'),
+                          ),
+                        ],
+                      ),
                     ),
                   if (boxes.isNotEmpty)
                     DropdownButtonFormField<String>(
