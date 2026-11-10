@@ -192,12 +192,13 @@ class _ComposeScreenState extends State<ComposeScreen> {
   }
 
   Future<void> _pickFile() async {
+    final mail = context.read<AppState>().mail;
     final picked = await FilePicker.platform.pickFiles();
     final file = picked?.files.single;
     final path = file?.path;
     if (file == null || path == null) return;
     try {
-      final uploaded = await context.read<AppState>().mail.uploadAttachment(path, file.name);
+      final uploaded = await mail.uploadAttachment(path, file.name);
       if (mounted) setState(() => _files.add(uploaded));
     } catch (e) {
       if (mounted) setState(() => error = '$e');
@@ -296,7 +297,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
                       child: Text(
                         scheduling ? 'Scheduling…' : 'Schedule',
                         style: TextStyle(
-                          color: Px.inkMuted,
+                          color: Px.muted,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
