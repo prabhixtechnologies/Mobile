@@ -431,6 +431,55 @@ class MailAttachment {
       );
 }
 
+class MailAttachmentLibraryItem {
+  MailAttachmentLibraryItem({
+    required this.attachmentId,
+    required this.filename,
+    this.contentType,
+    this.sizeBytes = 0,
+    this.messageId,
+    this.threadId,
+  });
+
+  final String attachmentId;
+  final String filename;
+  final String? contentType;
+  final int sizeBytes;
+  final String? messageId;
+  final String? threadId;
+
+  factory MailAttachmentLibraryItem.fromJson(Map<String, dynamic> json) =>
+      MailAttachmentLibraryItem(
+        attachmentId: '${json['attachmentId'] ?? json['id'] ?? ''}',
+        filename: '${json['filename'] ?? 'attachment'}',
+        contentType: json['contentType']?.toString(),
+        sizeBytes: _int(json['sizeBytes']),
+        messageId: json['messageId']?.toString(),
+        threadId: json['threadId']?.toString(),
+      );
+}
+
+class MailTemplateItem {
+  MailTemplateItem({
+    required this.id,
+    required this.name,
+    this.subject,
+    this.bodyHtml = '',
+  });
+
+  final String id;
+  final String name;
+  final String? subject;
+  final String bodyHtml;
+
+  factory MailTemplateItem.fromJson(Map<String, dynamic> json) => MailTemplateItem(
+        id: '${json['id']}',
+        name: '${json['name'] ?? 'Template'}',
+        subject: json['subject']?.toString(),
+        bodyHtml: '${json['bodyHtml'] ?? ''}',
+      );
+}
+
 class PendingAttachment {
   PendingAttachment({
     required this.fileId,

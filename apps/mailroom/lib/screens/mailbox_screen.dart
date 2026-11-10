@@ -362,7 +362,7 @@ class _SearchAppBar extends StatelessWidget implements PreferredSizeWidget {
         controller: controller,
         autofocus: true,
         decoration: const InputDecoration(
-          hintText: 'Search conversations',
+          hintText: 'from: to: subject: is:unread has:attachment',
           border: InputBorder.none,
         ),
         onChanged: onChanged,

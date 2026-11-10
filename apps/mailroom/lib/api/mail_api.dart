@@ -276,6 +276,60 @@ class MailApi {
     return _list(res.data).map(MailTaskItem.fromJson).toList();
   }
 
+  Future<void> updateTaskStatus(String taskId, String status) async {
+    await api.dio.patch<void>(
+      'mailbox/tasks/$taskId',
+      data: {'status': status},
+    );
+  }
+
+  Future<List<MailAttachmentLibraryItem>> attachmentLibrary({String? q}) async {
+    final res = await api.dio.get<dynamic>(
+      'mailbox/attachments/library',
+      queryParameters: {
+        if (q != null && q.trim().isNotEmpty) 'q': q.trim(),
+      },
+    );
+    return _list(res.data).map(MailAttachmentLibraryItem.fromJson).toList();
+  }
+
+  Future<List<MailTemplateItem>> personalTemplates() async {
+    final res = await api.dio.get<dynamic>('mailbox/templates/personal');
+    return _list(res.data).map(MailTemplateItem.fromJson).toList();
+  }
+
+  Future<MailTemplateItem> savePersonalTemplate({
+    String? id,
+    required String name,
+    String? subject,
+    required String bodyHtml,
+  }) async {
+    if (id == null) {
+      final res = await api.dio.post<Map<String, dynamic>>(
+        'mailbox/templates/personal',
+        data: {
+          'name': name,
+          if (subject != null) 'subject': subject,
+          'bodyHtml': bodyHtml,
+        },
+      );
+      return MailTemplateItem.fromJson(res.data ?? {});
+    }
+    final res = await api.dio.put<Map<String, dynamic>>(
+      'mailbox/templates/personal/$id',
+      data: {
+        'name': name,
+        if (subject != null) 'subject': subject,
+        'bodyHtml': bodyHtml,
+      },
+    );
+    return MailTemplateItem.fromJson(res.data ?? {});
+  }
+
+  Future<void> deletePersonalTemplate(String id) async {
+    await api.dio.delete<void>('mailbox/templates/personal/$id');
+  }
+
   Future<Map<String, dynamic>> preferences() async {
     final res = await api.dio.get<Map<String, dynamic>>('mailbox/preferences');
     final raw = res.data?['preferencesJson']?.toString() ?? '{}';

@@ -80,11 +80,49 @@ void main() {
     final state = readyState();
     state.aliases = [MailAlias(id: 'a1', address: 'hello@acme.test')];
     state.signature = 'Thanks, Mailer';
-    await tester.pumpWidget(wrap(state, const SettingsScreen()));
-    await tester.pump();
+    final router = GoRouter(
+      initialLocation: '/settings',
+      routes: [
+        GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
+        GoRoute(
+          path: '/contacts',
+          builder: (_, __) => const Scaffold(body: Text('Contacts')),
+        ),
+        GoRoute(
+          path: '/tasks',
+          builder: (_, __) => const Scaffold(body: Text('Tasks')),
+        ),
+        GoRoute(
+          path: '/scheduled',
+          builder: (_, __) => const Scaffold(body: Text('Scheduled')),
+        ),
+        GoRoute(
+          path: '/attachments',
+          builder: (_, __) => const Scaffold(body: Text('Attachments')),
+        ),
+        GoRoute(
+          path: '/templates',
+          builder: (_, __) => const Scaffold(body: Text('Templates')),
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: state,
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
     expect(find.text('Aliases and signature'), findsOneWidget);
     expect(find.text('hello@acme.test'), findsOneWidget);
-    expect(find.text('Save signature'), findsOneWidget);
+    expect(find.text('Attachment library'), findsOneWidget);
+    expect(find.text('Templates'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.widgetWithText(FilledButton, 'Save signature'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.widgetWithText(FilledButton, 'Save signature'), findsOneWidget);
     state.dispose();
   });
 

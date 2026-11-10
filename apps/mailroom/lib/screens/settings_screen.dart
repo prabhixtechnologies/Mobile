@@ -106,6 +106,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () => context.push('/scheduled'),
                   ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Attachment library'),
+                    subtitle: const Text('Files from your mailboxes'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => context.push('/attachments'),
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Templates'),
+                    subtitle: const Text('Personal reply templates'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => context.push('/templates'),
+                  ),
                   const SizedBox(height: 12),
                   if (box == null)
                     const Text('No mailbox yet.')

@@ -115,6 +115,16 @@ class _MailroomAppState extends State<MailroomApp> with TelemetryGoRouterTrackin
           builder: (_, __) =>
               const ProductivityScreen(initial: ProductivityTab.scheduled),
         ),
+        GoRoute(
+          path: '/attachments',
+          builder: (_, __) =>
+              const ProductivityScreen(initial: ProductivityTab.attachments),
+        ),
+        GoRoute(
+          path: '/templates',
+          builder: (_, __) =>
+              const ProductivityScreen(initial: ProductivityTab.templates),
+        ),
         GoRoute(path: '/account', builder: (_, __) => const AccountScreen()),
       ],
     );
