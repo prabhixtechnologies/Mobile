@@ -94,7 +94,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                     _onCode(code);
                   },
                   onDetectError: (_, __) {},
-                  errorBuilder: (context, error, _) => Center(
+                  errorBuilder: (context, error) => Center(
                     child: Container(
                       margin: const EdgeInsets.all(24),
                       padding: const EdgeInsets.all(18),

@@ -13,7 +13,7 @@ class SyncNotifier {
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const ios = DarwinInitializationSettings();
     await _plugin.initialize(
-      const InitializationSettings(android: android, iOS: ios),
+      settings: const InitializationSettings(android: android, iOS: ios),
     );
     final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
@@ -32,12 +32,12 @@ class SyncNotifier {
   Future<void> showPendingOutbox(int count) async {
     if (!_ready || count <= 0) return;
     await _plugin.show(
-      9101,
-      'Waiting for connection',
-      count == 1
+      id: 9101,
+      title: 'Waiting for connection',
+      body: count == 1
           ? '1 change will sync when you are online'
           : '$count changes will sync when you are online',
-      const NotificationDetails(
+      notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'prabhix_sync',
           'Prabhix sync',
@@ -54,13 +54,13 @@ class SyncNotifier {
     if (!_ready) return;
     if (flushed <= 0 && detail == null) return;
     await _plugin.show(
-      9102,
-      'Synced',
-      detail ??
+      id: 9102,
+      title: 'Synced',
+      body: detail ??
           (flushed == 1
               ? '1 queued change sent'
               : '$flushed queued changes sent'),
-      const NotificationDetails(
+      notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'prabhix_sync',
           'Prabhix sync',

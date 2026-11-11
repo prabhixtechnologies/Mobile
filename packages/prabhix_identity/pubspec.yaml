@@ -11,7 +11,9 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_appauth: ^13.0.0
-  flutter_secure_storage: ^11.2.0
+  # 11.x forces win32 ^6 and breaks file_picker/share_plus/package_info_plus peers.
+  # 10.x still migrates EncryptedSharedPreferences; revisit 11 after those catch up.
+  flutter_secure_storage: ^10.0.0
   url_launcher: ^6.3.1
   uuid: ^4.5.1
 
