@@ -424,6 +424,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
         try {
           final json = jsonDecode(data);
           if (json is Map && json['conversationId'] != null) {
+            // The discriminator is `type` in the JSON body. Typing pings arrive every few
+            // seconds while a visitor types and change nothing in the list, so they do not
+            // trigger a refetch. Nothing from the payload (message text) is logged.
+            if (json['type'] == 'typing') return;
             unawaited(refreshChat());
           }
         } catch (_) {
