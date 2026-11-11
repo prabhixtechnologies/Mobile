@@ -9,6 +9,7 @@ class OutboundMessage {
     required this.body,
     required this.note,
     required this.createdAtMs,
+    required this.idempotencyKey,
   });
 
   final String id;
@@ -16,9 +17,13 @@ class OutboundMessage {
   final String body;
   final bool note;
   final int createdAtMs;
+  final String idempotencyKey;
 }
 
 /// Local SQLite queue for offline chat sends; flush when connectivity returns.
+///
+/// Bodies stay on-device only until flushed. Never log [OutboundMessage.body] — the queue exists so
+/// an agent can retry their own draft, not so telemetry can capture customer text.
 class OutboundQueue {
   Database? _db;
   static const _uuid = Uuid();
@@ -28,7 +33,7 @@ class OutboundQueue {
     final path = p.join(await getDatabasesPath(), 'prabhix_operator.db');
     _db = await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE outbound_messages (
@@ -36,9 +41,17 @@ class OutboundQueue {
             conversation_id TEXT NOT NULL,
             body TEXT NOT NULL,
             note INTEGER NOT NULL,
-            created_at INTEGER NOT NULL
+            created_at INTEGER NOT NULL,
+            idempotency_key TEXT NOT NULL
           )
         ''');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute(
+            "ALTER TABLE outbound_messages ADD COLUMN idempotency_key TEXT NOT NULL DEFAULT ''",
+          );
+        }
       },
     );
     return _db!;
@@ -48,6 +61,7 @@ class OutboundQueue {
     required String conversationId,
     required String body,
     bool note = false,
+    String? idempotencyKey,
   }) async {
     final db = await _open();
     final id = _uuid.v4();
@@ -57,6 +71,7 @@ class OutboundQueue {
       'body': body,
       'note': note ? 1 : 0,
       'created_at': DateTime.now().millisecondsSinceEpoch,
+      'idempotency_key': idempotencyKey ?? _uuid.v4(),
     });
     return id;
   }
@@ -72,6 +87,7 @@ class OutboundQueue {
             body: '${r['body']}',
             note: (r['note'] as int? ?? 0) == 1,
             createdAtMs: r['created_at'] as int? ?? 0,
+            idempotencyKey: '${r['idempotency_key'] ?? r['id']}',
           ),
         )
         .toList();
@@ -79,8 +95,8 @@ class OutboundQueue {
 
   Future<int> pendingCount() async {
     final db = await _open();
-    final result = await db.rawQuery('SELECT COUNT(*) AS n FROM outbound_messages');
-    return (result.first['n'] as int?) ?? 0;
+    final result = await db.rawQuery('SELECT COUNT(*) AS c FROM outbound_messages');
+    return (result.first['c'] as int?) ?? 0;
   }
 
   Future<void> remove(String id) async {

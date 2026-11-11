@@ -7,6 +7,7 @@ import 'package:prabhix_api_core/prabhix_api_core.dart';
 import 'package:prabhix_client/prabhix_client.dart';
 import 'package:prabhix_identity/prabhix_identity.dart';
 import 'package:prabhix_offline/prabhix_offline.dart';
+import 'package:uuid/uuid.dart';
 
 import '../api/chat_api.dart';
 import '../api/inbox_api.dart';
@@ -241,10 +242,21 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     required String body,
     bool note = false,
   }) async {
+    final idempotencyKey = const Uuid().v4();
     try {
-      await chat.sendMessage(conversationId, body, note: note);
+      await chat.sendMessage(
+        conversationId,
+        body,
+        note: note,
+        idempotencyKey: idempotencyKey,
+      );
     } catch (_) {
-      await outbound.enqueue(conversationId: conversationId, body: body, note: note);
+      await outbound.enqueue(
+        conversationId: conversationId,
+        body: body,
+        note: note,
+        idempotencyKey: idempotencyKey,
+      );
       pendingOutbound = await outbound.pendingCount();
       await syncNotifier.showPendingOutbox(pendingOutbound);
       notifyListeners();
@@ -258,7 +270,12 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     var flushed = 0;
     for (final item in items) {
       try {
-        await chat.sendMessage(item.conversationId, item.body, note: item.note);
+        await chat.sendMessage(
+          item.conversationId,
+          item.body,
+          note: item.note,
+          idempotencyKey: item.idempotencyKey,
+        );
         await outbound.remove(item.id);
         flushed++;
       } catch (_) {

@@ -1,4 +1,6 @@
+import 'package:dio/dio.dart';
 import 'package:prabhix_api_core/prabhix_api_core.dart';
+import 'package:uuid/uuid.dart';
 
 import '../models/chat_models.dart';
 
@@ -6,6 +8,7 @@ class ChatApi {
   ChatApi(this.api);
 
   final ApiClient api;
+  static const _uuid = Uuid();
 
   Future<List<ConversationSummary>> conversations({String queue = 'mine'}) async {
     final res = await api.dio.get<dynamic>(
@@ -16,13 +19,19 @@ class ChatApi {
   }
 
   Future<Map<String, dynamic>> conversation(String id) async {
-    final res = await api.dio.get<Map<String, dynamic>>('chat/conversations/$id');
+    final res = await api.dio.get<Map<String, dynamic>>(
+      'chat/conversations',
+      queryParameters: {'id': id},
+    );
     return res.data ?? {};
   }
 
   Future<List<ChatMessage>> messages(String id) async {
     try {
-      final res = await api.dio.get<dynamic>('chat/conversations/$id/messages');
+      final res = await api.dio.get<dynamic>(
+        'chat/conversations/messages',
+        queryParameters: {'id': id},
+      );
       return _list(res.data).map(ChatMessage.fromJson).toList();
     } catch (_) {
       final detail = await conversation(id);
@@ -34,19 +43,39 @@ class ChatApi {
     }
   }
 
-  Future<void> sendMessage(String id, String body, {bool note = false}) async {
+  Future<void> sendMessage(
+    String id,
+    String body, {
+    bool note = false,
+    String? idempotencyKey,
+  }) async {
+    final key = idempotencyKey ?? _uuid.v4();
     await api.dio.post<void>(
-      'chat/conversations/$id/messages',
-      queryParameters: {'note': note},
+      'chat/conversations/messages',
+      queryParameters: {'id': id, 'note': note},
       data: {'body': body, if (note) 'internal': true},
+      options: Options(headers: {'Idempotency-Key': key}),
     );
   }
 
   Future<void> assign(String id, String agentId) async {
     await api.dio.post<void>(
-      'chat/conversations/$id/assign',
+      'chat/conversations/assign',
+      queryParameters: {'id': id},
       data: {'agentId': agentId},
     );
+  }
+
+  Future<void> markRead(String id) async {
+    await api.dio.post<void>(
+      'chat/conversations/read',
+      queryParameters: {'id': id},
+      data: {},
+    );
+  }
+
+  Future<void> heartbeat() async {
+    await api.dio.post<void>('chat/presence/heartbeat', data: {});
   }
 
   Future<List<CannedReply>> cannedReplies() async {
@@ -56,7 +85,8 @@ class ChatApi {
 
   Future<String> aiSuggest(String conversationId) async {
     final res = await api.dio.post<Map<String, dynamic>>(
-      'chat/conversations/$conversationId/ai/suggest',
+      'chat/conversations/ai/reply/suggest',
+      queryParameters: {'id': conversationId},
       data: {},
     );
     return '${res.data?['suggestion'] ?? res.data?['text'] ?? res.data?['body'] ?? ''}';
@@ -64,7 +94,8 @@ class ChatApi {
 
   Future<String> aiRewrite(String conversationId, String draft, {String mode = 'improve'}) async {
     final res = await api.dio.post<Map<String, dynamic>>(
-      'chat/conversations/$conversationId/ai/rewrite',
+      'chat/conversations/ai/rewrite',
+      queryParameters: {'id': conversationId},
       data: {'draft': draft, 'mode': mode},
     );
     return '${res.data?['text'] ?? res.data?['body'] ?? res.data?['rewrite'] ?? draft}';
