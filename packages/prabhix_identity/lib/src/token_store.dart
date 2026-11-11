@@ -8,7 +8,9 @@ class TokenStore {
   TokenStore({FlutterSecureStorage? storage})
       : _storage = storage ??
             const FlutterSecureStorage(
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
+              // v11 dropped EncryptedSharedPreferences; defaults use AES-GCM.
+              // migrateWithBackup reduces wipe risk when cipher algorithms change.
+              aOptions: AndroidOptions(migrateWithBackup: true),
             );
 
   final FlutterSecureStorage _storage;

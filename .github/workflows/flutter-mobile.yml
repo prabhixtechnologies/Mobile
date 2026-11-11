@@ -31,7 +31,7 @@ jobs:
       - name: Set up Node 22
         uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version: "26"
 
       # Beside the checkout, not inside it: the generator resolves its targets relative to the
       # directory holding web-kit, which on a runner is work/Mobile/ — already containing this
