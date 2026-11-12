@@ -31,9 +31,9 @@ class DashboardScreen extends StatelessWidget {
                 children: [
                   const Expanded(child: BrandMark(compact: true)),
                   IconButton(
-                    tooltip: 'Account',
-                    onPressed: () => context.push('/account'),
-                    icon: const Icon(Icons.manage_accounts_rounded),
+                    tooltip: 'Settings',
+                    onPressed: () => context.push('/settings'),
+                    icon: const Icon(Icons.settings_outlined),
                   ),
                   IconButton(
                     tooltip: 'Refresh',
@@ -79,8 +79,8 @@ class DashboardScreen extends StatelessWidget {
                     onPressed: () => context.push('/notifications'),
                   ),
                   ActionChip(
-                    label: const Text('Account'),
-                    onPressed: () => context.push('/account'),
+                    label: const Text('Settings'),
+                    onPressed: () => context.push('/settings'),
                   ),
                 ],
               ),

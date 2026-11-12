@@ -15,6 +15,7 @@ import 'screens/members_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/orders_screen.dart';
 import 'screens/org_select_screen.dart';
+import 'screens/settings_hub_screen.dart';
 import 'screens/shell_screen.dart';
 import 'screens/visitor_detail_screen.dart';
 import 'screens/visitors_screen.dart';
@@ -113,6 +114,7 @@ class _OneOpsAppState extends State<OneOpsApp> with TelemetryGoRouterTracking {
         GoRoute(path: '/orders', builder: (_, __) => const OrdersScreen()),
         GoRoute(path: '/members', builder: (_, __) => const MembersScreen()),
         GoRoute(path: '/notifications', builder: (_, __) => const NotificationsScreen()),
+        GoRoute(path: '/settings', builder: (_, __) => const SettingsHubScreen()),
         GoRoute(path: '/account', builder: (_, __) => const AccountScreen()),
       ],
     );

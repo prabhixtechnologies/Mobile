@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../state/app_state.dart';
@@ -11,7 +12,15 @@ class AccountScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Account')),
+      appBar: AppBar(
+        title: const Text('Account'),
+        actions: [
+          TextButton(
+            onPressed: () => context.push('/settings'),
+            child: const Text('Settings'),
+          ),
+        ],
+      ),
       body: Atmosphere(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
