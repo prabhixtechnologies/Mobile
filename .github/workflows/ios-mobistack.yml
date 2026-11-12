@@ -68,6 +68,9 @@ jobs:
           API_BASE_URL: https://mobistack.prabhixtechnologies.com/api/v1
         run: |
           set -euo pipefail
+          # Flutter may leave Pods out of sync with Podfile.lock after pub get; reinstall
+          # before xcodebuild so the sandbox matches the lockfile.
+          (cd ios && pod install --repo-update)
           flutter build ios --release --no-codesign \
             --dart-define=IDENTITY_ISSUER="$IDENTITY_ISSUER" \
             --dart-define=API_BASE_URL="$API_BASE_URL"
