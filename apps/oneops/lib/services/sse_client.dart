@@ -14,6 +14,7 @@ class ChatSseClient {
     required this.orgHeaderName,
     required this.deviceHeaderName,
     required this.deviceHeader,
+    this.orgHeaderOverride,
   });
 
   final String streamUrl;
@@ -21,6 +22,8 @@ class ChatSseClient {
   final String orgHeaderName;
   final String deviceHeaderName;
   final String deviceHeader;
+  /// When set (staff view-as), sent instead of the session membership org.
+  final String? orgHeaderOverride;
 
   http.Client? _client;
   StreamSubscription<String>? _sub;
@@ -46,13 +49,17 @@ class ChatSseClient {
     await stop(permanent: false);
     final token = await identity.refreshIfNeeded();
     final session = await identity.tokenStore.session();
+    final override = orgHeaderOverride?.trim();
+    final orgId = (override != null && override.isNotEmpty)
+        ? override
+        : session?.organizationId;
     final headers = <String, String>{
       'Accept': 'text/event-stream',
       'Cache-Control': 'no-cache',
       if (token != null) 'Authorization': 'Bearer $token',
       deviceHeaderName: await identity.tokenStore.deviceId(),
       'X-Prabhix-Device-Label': deviceHeader,
-      if (session?.organizationId != null) orgHeaderName: session!.organizationId!,
+      if (orgId != null && orgId.isNotEmpty) orgHeaderName: orgId,
     };
     _client = http.Client();
     final request = http.Request('GET', Uri.parse(streamUrl))..headers.addAll(headers);

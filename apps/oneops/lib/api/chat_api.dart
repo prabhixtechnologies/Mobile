@@ -74,6 +74,25 @@ class ChatApi {
     );
   }
 
+  /// Continue the chat in the helpdesk mailbox (metadata-only by default).
+  ///
+  /// Returns a map with at least `threadId` (and usually `mailboxId`, `conversationStatus`,
+  /// `conversationId`).
+  Future<Map<String, dynamic>> handoffEmail(
+    String id, {
+    bool includeMessages = false,
+  }) async {
+    final res = await api.dio.post<Map<String, dynamic>>(
+      'chat/conversations/handoff-email',
+      queryParameters: {
+        'id': id,
+        'includeMessages': includeMessages,
+      },
+      data: {},
+    );
+    return res.data ?? {};
+  }
+
   Future<void> heartbeat() async {
     await api.dio.post<void>('chat/presence/heartbeat', data: {});
   }

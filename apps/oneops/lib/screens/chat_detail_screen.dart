@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../models/chat_models.dart';
@@ -19,8 +20,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   List<ChatMessage> messages = const [];
   List<CannedReply> canned = const [];
   String title = 'Chat';
+  String? visitorEmail;
+  String? conversationStatus;
   bool loading = true;
   bool sending = false;
+  bool handingOff = false;
   String? error;
   String? queuedHint;
 
@@ -47,12 +51,42 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       title = detail['subject']?.toString() ??
           detail['visitorName']?.toString() ??
           'Chat';
+      visitorEmail = detail['visitorEmail']?.toString();
+      if (visitorEmail != null && visitorEmail!.trim().isEmpty) {
+        visitorEmail = null;
+      }
+      conversationStatus = detail['status']?.toString();
       messages = await chat.messages(widget.conversationId);
       canned = await chat.cannedReplies();
     } catch (e) {
       error = '$e';
     } finally {
       if (mounted) setState(() => loading = false);
+    }
+  }
+
+  Future<void> _continueInEmail() async {
+    if (visitorEmail == null || handingOff) return;
+    setState(() {
+      handingOff = true;
+      error = null;
+    });
+    try {
+      final result = await context.read<AppState>().chat.handoffEmail(widget.conversationId);
+      final threadId = result['threadId']?.toString();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Continued in email. Conversation resolved.')),
+      );
+      if (threadId != null && threadId.isNotEmpty) {
+        context.push('/inbox/$threadId');
+      } else {
+        await _load();
+      }
+    } catch (e) {
+      if (mounted) setState(() => error = '$e');
+    } finally {
+      if (mounted) setState(() => handingOff = false);
     }
   }
 
@@ -160,6 +194,33 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   Padding(
                     padding: const EdgeInsets.all(8),
                     child: Text(queuedHint!),
+                  ),
+                if (visitorEmail != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: OutlinedButton.icon(
+                        onPressed: handingOff ||
+                                conversationStatus == 'CLOSED' ||
+                                conversationStatus == 'EXPIRED'
+                            ? null
+                            : _continueInEmail,
+                        icon: Icon(
+                          Icons.mail_outline,
+                          size: 16,
+                          color: handingOff ? Px.muted : Px.accent,
+                        ),
+                        label: Text(
+                          handingOff ? 'Continuing…' : 'Continue in email',
+                          style: TextStyle(color: handingOff ? Px.muted : Px.accent),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Px.accent,
+                          side: BorderSide(color: Px.lineStrong),
+                        ),
+                      ),
+                    ),
                   ),
                 if (canned.isNotEmpty)
                   SizedBox(

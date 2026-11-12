@@ -34,6 +34,29 @@ class AccountScreen extends StatelessWidget {
               icon: Icons.open_in_new_rounded,
               onPressed: state.busy ? null : () => state.openAccount(),
             ),
+            if (state.viewingOrgId != null) ...[
+              const SizedBox(height: 24),
+              Text(
+                'Viewing as support',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'API calls send X-Prabhix-Org for ${state.viewingOrgId}. '
+                'The server still decides whether you may access that organization.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: state.busy
+                    ? null
+                    : () {
+                        state.clearViewingOrg();
+                        state.refreshHome();
+                      },
+                child: const Text('Stop viewing as support'),
+              ),
+            ],
           ],
         ),
       ),

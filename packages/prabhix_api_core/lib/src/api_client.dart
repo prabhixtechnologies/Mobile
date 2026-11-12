@@ -36,7 +36,11 @@ class ApiClient {
             final isAdminPath = options.path.contains('admin/') ||
                 options.path.startsWith('event-logs');
             final session = await identity.tokenStore.session();
-            final org = session?.organizationId;
+            // Staff view-as (support handoff) wins over the session membership pin when set.
+            final overrideOrg = orgHeaderOverride;
+            final org = (overrideOrg != null && overrideOrg.isNotEmpty)
+                ? overrideOrg
+                : session?.organizationId;
             if (!isAdminPath && org != null && org.isNotEmpty) {
               options.headers[config.orgHeaderName] = org;
             } else {
@@ -158,6 +162,10 @@ class ApiClient {
 
   /// Selected fitment group. Sent on every request so catalog reads stay in that group.
   String? fitmentGroupId;
+
+  /// Optional support view-as org id. When set, sent as [ProductConfig.orgHeaderName]
+  /// (`X-Prabhix-Org`) instead of the session membership org. The server still gates access.
+  String? orgHeaderOverride;
 
   Dio get dio => _dio;
 

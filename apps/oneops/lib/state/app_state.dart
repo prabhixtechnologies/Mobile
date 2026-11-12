@@ -18,6 +18,7 @@ import '../models/inbox_models.dart';
 import '../services/outbound_queue.dart';
 import '../services/push_registration.dart';
 import '../services/sse_client.dart';
+import '../support_access.dart';
 
 enum AuthPhase { loading, signedOut, needsOrg, ready }
 
@@ -139,6 +140,8 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     error = null;
     notifyListeners();
     try {
+      // Membership switch clears any prior staff view-as pin.
+      clearViewingOrg();
       await api.selectOrganization(org.id);
       phase = AuthPhase.ready;
       await _onAuthenticated();
@@ -149,6 +152,25 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       notifyListeners();
     }
   }
+
+  /// Staff handoff: pin [organizationId] for `X-Prabhix-Org` without changing membership.
+  void setViewingOrg(String organizationId) {
+    SupportAccess.setViewingOrg(organizationId);
+    SupportAccess.syncToApi(api);
+    notifyListeners();
+    if (phase == AuthPhase.ready) {
+      unawaited(_startSse());
+      unawaited(refreshHome());
+    }
+  }
+
+  void clearViewingOrg() {
+    SupportAccess.clear();
+    SupportAccess.syncToApi(api);
+    notifyListeners();
+  }
+
+  String? get viewingOrgId => SupportAccess.viewAsOrgId;
 
   Future<void> refreshDashboard() async {
     try {
@@ -400,6 +422,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       await api.platformLogout();
       await identity.signOut();
     } finally {
+      clearViewingOrg();
       me = null;
       conversations = const [];
       visitors = const [];
@@ -434,6 +457,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       orgHeaderName: config.product.orgHeaderName,
       deviceHeaderName: config.product.deviceHeaderName,
       deviceHeader: config.product.deviceHeader,
+      orgHeaderOverride: SupportAccess.viewAsOrgId,
     );
     unawaited(
       _sse!.start((event, data) {
@@ -465,8 +489,15 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void _handleUri(Uri uri) {
+    final viewAs = SupportAccess.parseViewAsOrgId(uri);
+    if (viewAs != null) {
+      setViewingOrg(viewAs);
+    }
     final id = parseOneOpsChatDeepLink(uri);
-    if (id == null) return;
+    if (id == null) {
+      if (viewAs != null) notifyListeners();
+      return;
+    }
     pendingDeepLinkChatId = id;
     notifyListeners();
   }
