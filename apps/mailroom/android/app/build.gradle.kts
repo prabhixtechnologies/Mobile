@@ -21,7 +21,7 @@ if (playKeystorePropertiesFile != null) {
 
 android {
     namespace = "com.prabhix.mailroom"
-    compileSdk = 36
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

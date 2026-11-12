@@ -21,7 +21,7 @@ if (playKeystorePropertiesFile != null) {
 
 android {
     namespace = "app.prabhix.fixflow"
-    compileSdk = 36
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     // Bytecode language level for the APK (Android ART).

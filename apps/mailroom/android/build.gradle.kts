@@ -19,7 +19,7 @@ subprojects {
 // and checkAarMetadata fails the build. Registered before evaluationDependsOn evaluates :app.
 subprojects {
     afterEvaluate {
-        extensions.findByType(com.android.build.api.dsl.LibraryExtension::class.java)?.compileSdk = 36
+        extensions.findByType(com.android.build.api.dsl.LibraryExtension::class.java)?.compileSdk = 37
     }
 }
 subprojects {
